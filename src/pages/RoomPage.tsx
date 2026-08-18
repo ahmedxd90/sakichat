@@ -49,6 +49,7 @@ import RoomInfoSheet from "../components/room/RoomInfoSheet";
 import RoomSocialBar from "../components/room/RoomSocialBar";
 import RoomMusicPlayer, { useRoomMusicGlobal, stopGlobalMusic } from "../components/room/RoomMusicPlayer";
 import RoomMusicIcon from "../components/room/RoomMusicIcon";
+import KaraokeQueueSheet from "../components/room/KaraokeQueueSheet";
 import RoomBombSheet from "../components/room/RoomBombSheet";
 import BombExplosionOverlay from "../components/room/BombExplosionOverlay";
 import HardwareBackExitSheet from "../components/room/HardwareBackExitSheet";
@@ -234,6 +235,7 @@ function RoomPageInner({ roomId, onBack, onBackgroundLeave, onViewProfile, onMes
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showSocial, setShowSocial] = useState(false);
   const [showMusic, setShowMusic] = useState(false);
+  const [showKaraokeQueue, setShowKaraokeQueue] = useState(false);
   const [showHardwareBackSheet, setShowHardwareBackSheet] = useState(false);
   const [showBomb, setShowBomb] = useState(false);
   const [showLuckyBag, setShowLuckyBag] = useState(false);
@@ -1050,6 +1052,27 @@ function RoomPageInner({ roomId, onBack, onBackgroundLeave, onViewProfile, onMes
           onShowSettings={() => setShowSettings(true)}
           onShowMusic={() => setShowMusic(true)}
         />
+
+        {isKaraoke && (
+          <div className="flex flex-shrink-0 items-center justify-between gap-2 border-b border-fuchsia-300/15 bg-[#24063d]/70 px-3 py-2">
+            <div className="flex min-w-0 items-center gap-2 text-fuchsia-100">
+              <span className="flex h-7 w-7 items-center justify-center rounded-xl bg-fuchsia-500/25 text-base">♫</span>
+              <div className="min-w-0"><p className="text-xs font-black">Karaoke</p><p className="truncate text-[10px] text-fuchsia-200/60">قائمة الأغاني والمغني الرئيسي</p></div>
+            </div>
+            <button type="button" onClick={() => setShowKaraokeQueue(true)} className="rounded-xl bg-fuchsia-500 px-3 py-2 text-[11px] font-black text-white shadow-[0_0_18px_rgba(217,70,239,.35)] active:scale-95">الأغاني والانتظار</button>
+          </div>
+        )}
+
+        {showKaraokeQueue && isKaraoke && (
+          <KaraokeQueueSheet
+            roomId={roomId}
+            isOwner={isOwner}
+            isAdmin={isAdmin}
+            myProfile={myProfile}
+            members={members ?? []}
+            onClose={() => setShowKaraokeQueue(false)}
+          />
+        )}
 
         {/* Zego status is intentionally hidden in the production Android UI; errors remain visible below. */}
         {zegoTestEnabled && !Capacitor.isNativePlatform() && (

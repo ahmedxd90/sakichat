@@ -351,6 +351,20 @@ const roomTables = {
   })
     .index("by_room", ["roomId"])
     .index("by_room_and_uploader", ["roomId", "uploaderId"]),
+  karaokeQueue: defineTable({
+    roomId: v.id("rooms"),
+    trackId: v.id("roomMusic"),
+    singerId: v.id("users"),
+    singerName: v.optional(v.string()),
+    status: v.union(v.literal("queued"), v.literal("singing"), v.literal("done"), v.literal("skipped")),
+    position: v.number(),
+    addedAt: v.number(),
+    startedAt: v.optional(v.number()),
+    finishedAt: v.optional(v.number()),
+  })
+    .index("by_room", ["roomId"])
+    .index("by_room_and_status", ["roomId", "status"])
+    .index("by_room_and_singer", ["roomId", "singerId"]),
   roomEmojis: defineTable({
     roomId: v.optional(v.id("rooms")),
     uploaderId: v.optional(v.id("users")),
