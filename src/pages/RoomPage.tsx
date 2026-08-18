@@ -204,7 +204,6 @@ function RoomPageInner({ roomId, onBack, onBackgroundLeave, onViewProfile, onMes
   const sendMessage = useMutation(api.messages.sendMessage);
   const takeSeat = useMutation(api.rooms.takeSeat);
   const leaveSeat = useMutation(api.rooms.leaveSeat);
-  const updateMuteStatus = useMutation(api.rooms.updateMuteStatus);
   const kickMember = useMutation(api.rooms.kickMember);
   const banMember = useMutation(api.rooms.banMember);
   const muteMember = useMutation(api.rooms.muteMember);
@@ -431,9 +430,8 @@ function RoomPageInner({ roomId, onBack, onBackgroundLeave, onViewProfile, onMes
   }, !isSubPageOpen);
 
   // ── EFFECTS ──
-  useEffect(() => {
-    if (myProfile?.userId) updateMuteStatus({ roomId, isMuted }).catch(() => {});
-  }, [isMuted, myProfile?.userId]);
+  // Local microphone toggles must never overwrite the room's administrative mute.
+  // Administrative mute is changed only through the owner/admin action sheet.
 
   useEffect(() => {
     let cancelled = false;
@@ -715,6 +713,14 @@ function RoomPageInner({ roomId, onBack, onBackgroundLeave, onViewProfile, onMes
       if (msg.includes("MUTED_FROM_SEATS")) showMuteAlert((myMember as any)?.mutedByName ?? "مشرف");
       else toast.error(cleanErrorMessage(e));
     }
+  };
+
+  const handleToggleMute = async () => {
+    if (myMember?.isMuted) {
+      showMuteAlert((myMember as any).mutedByName ?? "مشرف");
+      return;
+    }
+    await toggleMute();
   };
 
   const handleLeaveSeat = async () => {
@@ -1249,7 +1255,7 @@ function RoomPageInner({ roomId, onBack, onBackgroundLeave, onViewProfile, onMes
           messageText={messageText}
           inputRef={inputRef}
           roomId={roomId}
-          onToggleMute={toggleMute}
+          onToggleMute={handleToggleMute}
           onToggleSpeaker={toggleSpeaker}
           onShowEmojiPicker={() => setShowEmojiPicker(true)}
           onMessageChange={setMessageText}
