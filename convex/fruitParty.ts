@@ -5,15 +5,14 @@ import { getAuthUserId } from "@convex-dev/auth/server";
 import { internal } from "./_generated/api";
 
 export const FRUIT_ITEMS = {
-  watermelon: { label: "بطيخ",    multiplier: 3,  color: "#22c55e" },
-  apple:      { label: "تفاح",    multiplier: 5,  color: "#ef4444" },
-  grape:      { label: "عنب",     multiplier: 5,  color: "#a855f7" },
-  orange:     { label: "برتقال",  multiplier: 5,  color: "#f97316" },
-  strawberry: { label: "فراولة",  multiplier: 8,  color: "#f43f5e" },
-  pineapple:  { label: "أناناس",  multiplier: 10, color: "#eab308" },
-  mango:      { label: "مانجو",   multiplier: 15, color: "#fb923c" },
-  cherry:     { label: "كرز",     multiplier: 25, color: "#e11d48" },
-  coconut:    { label: "جوز هند", multiplier: 45, color: "#a8a29e" },
+  fries:    { label: "بطاطس",  multiplier: 5,  color: "#fbbf24" },
+  hotdog:   { label: "هوت دوغ", multiplier: 5,  color: "#f97316" },
+  burger:   { label: "برجر",   multiplier: 5,  color: "#d97706" },
+  cake:     { label: "كيك",    multiplier: 5,  color: "#f472b6" },
+  pizza:    { label: "بيتزا",  multiplier: 10, color: "#ef4444" },
+  donut:    { label: "دونات",  multiplier: 15, color: "#ec4899" },
+  cupcake:  { label: "كب كيك", multiplier: 25, color: "#a855f7" },
+  popcorn:  { label: "فشار",   multiplier: 45, color: "#f8fafc" },
 };
 
 const VALID_FRUIT_KEYS = new Set(Object.keys(FRUIT_ITEMS));
@@ -168,13 +167,26 @@ export const placeBet = mutation({
       .query("fruitPartyBets")
       .withIndex("by_round_and_user", (q) => q.eq("roundId", args.roundId).eq("userId", userId))
       .collect();
-
-    // No limits on bets per round
+    const selectedKeys = new Set(myBets.map((bet) => bet.fruitKey));
+    // The player may repeat bets on an already selected item, but may select
+    // no more than six distinct items out of the eight available items.
+    if (!selectedKeys.has(args.fruitKey) && selectedKeys.size >= 6) {
+      throw new Error("يمكنك اختيار 6 أصناف فقط في الجولة");
+    }
 
     // Atomic deduction
     const newBalance = currentBalance - args.amount;
     if (newBalance < 0) throw new Error("رصيدك غير كافٍ");
     await ctx.db.patch(profile._id, { goldCoins: newBalance });
+    await ctx.db.insert("sakiPartyTransactions", {
+      roundId: args.roundId,
+      userId,
+      kind: "bet",
+      fruitKey: args.fruitKey,
+      amount: -args.amount,
+      balanceAfter: newBalance,
+      createdAt: Date.now(),
+    });
 
     await ctx.db.insert("fruitPartyBets", {
       roundId: args.roundId,
@@ -189,6 +201,12 @@ export const placeBet = mutation({
 export const startNewRound = mutation({
   args: {},
   handler: async (ctx) => {
+    const recentFinished = await ctx.db
+      .query("fruitPartyRounds")
+      .withIndex("by_status", (q) => q.eq("status", "finished"))
+      .order("desc")
+      .first();
+    if (recentFinished && Date.now() < recentFinished.endsAt + 10000) return null;
     const existing = await ctx.db
       .query("fruitPartyRounds")
       .withIndex("by_status", (q) => q.eq("status", "betting"))
@@ -249,7 +267,17 @@ export const finishRound = internalMutation({
       if (won && payout > 0) {
         const profile = await ctx.db.query("profiles").withIndex("by_userId", (q) => q.eq("userId", bet.userId)).unique();
         if (profile) {
-          await ctx.db.patch(profile._id, { goldCoins: (profile.goldCoins ?? 0) + payout });
+          const balanceAfter = (profile.goldCoins ?? 0) + payout;
+          await ctx.db.patch(profile._id, { goldCoins: balanceAfter });
+          await ctx.db.insert("sakiPartyTransactions", {
+            roundId: args.roundId,
+            userId: bet.userId,
+            kind: "payout",
+            fruitKey: bet.fruitKey,
+            amount: payout,
+            balanceAfter,
+            createdAt: Date.now(),
+          });
         }
         const lb = await ctx.db.query("fruitPartyLeaderboard").withIndex("by_userId", (q) => q.eq("userId", bet.userId)).unique();
         if (lb) {
@@ -269,8 +297,8 @@ export const finishRound = internalMutation({
 
     await ctx.db.patch(args.roundId, { status: "finished", winnerFruit, totalPool });
 
-    // Start next round after 7 seconds (result shown for 5s + 2s buffer)
-    await ctx.scheduler.runAfter(7000, internal.fruitParty.autoStartRound, {});
+    // Five seconds of spin plus five seconds showing the result, then a new round.
+    await ctx.scheduler.runAfter(10000, internal.fruitParty.autoStartRound, {});
   },
 });
 

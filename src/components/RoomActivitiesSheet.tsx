@@ -1,6 +1,7 @@
 // @ts-nocheck
 import { useState } from "react";
 import GreedyCatGame from "../pages/GreedyCatGame";
+import FruitPartyGame from "../pages/FruitPartyGame";
 
 interface RoomActivitiesSheetProps {
   onClose: () => void;
@@ -8,6 +9,14 @@ interface RoomActivitiesSheetProps {
 
 function GIcon({ id, size = 28 }: { id: string; size?: number }) {
   const s = size;
+  if (id === "saki-party") return (
+    <svg viewBox="0 0 24 24" fill="none" width={s} height={s}>
+      <path d="M4 8.5h16v9.2A2.3 2.3 0 0 1 17.7 20H6.3A2.3 2.3 0 0 1 4 17.7V8.5Z" fill="#7c3aed" stroke="#f3d46f" strokeWidth="1.2"/>
+      <path d="M7 8.5V6.8a5 5 0 0 1 10 0v1.7" stroke="#f3d46f" strokeWidth="1.3" strokeLinecap="round"/>
+      <circle cx="9" cy="13" r="1.4" fill="#fbbf24"/><circle cx="15" cy="13" r="1.4" fill="#fbbf24"/>
+      <path d="M8 16h8" stroke="#fff" strokeWidth="1.2" strokeLinecap="round"/>
+    </svg>
+  );
   if (id === "greedy-cat") return (
     <svg viewBox="0 0 24 24" fill="none" width={s} height={s}>
       <path d="M5 11c0-3.9 3.1-7 7-7s7 3.1 7 7v3c0 2.2-1.8 4-4 4H9c-2.2 0-4-1.8-4-4v-3z" fill="#ff6b35" opacity="0.9"/>
@@ -22,6 +31,15 @@ function GIcon({ id, size = 28 }: { id: string; size?: number }) {
 }
 
 const GAMES = [
+  {
+    id: "saki-party",
+    nameAr: "حفلة ساكي",
+    gradient: "linear-gradient(135deg,#6d28d9,#3b0764)",
+    glow: "rgba(168,85,247,0.55)",
+    border: "rgba(243,212,111,0.65)",
+    badge: "رهان",
+    available: true,
+  },
   {
     id: "greedy-cat",
     nameAr: "القط الشجع",
@@ -191,6 +209,7 @@ function GamePanel({ gameId, onClose }: { gameId: string; onClose: () => void })
             className="flex-1 overflow-hidden relative"
             style={{ isolation: "isolate" }}
           >
+            {gameId === "saki-party" && <FruitPartyGame onBack={onClose} />}
             {gameId === "greedy-cat" && <GreedyCatGame onBack={onClose} />}
           </div>
         </div>

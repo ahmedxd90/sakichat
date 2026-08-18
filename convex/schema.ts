@@ -2230,4 +2230,16 @@ export default defineSchema({
     updatedAt: v.number(),
     updatedBy: v.id("users"),
   }),
+  sakiPartyTransactions: defineTable({
+    roundId: v.id("fruitPartyRounds"),
+    userId: v.id("users"),
+    kind: v.union(v.literal("bet"), v.literal("payout")),
+    fruitKey: v.optional(v.string()),
+    amount: v.number(),
+    balanceAfter: v.number(),
+    createdAt: v.number(),
+  })
+    .index("by_round", ["roundId"])
+    .index("by_user", ["userId"])
+    .index("by_round_and_user", ["roundId", "userId"]),
 });

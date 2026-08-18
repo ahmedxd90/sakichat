@@ -6,24 +6,23 @@ import { toast } from "../lib/toast";
 
 // ── Real fruit emojis ──────────────────────────────────────────────────────────
 const FRUIT_ITEMS = [
-  { key: "watermelon", label: "بطيخ",    multiplier: 3,  color: "#22c55e", emoji: "🍉", glow: "rgba(34,197,94,0.8)" },
-  { key: "apple",      label: "تفاح",    multiplier: 5,  color: "#ef4444", emoji: "🍎", glow: "rgba(239,68,68,0.8)" },
-  { key: "grape",      label: "عنب",     multiplier: 5,  color: "#a855f7", emoji: "🍇", glow: "rgba(168,85,247,0.8)" },
-  { key: "orange",     label: "برتقال",  multiplier: 5,  color: "#f97316", emoji: "🍊", glow: "rgba(249,115,22,0.8)" },
-  { key: "strawberry", label: "فراولة",  multiplier: 8,  color: "#f43f5e", emoji: "🍓", glow: "rgba(244,63,94,0.8)" },
-  { key: "pineapple",  label: "أناناس",  multiplier: 10, color: "#eab308", emoji: "🍍", glow: "rgba(234,179,8,0.8)" },
-  { key: "mango",      label: "مانجو",   multiplier: 15, color: "#fb923c", emoji: "🥭", glow: "rgba(251,146,60,0.8)" },
-  { key: "cherry",     label: "كرز",     multiplier: 25, color: "#e11d48", emoji: "🍒", glow: "rgba(225,29,72,0.8)" },
-  { key: "coconut",    label: "جوز هند", multiplier: 45, color: "#a8a29e", emoji: "🥥", glow: "rgba(168,162,158,0.8)" },
+  { key: "fries",   label: "بطاطس",  multiplier: 5,  color: "#fbbf24", emoji: "🍟", glow: "rgba(251,191,36,0.8)" },
+  { key: "hotdog",  label: "هوت دوغ", multiplier: 5, color: "#f97316", emoji: "🌭", glow: "rgba(249,115,22,0.8)" },
+  { key: "burger",  label: "برجر",   multiplier: 5,  color: "#d97706", emoji: "🍔", glow: "rgba(217,119,6,0.8)" },
+  { key: "cake",    label: "كيك",    multiplier: 5,  color: "#f472b6", emoji: "🍰", glow: "rgba(244,114,182,0.8)" },
+  { key: "pizza",   label: "بيتزا",  multiplier: 10, color: "#ef4444", emoji: "🍕", glow: "rgba(239,68,68,0.8)" },
+  { key: "donut",   label: "دونات",  multiplier: 15, color: "#ec4899", emoji: "🍩", glow: "rgba(236,72,153,0.8)" },
+  { key: "cupcake", label: "كب كيك", multiplier: 25, color: "#a855f7", emoji: "🧁", glow: "rgba(168,85,247,0.8)" },
+  { key: "popcorn", label: "فشار",   multiplier: 45, color: "#f8fafc", emoji: "🍿", glow: "rgba(248,250,252,0.8)" },
 ];
 
 const BET_AMOUNTS = [1000, 5000, 10000, 50000, 100000, 500000, 1000000];
 
 // 3×3 grid: 8 fruits + center
 const GRID_KEYS = [
-  "watermelon", "apple",      "grape",
-  "orange",     "__center__", "strawberry",
-  "pineapple",  "mango",      "cherry",
+  "fries", "hotdog", "burger",
+  "cake", "__center__", "pizza",
+  "donut", "cupcake", "popcorn",
 ];
 
 interface Props { onBack: () => void }
@@ -52,6 +51,7 @@ export default function FruitPartyGame({ onBack }: Props) {
   const startNewRound = useMutation(api.fruitParty.startNewRound);
 
   const [selectedAmount, setSelectedAmount] = useState(1000);
+  const [selectedKeys, setSelectedKeys] = useState<string[]>([]);
   const [placing, setPlacing]               = useState(false);
   const [timeLeft, setTimeLeft]             = useState(0);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
@@ -74,7 +74,11 @@ export default function FruitPartyGame({ onBack }: Props) {
   const spinTimerRef   = useRef<any>(null);
   const resultTimerRef = useRef<any>(null);
 
-  useEffect(() => { myBetsRef.current = myBets ?? []; }, [myBets]);
+  useEffect(() => {
+    myBetsRef.current = myBets ?? [];
+    const distinct = [...new Set((myBets ?? []).map((bet: any) => bet.fruitKey))].slice(0, 6);
+    setSelectedKeys((prev) => prev.length ? prev : distinct);
+  }, [myBets]);
 
   // Timer
   useEffect(() => {
@@ -96,6 +100,7 @@ export default function FruitPartyGame({ onBack }: Props) {
       setSpinnerPos(-1);
       setAllFlash(false);
       setShowResultSheet(false);
+      setSelectedKeys([]);
       clearTimeout(spinTimerRef.current);
       clearTimeout(resultTimerRef.current);
     }
@@ -173,7 +178,16 @@ export default function FruitPartyGame({ onBack }: Props) {
 
   const handleBet = async (fruitKey: string) => {
     if (!currentRound || phase !== "betting" || timeLeft === 0 || placing) return;
-    // Rate limit: prevent rapid clicks
+    if (!selectedKeys.includes(fruitKey)) {
+      if (selectedKeys.length >= 6) {
+        toast.error("يمكنك اختيار 6 أصناف فقط في الجولة");
+        return;
+      }
+      setSelectedKeys((prev) => [...prev, fruitKey]);
+      toast.success("تم اختيار الصنف. اضغط مرة أخرى لوضع الرهان");
+      return;
+    }
+    // Rate limit: prevent rapid clicks; repeated bets on the same selected item are allowed.
     setPlacing(true);
     try {
       await placeBetMut({ roundId: currentRound._id, fruitKey, amount: selectedAmount });
@@ -236,8 +250,8 @@ export default function FruitPartyGame({ onBack }: Props) {
         <div className="flex items-center gap-2">
           <span className="text-3xl">🎪</span>
           <div className="text-center">
-            <h1 className="text-white font-black text-base leading-none">حفلة الفواكه</h1>
-            <p className="text-yellow-400/70 text-[10px]">راهن على الفاكهة الفائزة</p>
+            <h1 className="text-white font-black text-base leading-none">حفلة ساكي</h1>
+            <p className="text-yellow-400/70 text-[10px]">اختر 6 أصناف وراهن على الفائز</p>
           </div>
         </div>
 
@@ -332,7 +346,7 @@ export default function FruitPartyGame({ onBack }: Props) {
                         aspectRatio: "1",
                       }}>
                       <span className="text-4xl">🎪</span>
-                      <span className="text-yellow-300 font-black text-[8px] text-center leading-tight mt-0.5 px-1">حفلة الفواكه</span>
+                      <span className="text-yellow-300 font-black text-[8px] text-center leading-tight mt-0.5 px-1">حفلة ساكي</span>
                     </div>
                   );
                 }
@@ -356,73 +370,13 @@ export default function FruitPartyGame({ onBack }: Props) {
                     isBetting={isBetting}
                     placing={placing}
                     onBet={() => handleBet(fruit.key)}
+                    isSelected={selectedKeys.includes(fruit.key)}
                   />
                 );
               })}
             </div>
 
-            {/* Coconut – full-width */}
-            {(() => {
-              const fruit = FRUIT_ITEMS.find(f => f.key === "coconut")!;
-              const isSpinning = spinnerPos === FRUIT_ITEMS.indexOf(fruit);
-              const isWinner   = winnerKey === fruit.key;
-              const isFlash    = allFlash;
-              const myBetAmt   = myBetsMap[fruit.key] ?? 0;
-              const totalBet   = betsSummary?.[fruit.key]?.total ?? 0;
-              return (
-                <button
-                  onClick={() => handleBet(fruit.key)}
-                  disabled={!isBetting || placing}
-                  className="relative w-full mt-2 rounded-2xl flex items-center justify-center gap-3 py-3 transition-all active:scale-95"
-                  style={{
-                    background: isWinner
-                      ? `linear-gradient(135deg,${fruit.color}44,${fruit.color}22)`
-                      : isSpinning || isFlash
-                      ? "rgba(255,255,255,0.25)"
-                      : "rgba(255,255,255,0.07)",
-                    border: isWinner
-                      ? `2px solid ${fruit.color}`
-                      : isSpinning
-                      ? "2px solid #fff"
-                      : isFlash
-                      ? `2px solid ${fruit.color}`
-                      : "2px solid rgba(125,69,186,0.6)",
-                    boxShadow: isWinner
-                      ? `0 0 25px ${fruit.glow}`
-                      : isSpinning
-                      ? "0 0 20px rgba(255,255,255,0.9)"
-                      : isFlash
-                      ? `0 0 15px ${fruit.glow}`
-                      : "none",
-                    transform: isWinner ? "scale(1.03)" : isSpinning ? "scale(1.05)" : "scale(1)",
-                    transition: "all 0.15s ease",
-                  }}>
-                  {myBetAmt > 0 && (
-                    <div className="absolute top-1 right-2 px-1.5 py-0.5 rounded text-[7px] font-black z-10"
-                      style={{ background: "#f85b63", color: "white" }}>
-                      {myBetAmt >= 1000 ? `${(myBetAmt/1000).toFixed(0)}k` : myBetAmt}
-                    </div>
-                  )}
-                  {totalBet > 0 && (
-                    <div className="absolute top-1 left-2 px-1.5 py-0.5 rounded text-[7px] font-black z-10"
-                      style={{ background: "rgba(0,0,0,0.6)", color: "#f3d46f" }}>
-                      {totalBet >= 1000 ? `${(totalBet/1000).toFixed(0)}k` : totalBet}
-                    </div>
-                  )}
-                  <span className="text-4xl" style={{ filter: isWinner ? `drop-shadow(0 0 10px ${fruit.color})` : "none" }}>
-                    {fruit.emoji}
-                  </span>
-                  <div className="flex flex-col items-center">
-                    <span className="text-white font-black text-sm">{fruit.label}</span>
-                    <span className="font-black text-sm" style={{ color: fruit.color }}>×{fruit.multiplier}</span>
-                  </div>
-                  {isSpinning && (
-                    <div className="absolute inset-0 rounded-2xl animate-ping opacity-30"
-                      style={{ background: "white" }}/>
-                  )}
-                </button>
-              );
-            })()}
+
           </div>
         </div>
       </div>
@@ -479,7 +433,7 @@ export default function FruitPartyGame({ onBack }: Props) {
 }
 
 // ── Fruit Cell Component ───────────────────────────────────────────────────────
-function FruitCell({ fruit, isSpinning, isWinner, isFlash, myBetAmt, totalBet, isBetting, placing, onBet }: any) {
+function FruitCell({ fruit, isSpinning, isWinner, isFlash, myBetAmt, totalBet, isBetting, placing, onBet, isSelected }: any) {
   return (
     <button
       onClick={onBet}
@@ -500,7 +454,7 @@ function FruitCell({ fruit, isSpinning, isWinner, isFlash, myBetAmt, totalBet, i
           ? "2px solid #fff"
           : isFlash
           ? `2px solid ${fruit.color}`
-          : "2px solid rgba(125,69,186,0.6)",
+          : isSelected ? `2px solid ${fruit.color}` : "2px solid rgba(125,69,186,0.6)",
         boxShadow: isWinner
           ? `0 0 25px ${fruit.glow}, 0 0 50px ${fruit.glow}55`
           : isSpinning
@@ -511,6 +465,7 @@ function FruitCell({ fruit, isSpinning, isWinner, isFlash, myBetAmt, totalBet, i
         transform: isWinner ? "scale(1.08)" : isSpinning ? "scale(1.1)" : "scale(1)",
         transition: "all 0.12s ease",
       }}>
+      {isSelected && <div className="absolute top-1 right-1 z-10 rounded-full px-1.5 py-0.5 text-[7px] font-black" style={{ background: fruit.color, color: "#240044" }}>مختار</div>}
       {/* Spinning ring */}
       {isSpinning && (
         <div className="absolute inset-0 rounded-2xl border-2 border-white animate-ping opacity-60"/>
@@ -587,7 +542,7 @@ function ResultSheet({ winnerKey, myBets, topBettors, onClose }: any) {
             <span className="text-6xl">{fruit.emoji}</span>
           </div>
           <h2 className="text-white font-black text-2xl">{fruit.label}</h2>
-          <p className="text-gray-400 text-sm">الفاكهة الفائزة · ×{fruit.multiplier}</p>
+          <p className="text-gray-400 text-sm">الصنف الفائز · ×{fruit.multiplier}</p>
         </div>
 
         {myBets.length > 0 && (
@@ -655,7 +610,7 @@ function LeaderboardSheet({ leaderboard, todayWinnings, onClose }: any) {
         </button>
         <div>
           <h2 className="text-white font-black text-lg">لوحة الصدارة</h2>
-          <p className="text-yellow-400 text-xs">أكبر الفائزين في حفلة الفواكه</p>
+          <p className="text-yellow-400 text-xs">أكبر الفائزين في حفلة ساكي</p>
         </div>
       </div>
       <div className="px-4 py-3">
