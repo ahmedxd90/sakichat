@@ -52,7 +52,31 @@ export function useZegoVoiceRoom(
   const joinedRef = useRef(false);
   const isSpeakerOffRef = useRef(false);
   const remoteStreamsRef = useRef<Map<string, any>>(new Map());
+  const speakingTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
   const generateToken = useAction(api.zego.generateToken);
+
+  const markSpeaking = useCallback((speakerId: string, level: number) => {
+    if (!speakerId) return;
+    const timers = speakingTimersRef.current;
+    const oldTimer = timers.get(speakerId);
+    if (oldTimer) clearTimeout(oldTimer);
+    if (Number(level) > 3) {
+      setSpeakingUsers((prev) => {
+        const next = new Set(prev);
+        next.add(speakerId);
+        return next;
+      });
+      timers.set(speakerId, setTimeout(() => {
+        setSpeakingUsers((prev) => {
+          if (!prev.has(speakerId)) return prev;
+          const next = new Set(prev);
+          next.delete(speakerId);
+          return next;
+        });
+        timers.delete(speakerId);
+      }, 650));
+    }
+  }, []);
 
   const destroyEngine = useCallback(() => {
     if (zegoRef.current) {
@@ -75,6 +99,8 @@ export function useZegoVoiceRoom(
     destroyEngine();
     joinedRef.current = false;
     remoteStreamsRef.current.clear();
+    speakingTimersRef.current.forEach((timer) => clearTimeout(timer));
+    speakingTimersRef.current.clear();
     setIsConnected(false);
     setIsConnecting(false);
     setSpeakingUsers(new Set());
@@ -201,21 +227,21 @@ export function useZegoVoiceRoom(
         }
       });
 
-      (zego as any).on("remoteSoundLevelUpdate", (list: Array<{ streamID: string; soundLevel: number }>) => {
-        const speaking = new Set<string>();
+      (zego as any).on("remoteSoundLevelUpdate", (payload: any) => {
+        const list = Array.isArray(payload) ? payload : [];
         for (const item of list) {
-          if (item.soundLevel > 10) speaking.add(item.streamID.replace(/^pub_/, ""));
+          const streamId = String(item?.streamID ?? item?.streamId ?? item?.userID ?? item?.userId ?? "");
+          const speakerId = streamId.replace(/^pub_/, "");
+          const level = Number(item?.soundLevel ?? item?.level ?? item?.volume ?? 0);
+          markSpeaking(speakerId, level);
         }
-        setSpeakingUsers(speaking);
       });
 
-      (zego as any).on("localSoundLevelUpdate", (soundLevel: number) => {
-        setSpeakingUsers((prev) => {
-          const next = new Set(prev);
-          if (soundLevel > 10 && localStreamRef.current) next.add(userId);
-          else next.delete(userId);
-          return next;
-        });
+      (zego as any).on("localSoundLevelUpdate", (payload: any) => {
+        const level = typeof payload === "number"
+          ? payload
+          : Number(payload?.soundLevel ?? payload?.level ?? payload?.volume ?? 0);
+        if (localStreamRef.current) markSpeaking(userId, level);
       });
 
       // Generate token
@@ -240,7 +266,7 @@ export function useZegoVoiceRoom(
         { userID: userId, userName: userName || userId },
         { userUpdate: true }
       );
-      (zego as any).startSoundLevelMonitor?.({ millisecond: 300 });
+      (zego as any).startSoundLevelMonitor?.({ millisecond: 100 });
       if (isOnSeat) await startPublishing();
 
     } catch (err: any) {
@@ -251,7 +277,7 @@ export function useZegoVoiceRoom(
       joinedRef.current = false;
       destroyEngine();
     }
-  }, [roomId, userId, userName, enabled, isOnSeat, startPublishing, generateToken, destroyEngine]);
+  }, [roomId, userId, userName, enabled, isOnSeat, startPublishing, generateToken, destroyEngine, markSpeaking]);
 
   useEffect(() => {
     if (enabled && userId && roomId) initEngine();

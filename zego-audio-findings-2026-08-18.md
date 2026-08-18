@@ -17,3 +17,5 @@ Official sources:
 - https://www.zegocloud.com/docs/real-time-voice-web/quick-start/implementing-voice-call
 - https://www.zegocloud.com/docs/real-time-video-web/introduction/browser-restrictions
 - https://developer.android.com/training/permissions/requesting
+
+Additional research: the official API reference page was opened but rendered only a shell. The implementation currently relies on `localSoundLevelUpdate` and `remoteSoundLevelUpdate`; the next fix will make these handlers tolerant of both scalar and list payloads and will use a short speaking timeout so the UI does not depend on a single callback shape.
