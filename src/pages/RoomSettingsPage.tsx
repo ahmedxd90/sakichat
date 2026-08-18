@@ -22,6 +22,7 @@ const CATEGORIES = [
 const THEMES = [
   { key: "luxury_white", theme: "", label: "الافتراضي", gradient: "linear-gradient(135deg,#ffffff,#fff7ed)", isLuxury: true },
   { key: "cinema", theme: "cinema", label: "ثيم السينما", gradient: "linear-gradient(135deg,#1a0000,#3d0000)", isLuxury: false },
+  { key: "karaoke", theme: "karaoke", label: "ثيم Karaoke", gradient: "linear-gradient(135deg,#12002b 0%,#4c1d95 45%,#c026d3 100%)", isLuxury: false, isKaraoke: true },
 ];
 
 const BG_PRESETS = [
@@ -148,8 +149,15 @@ export default function RoomSettingsPage({ roomId, onBack }: RoomSettingsPagePro
               className={`relative rounded-3xl overflow-hidden h-32 cursor-pointer border-4 transition-all ${room.roomTheme === t.theme ? "border-cyan-400 scale-[1.02]" : "border-transparent"}`}
             >
               <div className="absolute inset-0" style={{ background: t.gradient }} />
-              <div className="absolute inset-0 bg-black/10 flex items-center justify-center">
+              <div className="absolute inset-0 bg-black/10 flex flex-col items-center justify-center gap-2">
+                {t.isKaraoke ? (
+                  <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <rect x="9" y="2" width="6" height="12" rx="3" />
+                    <path d="M5 10a7 7 0 0 0 14 0M12 17v4M8 21h8" />
+                  </svg>
+                ) : null}
                 <span className="text-white font-black text-lg">{t.label}</span>
+                {t.isKaraoke ? <span className="text-white/75 text-[10px] font-bold">مقعد رئيسي + 10 مغنين</span> : null}
               </div>
             </div>
           ))}

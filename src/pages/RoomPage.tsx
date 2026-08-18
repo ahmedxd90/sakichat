@@ -76,6 +76,7 @@ import CinemaScreen from "../components/CinemaScreen";
 import RoomVideoScreen from "../components/room/RoomVideoScreen";
 import YoutubePlayerSheet from "../components/YoutubePlayerSheet";
 import FootballBackground from "../components/FootballBackground";
+import KaraokeBackground from "../components/KaraokeBackground";
 import FootballScreen from "../components/FootballScreen";
 import FootballStreamSheet from "../components/FootballStreamSheet";
 import FootballSeatsGrid from "../components/room/FootballSeatsGrid";
@@ -314,9 +315,10 @@ function RoomPageInner({ roomId, onBack, onBackgroundLeave, onViewProfile, onMes
   const isCinema = roomTheme === "cinema";
   const isMillionaire = roomTheme === "millionaire";
   const isFootball = roomTheme === "football";
+  const isKaraoke = roomTheme === "karaoke";
   const isPKTheme = false; // PK theme disabled
-  // Football theme: always 5 seats max
-  const maxSeats = isFootball ? Math.min(room?.maxSeats ?? 10, 5) : (room?.maxSeats ?? 10);
+  // Karaoke is a fixed vocal layout: one main mic + two rows of five seats.
+  const maxSeats = isKaraoke ? 11 : isFootball ? Math.min(room?.maxSeats ?? 10, 5) : (room?.maxSeats ?? 10);
   const millionaireGame = useQuery(api.millionaire.getActiveGame, isMillionaire ? { roomId } : "skip");
   const rouletteSession = useQuery(api.roulette.getActiveSession, { roomId });
   const seatedMembers = members?.filter((m) => m.seatIndex !== undefined && m.seatIndex !== null) ?? [];
@@ -790,9 +792,11 @@ function RoomPageInner({ roomId, onBack, onBackgroundLeave, onViewProfile, onMes
   // ── BACKGROUND STYLE ──
   const roomBgStyle = isPKActive
     ? { background: "linear-gradient(180deg,#000820 0%,#050010 40%,#100005 70%,#000820 100%)" }
-    : isMillionaire
-      ? { background: "linear-gradient(180deg,#000d2e 0%,#000510 100%)" }
-      : isCinema
+        : isKaraoke
+          ? { background: "linear-gradient(180deg,#16002d 0%,#2a0752 38%,#120021 100%)" }
+          : isMillionaire
+          ? { background: "linear-gradient(180deg,#000d2e 0%,#000510 100%)" }
+          : isCinema
         ? { background: "linear-gradient(180deg,#0d0000 0%,#1a0000 40%,#120000 70%,#080000 100%)" }
         : isFootball
           ? { background: "linear-gradient(180deg,#0a1628 0%,#0d2040 40%,#0a1a30 70%,#051005 100%)" }
@@ -830,6 +834,8 @@ function RoomPageInner({ roomId, onBack, onBackgroundLeave, onViewProfile, onMes
       {/* ── BACKGROUND ── */}
       {isPKActive ? (
         <PKRoomBackground active={true} />
+      ) : isKaraoke ? (
+        <KaraokeBackground />
       ) : isCp ? (
         <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
           <div className="absolute inset-0" style={{ background: "radial-gradient(ellipse at 50% 0%,#3d0020 0%,#1a000d 40%,#0d0008 100%)" }} />
@@ -1126,6 +1132,7 @@ function RoomPageInner({ roomId, onBack, onBackgroundLeave, onViewProfile, onMes
           isDesert={isPKActive ? false : isDesert}
           isRadio={isPKActive ? false : isRadio}
           isFootball={false}
+          isKaraoke={isKaraoke && !isPKActive}
           isPK={isPKActive}
           pkRoom1Id={pkRoom1Id}
           pkRoom2Id={pkRoom2Id}
