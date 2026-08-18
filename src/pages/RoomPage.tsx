@@ -391,6 +391,8 @@ function RoomPageInner({ roomId, onBack, onBackgroundLeave, onViewProfile, onMes
     leaveVoiceRoom,
     squirrelVoiceEnabled,
     setSquirrelVoiceEnabled,
+    childVoiceEnabled,
+    setChildVoiceEnabled,
   } = voiceState;
 
   // ── Stable speakingUsers: only update when content changes ──
@@ -970,6 +972,8 @@ function RoomPageInner({ roomId, onBack, onBackgroundLeave, onViewProfile, onMes
             isEmperor={isEmperor}
             squirrelVoiceEnabled={squirrelVoiceEnabled}
             onToggleSquirrelVoice={async (enabled) => { await setSquirrelVoiceEnabled(enabled); }}
+            childVoiceEnabled={childVoiceEnabled}
+            onToggleChildVoice={async (enabled) => { await setChildVoiceEnabled(enabled); }}
             proLevel={myProfile?.proLevel ?? 0}
             myCoins={coins}
             onClose={() => setShowMenu(false)}

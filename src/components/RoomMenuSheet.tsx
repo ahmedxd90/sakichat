@@ -12,6 +12,8 @@ interface RoomMenuSheetProps {
   isEmperor: boolean;
   squirrelVoiceEnabled: boolean;
   onToggleSquirrelVoice: (enabled: boolean) => Promise<void>;
+  childVoiceEnabled: boolean;
+  onToggleChildVoice: (enabled: boolean) => Promise<void>;
   myCoins: number;
   onClose: () => void;
   onShowMusic: () => void;
@@ -24,7 +26,7 @@ interface RoomMenuSheetProps {
 const DICE_FACES = ["⚀", "⚁", "⚂", "⚃", "⚄", "⚅"];
 const LUCKY_NUMBERS = [3, 7, 11, 13, 17, 21, 33, 42, 77, 88, 99, 100];
 
-export default function RoomMenuSheet({ roomId, isOwner, isAdmin, isVip, isEmperor, squirrelVoiceEnabled, onToggleSquirrelVoice, myCoins, onClose, onShowMusic, onShowLuckyBag, onShowActivities, onShowPK, onShowEffects }: RoomMenuSheetProps) {
+export default function RoomMenuSheet({ roomId, isOwner, isAdmin, isVip, isEmperor, squirrelVoiceEnabled, onToggleSquirrelVoice, childVoiceEnabled, onToggleChildVoice, myCoins, onClose, onShowMusic, onShowLuckyBag, onShowActivities, onShowPK, onShowEffects }: RoomMenuSheetProps) {
   const [uploading, setUploading] = useState(false);
   const [diceResult, setDiceResult] = useState<number | null>(null);
   const [luckyResult, setLuckyResult] = useState<number | null>(null);
@@ -158,6 +160,23 @@ export default function RoomMenuSheet({ roomId, isOwner, isAdmin, isVip, isEmper
                 <span className="text-2xl leading-none select-none">🐿️</span>
               </div>
               <span className="text-[10px] font-bold" style={{ color: isEmperor ? "#fb923c" : "#6b7280" }}>صوت سنجاب</span>
+            </button>
+
+            {/* Emperor child voice */}
+            <button
+              onClick={async () => {
+                if (!isEmperor) { toast.error("تأثير صوت الطفل متاح لرتبة الإمبراطور فقط"); return; }
+                try { await onToggleChildVoice(!childVoiceEnabled); toast.success(!childVoiceEnabled ? "تم تفعيل صوت طفل الإمبراطور" : "تم إيقاف صوت الطفل"); }
+                catch (e: any) { toast.error(e?.message || "تعذر تغيير الصوت"); }
+              }}
+              className="flex flex-col items-center gap-2 active:scale-90 transition-transform"
+              style={{ opacity: isEmperor ? 1 : 0.35 }}
+            >
+              <div className="w-14 h-14 rounded-2xl flex items-center justify-center"
+                style={{ background: childVoiceEnabled ? "rgba(96,165,250,0.25)" : "rgba(96,165,250,0.12)", border: `1.5px solid ${childVoiceEnabled ? "rgba(96,165,250,0.85)" : "rgba(96,165,250,0.35)"}`, boxShadow: childVoiceEnabled ? "0 0 16px rgba(96,165,250,0.45)" : "none" }}>
+                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke={isEmperor ? "#60a5fa" : "#6b7280"} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M9 11a3 3 0 1 0 6 0"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3M8 21h8"/><circle cx="8" cy="5" r="1"/><circle cx="16" cy="5" r="1"/></svg>
+              </div>
+              <span className="text-[10px] font-bold" style={{ color: isEmperor ? "#60a5fa" : "#6b7280" }}>صوت طفل</span>
             </button>
 
             {/* 2. Send Image */}

@@ -36,6 +36,8 @@ export interface ZegoVoiceRoomState {
   leaveVoiceRoom: () => Promise<void>;
   squirrelVoiceEnabled: boolean;
   setSquirrelVoiceEnabled: (enabled: boolean) => Promise<void>;
+  childVoiceEnabled: boolean;
+  setChildVoiceEnabled: (enabled: boolean) => Promise<void>;
 }
 
 export function useZegoVoiceRoom(
@@ -57,9 +59,11 @@ export function useZegoVoiceRoom(
   const [speakingUsers, setSpeakingUsers] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
   const [squirrelVoiceEnabled, setSquirrelVoiceEnabledState] = useState(false);
+  const [childVoiceEnabled, setChildVoiceEnabledState] = useState(false);
   const joinedRef = useRef(false);
   const isSpeakerOffRef = useRef(false);
   const squirrelVoiceEnabledRef = useRef(false);
+  const childVoiceEnabledRef = useRef(false);
   const remoteStreamsRef = useRef<Map<string, any>>(new Map());
   const speakingTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
   const generateToken = useAction(api.zego.generateToken);
@@ -116,7 +120,9 @@ export function useZegoVoiceRoom(
     setRemoteAudioCount(0);
     setSpeakingUsers(new Set());
     squirrelVoiceEnabledRef.current = false;
+    childVoiceEnabledRef.current = false;
     setSquirrelVoiceEnabledState(false);
+    setChildVoiceEnabledState(false);
   }, [roomId, userId, destroyEngine]);
 
   const startPublishing = useCallback(async () => {
@@ -124,8 +130,9 @@ export function useZegoVoiceRoom(
     try {
       const stream = await zegoRef.current.createStream({ camera: { audio: true, video: false } });
       localStreamRef.current = stream;
-      if (squirrelVoiceEnabledRef.current && typeof zegoRef.current.setVoiceChangerParam === "function") {
-        await zegoRef.current.setVoiceChangerParam(stream, 8);
+      if (typeof zegoRef.current.setVoiceChangerParam === "function") {
+        if (squirrelVoiceEnabledRef.current) await zegoRef.current.setVoiceChangerParam(stream, 8);
+        else if (childVoiceEnabledRef.current) await zegoRef.current.setVoiceChangerParam(stream, 11);
       }
       await zegoRef.current.startPublishingStream(`pub_${userId}`, stream);
       setIsPublishing(true);
@@ -329,26 +336,45 @@ export function useZegoVoiceRoom(
     try { zegoRef.current.muteMicrophone(!en); setIsMuted(!en); } catch (_e) {}
   }, []);
 
-  const setSquirrelVoiceEnabled = useCallback(async (enabled: boolean) => {
-    squirrelVoiceEnabledRef.current = enabled;
+  const applyVoiceEffect = useCallback(async (effect: "none" | "squirrel" | "child") => {
     const engine = zegoRef.current;
     const stream = localStreamRef.current;
+    const value = effect === "squirrel" ? 8 : effect === "child" ? 11 : 0;
     if (engine && stream && typeof engine.setVoiceChangerParam === "function") {
       try {
-        await engine.setVoiceChangerParam(stream, enabled ? 8 : 0);
-        setSquirrelVoiceEnabledState(enabled);
+        await engine.setVoiceChangerParam(stream, value);
+        squirrelVoiceEnabledRef.current = effect === "squirrel";
+        childVoiceEnabledRef.current = effect === "child";
+        setSquirrelVoiceEnabledState(effect === "squirrel");
+        setChildVoiceEnabledState(effect === "child");
+        setError(null);
+        return;
       } catch (e: any) {
         squirrelVoiceEnabledRef.current = false;
+        childVoiceEnabledRef.current = false;
         setSquirrelVoiceEnabledState(false);
-        setError(enabled ? "مؤثر صوت السنجاب غير متاح في إصدار ZEGOCLOUD الحالي" : null);
+        setChildVoiceEnabledState(false);
+        setError("مؤثر الصوت غير متاح في إصدار ZEGOCLOUD الحالي");
+        return;
       }
-    } else if (!enabled) {
-      setSquirrelVoiceEnabledState(false);
-    } else {
-      setSquirrelVoiceEnabledState(false);
-      setError("مؤثر صوت السنجاب غير متاح في إصدار ZEGOCLOUD الحالي");
     }
+    if (effect === "none") {
+      squirrelVoiceEnabledRef.current = false;
+      childVoiceEnabledRef.current = false;
+      setSquirrelVoiceEnabledState(false);
+      setChildVoiceEnabledState(false);
+      return;
+    }
+    setError("مؤثر الصوت غير متاح في إصدار ZEGOCLOUD الحالي");
   }, []);
+
+  const setSquirrelVoiceEnabled = useCallback(async (enabled: boolean) => {
+    await applyVoiceEffect(enabled ? "squirrel" : "none");
+  }, [applyVoiceEffect]);
+
+  const setChildVoiceEnabled = useCallback(async (enabled: boolean) => {
+    await applyVoiceEffect(enabled ? "child" : "none");
+  }, [applyVoiceEffect]);
 
   const leaveVoiceRoom = useCallback(async () => { await cleanup(); }, [cleanup]);
 
@@ -367,5 +393,7 @@ export function useZegoVoiceRoom(
     leaveVoiceRoom,
     squirrelVoiceEnabled,
     setSquirrelVoiceEnabled,
+    childVoiceEnabled,
+    setChildVoiceEnabled,
   };
 }

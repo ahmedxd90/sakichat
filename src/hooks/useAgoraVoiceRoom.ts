@@ -25,6 +25,8 @@ export interface AgoraVoiceRoomState {
   leaveVoiceRoom: () => Promise<void>;
   squirrelVoiceEnabled: boolean;
   setSquirrelVoiceEnabled: (enabled: boolean) => Promise<void>;
+  childVoiceEnabled: boolean;
+  setChildVoiceEnabled: (enabled: boolean) => Promise<void>;
 }
 
 export function useAgoraVoiceRoom(
@@ -115,6 +117,9 @@ export function useAgoraVoiceRoom(
   const setSquirrelVoice = useCallback(async (enabled: boolean) => {
     await setSquirrelVoiceEnabled(enabled);
   }, []);
+  const setChildVoice = useCallback(async (_enabled: boolean) => {
+    // The Android production path uses ZEGOCLOUD. Keep the Agora fallback safe and unchanged.
+  }, []);
 
   const globalState = getAgoraGlobalState();
 
@@ -131,5 +136,7 @@ export function useAgoraVoiceRoom(
     leaveVoiceRoom,
     squirrelVoiceEnabled: globalState.squirrelVoiceEnabled,
     setSquirrelVoiceEnabled: setSquirrelVoice,
+    childVoiceEnabled: false,
+    setChildVoiceEnabled: setChildVoice,
   };
 }
