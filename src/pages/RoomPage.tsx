@@ -994,7 +994,7 @@ function RoomPageInner({ roomId, onBack, onBackgroundLeave, onViewProfile, onMes
 
         {/* Games Sheet */}
         {showActivities && (
-          <RoomActivitiesSheet onClose={() => setShowActivities(false)} />
+          <RoomActivitiesSheet roomId={roomId} onClose={() => setShowActivities(false)} />
         )}
 
         {/* Social Sheet */}

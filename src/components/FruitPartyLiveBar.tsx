@@ -15,9 +15,9 @@ const FRUITS = [
   { key: "coconut",    label: "جوز هند", color: "#a8a29e", emoji: "🥥" },
 ];
 
-export default function FruitPartyLiveBar() {
-  const lastRounds   = useQuery(api.fruitParty.getLastRounds);
-  const currentRound = useQuery(api.fruitParty.getCurrentRound);
+export default function FruitPartyLiveBar({ roomId }: { roomId?: any }) {
+  const lastRounds   = useQuery(api.fruitParty.getLastRounds, roomId ? { roomId } : "skip");
+  const currentRound = useQuery(api.fruitParty.getCurrentRound, roomId ? { roomId } : "skip");
   const [timeLeft, setTimeLeft] = useState(0);
 
   useEffect(() => {
