@@ -47,7 +47,8 @@ export function useZegoVoiceRoom(
   userName: string,
   enabled: boolean,
   isOnSeat: boolean,
-  _token: string | null
+  _token: string | null,
+  isGloballyMuted = false
 ): ZegoVoiceRoomState {
   const zegoRef = useRef<any>(null);
   const localStreamRef = useRef<any>(null);
@@ -132,7 +133,7 @@ export function useZegoVoiceRoom(
   }, [roomId, userId, destroyEngine]);
 
   const startPublishing = useCallback(async () => {
-    if (!zegoRef.current || localStreamRef.current) return;
+    if (isGloballyMuted || !isOnSeat || !zegoRef.current || localStreamRef.current) return;
     try {
       const stream = await zegoRef.current.createStream({ camera: { audio: true, video: false } });
       localStreamRef.current = stream;
@@ -147,7 +148,7 @@ export function useZegoVoiceRoom(
       setIsPublishing(false);
       console.warn("ZEGO: Failed to publish mic", e);
     }
-  }, [userId]);
+  }, [isGloballyMuted, isOnSeat, userId]);
 
   const stopPublishing = useCallback(async () => {
     if (!zegoRef.current || !localStreamRef.current) return;
@@ -162,9 +163,9 @@ export function useZegoVoiceRoom(
 
   useEffect(() => {
     if (!isConnected) return;
-    if (isOnSeat) startPublishing();
+    if (isOnSeat && !isGloballyMuted) startPublishing();
     else stopPublishing();
-  }, [isOnSeat, isConnected]);
+  }, [isOnSeat, isGloballyMuted, isConnected, startPublishing, stopPublishing]);
 
   const initEngine = useCallback(async () => {
     if (!enabled || !userId || !roomId) return;

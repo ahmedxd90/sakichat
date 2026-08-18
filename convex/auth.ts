@@ -65,8 +65,20 @@ const GoogleNative = ConvexCredentials({
   },
 });
 
+const googleRedirectCallback = async ({ redirectTo }: { redirectTo: string }) => {
+  // Capacitor receives the OAuth result through this custom scheme.
+  if (redirectTo === "saki.chat.co://callback" || redirectTo.startsWith("saki.chat.co://callback?")) {
+    return redirectTo;
+  }
+  const baseUrl = (process.env.SITE_URL ?? process.env.CONVEX_SITE_URL ?? "").replace(/\\/$/, "");
+  if (redirectTo.startsWith("?") || redirectTo.startsWith("/")) return `${baseUrl}${redirectTo}`;
+  if (baseUrl && redirectTo.startsWith(baseUrl)) return redirectTo;
+  throw new Error(`Invalid redirectTo ${redirectTo}`);
+};
+
 export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
   providers: [Password, Anonymous, Google, GoogleNative],
+  callbacks: { redirect: googleRedirectCallback },
 });
 
 export const loggedInUser = query({

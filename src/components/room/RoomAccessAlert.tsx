@@ -1,4 +1,5 @@
 // @ts-nocheck
+import { Ban, LogOut } from "lucide-react";
 export default function RoomAccessAlert({ access, onLeave }: { access: any; onLeave: () => void }) {
   const isBan = access.type === "ban";
   const color = isBan ? "#f87171" : "#fb923c";
@@ -15,7 +16,7 @@ export default function RoomAccessAlert({ access, onLeave }: { access: any; onLe
         className="w-[85vw] max-w-sm rounded-3xl p-6 text-center animate-bounce-in"
         style={{ background: "#1a1a2e", border: `1px solid ${color}50`, boxShadow: `0 0 40px ${color}20` }}
       >
-        <div className="text-5xl mb-3">{isBan ? "🚫" : "👢"}</div>
+        <div className="w-16 h-16 rounded-full mx-auto mb-3 flex items-center justify-center" style={{ background: `${color}18`, border: `1px solid ${color}45` }}>{isBan ? <Ban size={34} strokeWidth={1.8} style={{ color }} /> : <LogOut size={34} strokeWidth={1.8} style={{ color }} />}</div>
         <h3 className="text-white font-black text-lg mb-2">
           {isBan ? "تم حظرك من الغرفة" : "تم طردك من الغرفة"}
         </h3>

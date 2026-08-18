@@ -48,6 +48,11 @@ export const sendMessage = mutation({
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("غير مصرح");
+    const member = await ctx.db.query("roomMembers")
+      .withIndex("by_room_and_user", (q) => q.eq("roomId", args.roomId).eq("userId", userId))
+      .unique();
+    if (!member) throw new Error("أنت لست عضواً في هذه الغرفة");
+    if (member.isChatMuted) throw new Error("أنت مكتوم في الدردشة");
     const content = args.content.trim();
     if (!content) throw new Error("الرسالة فارغة");
     if (containsInappropriateChatContent(content)) {

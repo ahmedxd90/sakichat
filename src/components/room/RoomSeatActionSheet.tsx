@@ -7,6 +7,7 @@ import UserAvatar from "../UserAvatar";
 import { VipFrame } from "../VipBadge";
 import { Id } from "../../../convex/_generated/dataModel";
 import { PRIVATE_AVATAR_URL, PRIVATE_DISPLAY_NAME, isPrivateUser } from "../../lib/privateUser";
+import { Crown, Lock, LockOpen, Mic, UserRound, UserRoundCheck, DoorOpen, Send, Shield } from "lucide-react";
 
 interface RoomSeatActionSheetProps {
   selectedSeat: number;
@@ -63,7 +64,7 @@ export default function RoomSeatActionSheet({
   const handleToggleLock = async () => {
     try {
       await toggleSeatLock({ roomId, seatIndex: selectedSeat });
-      toast.success(isLocked ? "تم فتح المقعد 🔓" : "تم قفل المقعد 🔒");
+      toast.success(isLocked ? "تم فتح المقعد" : "تم قفل المقعد");
     } catch (e: any) {
       toast.error(e.message);
     }
@@ -76,7 +77,7 @@ export default function RoomSeatActionSheet({
     : seatMember
       ? (isPrivateSeatMember ? PRIVATE_DISPLAY_NAME : seatMember.profile?.name)
       : isRoyalSeat
-        ? (selectedSeat === -2 ? "مقعد الشيخ 👑" : "مقعد الملك 👑")
+        ? (selectedSeat === -2 ? "مقعد الشيخ الملكي" : "مقعد الملك الملكي")
         : `المقعد ${selectedSeat + 1}`;
 
   return (
@@ -96,11 +97,11 @@ export default function RoomSeatActionSheet({
         {isRoyalSeat && (
           <div className="flex justify-center pb-1">
             <div className="flex items-center gap-2 px-4 py-1 rounded-full" style={{ background: "rgba(251,191,36,0.1)", border: "1px solid rgba(251,191,36,0.25)" }}>
-              <span style={{ fontSize: 14 }}>⚜️</span>
+              <Shield size={14} strokeWidth={1.8} style={{ color: "#fbbf24" }} />
               <span className="text-[11px] font-bold" style={{ color: "#fbbf24" }}>
                 {selectedSeat === -2 ? "مقعد الشيخ الملكي" : "مقعد الملك الملكي"}
               </span>
-              <span style={{ fontSize: 14 }}>⚜️</span>
+              <Shield size={14} strokeWidth={1.8} style={{ color: "#fbbf24" }} />
             </div>
           </div>
         )}
@@ -112,13 +113,13 @@ export default function RoomSeatActionSheet({
               className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-black"
               style={{ background: `${accentColor}20`, border: `1px solid ${accentColor}50`, color: accentColor }}
             >
-              {isRoyalSeat ? "👑" : selectedSeat + 1}
+              {isRoyalSeat ? <Crown size={16} strokeWidth={1.8} /> : selectedSeat + 1}
             </div>
             <div>
               <p className="text-white font-bold text-sm">{seatTitle}</p>
               {!isRoyalSeat && (
                 <p className="text-xs" style={{ color: isLocked ? "#ef4444" : "#22c55e" }}>
-                  {isLocked ? "🔒 مقفول" : "🔓 مفتوح"}
+                  {isLocked ? <span className="inline-flex items-center gap-1"><Lock size={12} /> مقفول</span> : <span className="inline-flex items-center gap-1"><LockOpen size={12} /> مفتوح</span>}
                 </p>
               )}
               {isRoyalSeat && (
@@ -146,7 +147,7 @@ export default function RoomSeatActionSheet({
               className="w-11 h-11 rounded-full border-2 border-dashed flex items-center justify-center"
               style={{ borderColor: isRoyalSeat ? "rgba(251,191,36,0.4)" : isLocked ? "#ef444460" : `${accentColor}40` }}
             >
-              {isRoyalSeat ? <span className="text-xl">👑</span> : isLocked ? <span className="text-xl">🔒</span> : <span className="text-gray-500 text-xl">👤</span>}
+              {isRoyalSeat ? <Crown size={20} /> : isLocked ? <Lock size={18} /> : <UserRound size={20} className="text-gray-500" />}
             </div>
           )}
         </div>
@@ -168,14 +169,14 @@ export default function RoomSeatActionSheet({
                     boxShadow: `0 4px 20px ${accentGlow}`,
                   }}
                 >
-                  👤 عرض معلومات المستخدم
+                  <span className="inline-flex items-center gap-2"><UserRoundCheck size={17} /> عرض معلومات المستخدم</span>
                 </button>
               )}
               <button
                 onClick={onLeaveSeat}
                 className="w-full py-3.5 rounded-2xl bg-red-500/20 border border-red-500/30 text-red-400 font-bold text-base"
               >
-                🚪 مغادرة المقعد
+                <span className="inline-flex items-center gap-2"><DoorOpen size={17} /> مغادرة المقعد</span>
               </button>
             </>
           )}
@@ -187,14 +188,14 @@ export default function RoomSeatActionSheet({
               className="w-full py-3.5 rounded-2xl text-white font-bold text-base shadow-lg"
               style={{ background: "linear-gradient(135deg,#92400e,#d97706,#fbbf24)", boxShadow: "0 4px 20px rgba(251,191,36,0.4)" }}
             >
-              👑 الجلوس على المقعد الملكي
+              <span className="inline-flex items-center gap-2"><Crown size={17} /> الجلوس على المقعد الملكي</span>
             </button>
           )}
 
           {/* Royal seat restricted */}
           {!seatMember && isRoyalSeat && !canManage && (
             <div className="w-full py-3.5 rounded-2xl text-center" style={{ background: "rgba(251,191,36,0.08)", border: "1px solid rgba(251,191,36,0.2)" }}>
-              <p className="text-yellow-400 font-bold text-base">👑 هذا المقعد للمالك والمشرف فقط</p>
+              <p className="text-yellow-400 font-bold text-base inline-flex items-center justify-center gap-2"><Crown size={16} /> هذا المقعد للمالك والمشرف فقط</p>
             </div>
           )}
 
@@ -226,14 +227,14 @@ export default function RoomSeatActionSheet({
                 boxShadow: `0 4px 20px ${accentGlow}`,
               }}
               >
-              {inviteTargetUser ? `📨 دعوة ${inviteTargetName} للمقعد` : "🎤 أخذ المقعد"}
+              <span className="inline-flex items-center gap-2">{inviteTargetUser ? <><Send size={16} /> دعوة {inviteTargetName} للمقعد</> : <><Mic size={16} /> أخذ المقعد</>}</span>
             </button>
           )}
 
           {/* Locked seat message for non-admin */}
           {!seatMember && !isRoyalSeat && isLocked && !canManage && (
             <div className="w-full py-3.5 rounded-2xl bg-red-500/10 border border-red-500/20 text-center">
-              <p className="text-red-400 font-bold text-base">🔒 هذا المقعد مقفول</p>
+              <p className="text-red-400 font-bold text-base inline-flex items-center justify-center gap-2"><Lock size={16} /> هذا المقعد مقفول</p>
             </div>
           )}
 
@@ -251,7 +252,7 @@ export default function RoomSeatActionSheet({
                 boxShadow: `0 4px 20px ${accentGlow}`,
               }}
             >
-              👤 عرض الملف الشخصي
+              <span className="inline-flex items-center gap-2"><UserRoundCheck size={17} /> عرض الملف الشخصي</span>
             </button>
           )}
 
@@ -267,7 +268,7 @@ export default function RoomSeatActionSheet({
                     : { background: "rgba(239,68,68,0.15)", border: "1px solid rgba(239,68,68,0.3)", color: "#ef4444" }
                 }
               >
-                {isLocked ? "🔓 فتح المقعد" : "🔒 قفل المقعد"}
+                <span className="inline-flex items-center gap-2">{isLocked ? <><LockOpen size={16} /> فتح المقعد</> : <><Lock size={16} /> قفل المقعد</>}</span>
               </button>
 
               {!seatMember && seatInvitesEnabled && (
@@ -276,7 +277,7 @@ export default function RoomSeatActionSheet({
                   className="w-full py-3.5 rounded-2xl font-bold text-base text-white"
                   style={{ background: "linear-gradient(135deg,#3b82f6,#1d4ed8)" }}
                 >
-                  📨 دعوة مستخدم للمقعد
+                  <span className="inline-flex items-center gap-2"><Send size={16} /> دعوة مستخدم للمقعد</span>
                 </button>
               )}
 

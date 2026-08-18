@@ -463,6 +463,7 @@ export const takeSeat = mutation({
     const mine = members.find((m) => m.userId === userId);
     if (!mine) throw new Error("لست عضواً");
 
+    if (mine.isMuted) throw new Error("MUTED_FROM_SEATS");
     const isOwner = room.ownerId === userId || mine.role === "owner";
     const isAdmin = mine.role === "admin" || mine.role === "super_admin";
     const micPermission = (room as any).micPermission ?? "all";

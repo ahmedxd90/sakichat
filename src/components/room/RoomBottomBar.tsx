@@ -1,6 +1,7 @@
 // @ts-nocheck
 import { useEffect, useState } from "react";
 import { Id } from "../../../convex/_generated/dataModel";
+import { Smile } from "lucide-react";
 
 interface RoomBottomBarProps {
   isCp: boolean;
@@ -9,6 +10,7 @@ interface RoomBottomBarProps {
   isDesert: boolean;
   isOnSeat: boolean;
   isMuted: boolean;
+  isChatMuted?: boolean;
   isSpeakerOff: boolean;
   messageText: string;
   inputRef: React.RefObject<HTMLInputElement>;
@@ -30,7 +32,7 @@ interface RoomBottomBarProps {
 
 export default function RoomBottomBar({
   isCp, isMusic, isAstronomy, isDesert,
-  isOnSeat, isMuted, isSpeakerOff,
+  isOnSeat, isMuted, isSpeakerOff, isChatMuted = false,
   messageText, inputRef, roomId,
   onToggleMute, onToggleSpeaker, onShowEmojiPicker,
   onMessageChange, onSend, onShowGifts, onShowActivities, onShowMenu, onShowBomb,
@@ -69,6 +71,7 @@ export default function RoomBottomBar({
   };
 
   const openTyping = () => {
+    if (isChatMuted) return;
     setIsTyping(true);
     setShowTextEmoji(false);
     setTimeout(() => inputRef.current?.focus(), 30);
@@ -118,7 +121,7 @@ export default function RoomBottomBar({
             className="w-9 h-9 rounded-2xl flex items-center justify-center active:scale-90 transition-all flex-shrink-0"
             style={{ background: showTextEmoji ? "rgba(245,158,11,0.2)" : "rgba(255,255,255,0.07)", border: showTextEmoji ? "1.5px solid rgba(245,158,11,0.7)" : "1.5px solid rgba(255,255,255,0.15)" }}
             aria-label="فتح الإيموجي"
-          >😊</button>
+          ><Smile size={18} strokeWidth={1.8} className="text-white/75" /></button>
 
           <input
             ref={inputRef}
@@ -126,8 +129,9 @@ export default function RoomBottomBar({
             onChange={(e) => onMessageChange(e.target.value)}
             onKeyDown={handleKeyDown}
             autoFocus
-            placeholder="اكتب رسالة..."
-            className="flex-1 h-9 rounded-2xl px-3 text-sm text-white outline-none"
+            placeholder={isChatMuted ? "أنت مكتوم في الدردشة" : "اكتب رسالة..."}
+            disabled={isChatMuted}
+            className="flex-1 h-9 rounded-2xl px-3 text-sm text-white outline-none disabled:cursor-not-allowed disabled:opacity-60"
             style={{
               background: "rgba(255,255,255,0.1)",
               border: "1.5px solid rgba(168,85,247,0.55)",
@@ -137,7 +141,7 @@ export default function RoomBottomBar({
 
           <button
             onClick={handleSend}
-            disabled={!messageText.trim()}
+            disabled={isChatMuted || !messageText.trim()}
             className="w-9 h-9 rounded-2xl flex items-center justify-center active:scale-90 transition-all flex-shrink-0"
             style={{
               background: messageText.trim()
@@ -185,7 +189,7 @@ export default function RoomBottomBar({
           {/* ── Mic ── */}
           <button
             onClick={onToggleMute}
-            disabled={!isOnSeat}
+            disabled={!isOnSeat || isChatMuted && false}
             className={`w-9 h-9 rounded-2xl flex items-center justify-center active:scale-90 transition-all flex-shrink-0 ${!isOnSeat ? "opacity-30" : ""}`}
             style={
               !isOnSeat
@@ -227,7 +231,7 @@ export default function RoomBottomBar({
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.4)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
             </svg>
-            <span className="text-white/35 text-xs">كتابة رسالة...</span>
+            <span className={`text-xs ${isChatMuted ? "text-red-300/80" : "text-white/35"}`}>{isChatMuted ? "أنت مكتوم في الدردشة" : "كتابة رسالة..."}</span>
           </button>
 
           {/* ── Gift ── */}

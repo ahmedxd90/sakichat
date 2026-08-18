@@ -2,7 +2,8 @@ import { useAuthActions } from "@convex-dev/auth/react";
 import { Capacitor } from "@capacitor/core";
 import { useState, useRef, useEffect } from "react";
 import { toast } from "../lib/toast";
-import { useMutation } from "convex/react";
+import { useConvex, useMutation } from "convex/react";
+import { Browser } from "@capacitor/browser";
 import { api } from "../../convex/_generated/api";
 import { ARAB_COUNTRIES } from "../data/countries";
 import { useDeviceFingerprint } from "../hooks/useDeviceFingerprint";
@@ -385,19 +386,39 @@ function AndroidOnlyLogin({
 // ── Main Login Page ──
 export default function LoginPage() {
   const { signIn } = useAuthActions();
+  const convex = useConvex();
   const [showRegister, setShowRegister] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [policyPage, setPolicyPage] = useState<"privacy" | "terms" | null>(null);
 
+  useEffect(() => {
+    const onOAuthState = (event: Event) => {
+      const status = (event as CustomEvent<{ status?: string }>).detail?.status;
+      if (status === "success" || status === "error") setSubmitting(false);
+    };
+    window.addEventListener("saki-google-auth-state", onOAuthState);
+    return () => window.removeEventListener("saki-google-auth-state", onOAuthState);
+  }, []);
+
   const handleGoogleLogin = async () => {
     setSubmitting(true);
     try {
-      // Use Convex Auth's supported OAuth client flow. On Android the
-      // callback opens the app through saki.chat.co://callback.
-      const redirectTo = "saki.chat.co://callback";
-      await signIn("google", { redirectTo });
+      if (Capacitor.getPlatform() === "android") {
+        // Android uses the browser OAuth flow. Ask Convex for its signed,
+        // stateful redirect first, save the verifier, then open Chrome.
+        const redirectTo = "saki.chat.co://callback";
+        const result = await convex.action(api.auth.signIn, {
+          provider: "google",
+          params: { redirectTo },
+        });
+        if (!result?.redirect || !result.verifier) throw new Error("OAuth redirect was not created");
+        localStorage.setItem("__convexAuthOAuthVerifier", result.verifier);
+        await Browser.open({ url: String(result.redirect) });
+      } else {
+        await signIn("google", { redirectTo: window.location.origin });
+      }
     } catch (err: any) {
       const message = String(err?.message ?? "");
       const errorCode = String(err?.code ?? err?.errorCode ?? "").trim();
@@ -410,7 +431,9 @@ export default function LoginPage() {
           message: message.slice(0, 240),
         });
         const providerCode = errorCode || (lowerMessage.includes("developer") ? "DEVELOPER_ERROR" : "UNKNOWN");
-        const nativeHint = message.includes("ID token")
+        const nativeHint = message.includes("DEVELOPER_ERROR") || errorCode === "DEVELOPER_ERROR"
+          ? "إعداد Google أو بصمة توقيع التطبيق غير مطابقة في Google Cloud/Firebase."
+          : message.includes("ID token")
           ? "لم يُرجع Google Play رمز هوية صالحًا."
           : message.includes("ID token verification") || message.includes("server client ID")
             ? "تعذر التحقق من رمز Google على خادم Convex."

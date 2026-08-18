@@ -375,7 +375,7 @@ function RoomPageInner({ roomId, onBack, onBackgroundLeave, onViewProfile, onMes
       : import.meta.env.VITE_ENABLE_ZEGO_TEST === "true"
   );
   const agoraVoice = useAgoraVoiceRoom(zegoChannel, zegoUserId, zegoUserName, !!myProfile && !!userId && !zegoTestEnabled, isOnSeat, null);
-  const zegoVoice = useZegoVoiceRoom(roomId, zegoUserId, zegoUserName, !!myProfile && !!userId && zegoTestEnabled, isOnSeat, null);
+  const zegoVoice = useZegoVoiceRoom(roomId, zegoUserId, zegoUserName, !!myProfile && !!userId && zegoTestEnabled, isOnSeat, null, Boolean(myMember?.isMuted));
   const voiceState = zegoTestEnabled ? zegoVoice : agoraVoice;
   const {
     isConnected,
@@ -444,8 +444,11 @@ function RoomPageInner({ roomId, onBack, onBackgroundLeave, onViewProfile, onMes
         await joinRoom({ roomId });
       } catch (e: any) {
         const msg = e?.message ?? String(e);
-        if (!cancelled && msg !== "BANNED" && msg !== "KICKED") {
-          toast.error(cleanErrorMessage(e));
+        if (!cancelled) {
+          if (msg === "BANNED") toast.error("أنت محظور من هذه الغرفة");
+          else if (msg === "KICKED") toast.error("تم طردك من هذه الغرفة");
+          else toast.error(cleanErrorMessage(e));
+          onBack();
         }
       }
     };
@@ -702,12 +705,16 @@ function RoomPageInner({ roomId, onBack, onBackgroundLeave, onViewProfile, onMes
   }, [maxSeats, members, room, seatInvitesAvailable]);
 
   const handleTakeSeat = async (seatIndex: number) => {
-    if (myMember?.isMuted && !isOwner && !isAdmin && !isSuperAdmin) {
+    if (myMember?.isMuted) {
       showMuteAlert((myMember as any).mutedByName ?? "مشرف");
       return;
     }
     try { await takeSeat({ roomId, seatIndex }); setSelectedSeat(null); setInviteTargetUser(null); }
-    catch (e: any) { toast.error(e); }
+    catch (e: any) {
+      const msg = e?.message ?? String(e);
+      if (msg.includes("MUTED_FROM_SEATS")) showMuteAlert((myMember as any)?.mutedByName ?? "مشرف");
+      else toast.error(cleanErrorMessage(e));
+    }
   };
 
   const handleLeaveSeat = async () => {
@@ -1237,6 +1244,7 @@ function RoomPageInner({ roomId, onBack, onBackgroundLeave, onViewProfile, onMes
           isDesert={isPKActive ? false : isDesert}
           isOnSeat={isOnSeat}
           isMuted={isMuted}
+          isChatMuted={Boolean(myMember?.isChatMuted)}
           isSpeakerOff={isSpeakerOff}
           messageText={messageText}
           inputRef={inputRef}

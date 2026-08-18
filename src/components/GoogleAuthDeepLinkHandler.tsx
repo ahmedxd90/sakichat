@@ -25,15 +25,24 @@ export default function GoogleAuthDeepLinkHandler() {
         return;
       }
       const code = parsed.searchParams.get("code");
+      const oauthError = parsed.searchParams.get("error");
+      if (oauthError) {
+        window.dispatchEvent(new CustomEvent("saki-google-auth-state", { detail: { status: "error", message: oauthError } }));
+        toast.error("تم إلغاء تسجيل الدخول عبر Google أو رفضه");
+        return;
+      }
       if (!code) return;
 
       processingRef.current = true;
       try {
         await Browser.close().catch(() => {});
         await signIn(undefined, { code });
+        window.dispatchEvent(new CustomEvent("saki-google-auth-state", { detail: { status: "success" } }));
       } catch (error) {
         console.error("Google OAuth callback failed", error);
-        toast.error("تعذّر إكمال تسجيل الدخول عبر Google");
+        const message = error instanceof Error ? error.message : String(error);
+        window.dispatchEvent(new CustomEvent("saki-google-auth-state", { detail: { status: "error", message } }));
+        toast.error(`تعذّر إكمال تسجيل الدخول عبر Google: ${message.slice(0, 120)}`);
       } finally {
         processingRef.current = false;
       }

@@ -1,5 +1,7 @@
 // @ts-nocheck
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
+import { toast } from "../../lib/toast";
+import { Ban, LogOut, LockKeyhole, Mic2 } from "lucide-react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { Id } from "../../../convex/_generated/dataModel";
@@ -90,7 +92,7 @@ function PasswordScreen({ roomId, onSuccess, onLeave }: { roomId: Id<"rooms">; o
             boxShadow: "0 0 30px rgba(251,191,36,0.2)",
           }}
         >
-          <span className="text-4xl">🔒</span>
+          <LockKeyhole size={38} strokeWidth={1.7} className="text-amber-300" />
         </div>
 
         <h2 className="text-white font-black text-xl mb-1">غرفة مقفلة</h2>
@@ -155,6 +157,16 @@ function PasswordScreen({ roomId, onSuccess, onLeave }: { roomId: Id<"rooms">; o
 export default function RoomAccessGate({ roomId, onLeave, children }: RoomAccessGateProps) {
   const roomAccess = useQuery(api.roomAccess.checkRoomAccess, { roomId });
   const lockStatus = useQuery(api.roomAccess.getRoomLockStatus, { roomId });
+  const evictionHandledRef = useRef(false);
+
+  useEffect(() => {
+    if (!roomAccess || roomAccess.allowed || evictionHandledRef.current) return;
+    evictionHandledRef.current = true;
+    const message = roomAccess.type === "ban" ? "تم حظرك من الغرفة وسيتم إخراجك الآن" : "تم طردك من الغرفة وسيتم إخراجك الآن";
+    toast.error(message);
+    const timer = window.setTimeout(() => onLeave(), 450);
+    return () => window.clearTimeout(timer);
+  }, [roomAccess, onLeave]);
 
   // نحفظ التحقق في sessionStorage حتى لا يُفقد عند العودة للغرفة
   const sessionKey = `room_pw_verified_${roomId}`;
@@ -174,7 +186,7 @@ export default function RoomAccessGate({ roomId, onLeave, children }: RoomAccess
         <div className="flex flex-col items-center gap-4">
           <div className="w-16 h-16 rounded-2xl flex items-center justify-center"
             style={{ background: "linear-gradient(135deg,#3B4D2E,#232F1A)", border: "2px solid rgba(212,175,55,0.4)" }}>
-            <span className="text-2xl">🎙️</span>
+            <Mic2 size={26} strokeWidth={1.7} className="text-amber-300" />
           </div>
           <div className="w-8 h-8 border-2 border-t-transparent rounded-full animate-spin"
             style={{ borderColor: "#D4AF37", borderTopColor: "transparent" }} />
@@ -223,7 +235,7 @@ export default function RoomAccessGate({ roomId, onLeave, children }: RoomAccess
             className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4"
             style={{ background: `${color}15`, border: `2px solid ${color}40`, boxShadow: `0 0 30px ${color}30` }}
           >
-            <span className="text-4xl">{isBan ? "🚫" : "👢"}</span>
+            {isBan ? <Ban size={38} strokeWidth={1.7} style={{ color }} /> : <LogOut size={38} strokeWidth={1.7} style={{ color }} />}
           </div>
           <h2 className="text-white font-black text-xl mb-1">
             {isBan ? "تم حظرك من الغرفة" : "تم طردك من الغرفة"}

@@ -72,4 +72,16 @@ window.addEventListener('message', async (message) => {
   preview: {
     allowedHosts: true,
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          react: ["react", "react-dom"],
+          convex: ["convex"],
+          zego: ["zego-express-engine-webrtc"],
+          svga: ["svga.lite"],
+        },
+      },
+    },
+  },
 }));
