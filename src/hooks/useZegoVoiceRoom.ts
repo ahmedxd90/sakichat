@@ -164,15 +164,29 @@ export function useZegoVoiceRoom(
   }, [isGloballyMuted, isOnSeat, userId]);
 
   const stopPublishing = useCallback(async () => {
-    if (!zegoRef.current || !localStreamRef.current) return;
+    const engine = zegoRef.current;
+    const stream = localStreamRef.current;
+    if (!engine || !stream) return;
     try {
-      zegoRef.current.stopPublishingStream(`pub_${userId}`);
-      zegoRef.current.destroyStream(localStreamRef.current);
+      await Promise.resolve(engine.stopPublishingStream(`pub_${userId}`));
+    } catch (error) {
+      console.warn("ZEGO: stop publish returned an error", error);
+    } finally {
+      try { engine.destroyStream(stream); } catch (_e) {}
       localStreamRef.current = null;
       setIsPublishing(false);
       setIsMuted(true);
-    } catch (_e) {}
+    }
   }, [userId]);
+
+  // Android WebView can leave a previously muted WebRTC track in a muted
+  // state even after mutePublishStreamAudio(false). Recreate the local stream
+  // on unmute so the SDK receives a fresh, enabled audio track.
+  const restartPublishing = useCallback(async () => {
+    if (!isConnected || !isOnSeat || isGloballyMuted || !zegoRef.current) return;
+    await stopPublishing();
+    await startPublishing();
+  }, [isConnected, isOnSeat, isGloballyMuted, stopPublishing, startPublishing]);
 
   useEffect(() => {
     if (!isConnected) return;
@@ -376,8 +390,10 @@ export function useZegoVoiceRoom(
 
   const toggleMute = useCallback(async () => {
     if (!localStreamRef.current || !zegoRef.current) return;
-    await setPublishedAudioMuted(!isMuted);
-  }, [isMuted, setPublishedAudioMuted]);
+    const nextMuted = !isMuted;
+    if (nextMuted) await setPublishedAudioMuted(true);
+    else await restartPublishing();
+  }, [isMuted, setPublishedAudioMuted, restartPublishing]);
 
   const toggleSpeaker = useCallback(() => {
     const newOff = !isSpeakerOff;
@@ -389,8 +405,9 @@ export function useZegoVoiceRoom(
   }, [isSpeakerOff]);
 
   const setMicEnabled = useCallback(async (en: boolean) => {
-    await setPublishedAudioMuted(!en);
-  }, [setPublishedAudioMuted]);
+    if (en) await restartPublishing();
+    else await setPublishedAudioMuted(true);
+  }, [restartPublishing, setPublishedAudioMuted]);
 
   const applyVoiceEffect = useCallback(async (effect: "none" | "squirrel" | "child") => {
     const engine = zegoRef.current;
