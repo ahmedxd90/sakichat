@@ -75,6 +75,8 @@ export default function FruitPartyGame({ onBack, roomId }: Props) {
   const spinTimerRef   = useRef<any>(null);
   const resultTimerRef = useRef<any>(null);
   const recoveryRoundRef = useRef<string | null>(null);
+  const activeRoundRef = useRef<any>(null);
+  const spinStartedAtRef = useRef(0);
 
   useEffect(() => {
     myBetsRef.current = myBets ?? [];
@@ -84,12 +86,18 @@ export default function FruitPartyGame({ onBack, roomId }: Props) {
 
   // Timer
   useEffect(() => {
-    if (!currentRound) return;
+    if (!currentRound) {
+      // The query intentionally stops returning an expired betting round.
+      // Never leave the old number (for example 22) frozen on screen.
+      setTimeLeft(0);
+      return;
+    }
+    activeRoundRef.current = currentRound;
     const update = () => setTimeLeft(Math.max(0, Math.ceil((currentRound.endsAt - Date.now()) / 1000)));
     update();
     intervalRef.current = setInterval(update, 200);
     return () => clearInterval(intervalRef.current);
-  }, [currentRound?.endsAt]);
+  }, [currentRound?.endsAt, currentRound?._id]);
 
   // New round → reset
   useEffect(() => {
@@ -110,44 +118,45 @@ export default function FruitPartyGame({ onBack, roomId }: Props) {
     prevRoundIdRef.current = rid;
   }, [currentRound?._id]);
 
-  // Start spinning when time runs out and ask the server to recover a missed scheduled finish.
+  // Start spinning when the server round expires, even if the query has
+  // already removed it from the active-round result.
   useEffect(() => {
-    if (timeLeft === 0 && phaseRef.current === "betting" && currentRound) {
-      phaseRef.current = "spinning";
-      setPhase("spinning");
-      startSpinAnimation();
-      if (recoveryRoundRef.current !== currentRound._id) {
-        recoveryRoundRef.current = currentRound._id;
-        ensureRoomRound().catch(() => {
-          recoveryRoundRef.current = null;
-        });
-      }
+    const expiredRound = currentRound ?? activeRoundRef.current;
+    if (timeLeft !== 0 || phaseRef.current !== "betting" || !expiredRound) return;
+    const roundId = expiredRound._id as string;
+    phaseRef.current = "spinning";
+    setPhase("spinning");
+    startSpinAnimation();
+    if (recoveryRoundRef.current !== roundId) {
+      recoveryRoundRef.current = roundId;
+      ensureRoomRound().catch(() => {
+        recoveryRoundRef.current = null;
+      });
     }
   }, [timeLeft, currentRound?._id, ensureRoomRound]);
 
   const startSpinAnimation = useCallback(() => {
-    let idx = 0;
-    let count = 0;
-    const total = 40;
-    let delay = 60;
+    if (spinTimerRef.current) clearTimeout(spinTimerRef.current);
+    spinStartedAtRef.current = Date.now();
+    const duration = 5000;
+    const started = performance.now();
+    let index = 0;
 
     const spin = () => {
-      setSpinnerPos(idx % FRUIT_ITEMS.length);
-      idx++;
-      count++;
-      if (count < total) {
-        // Accelerate then decelerate
-        if (count < 15) delay = Math.max(50, delay - 2);
-        else delay = Math.min(300, delay + (count - 15) * 8);
+      const elapsed = performance.now() - started;
+      const progress = Math.min(1, elapsed / duration);
+      setSpinnerPos(index % FRUIT_ITEMS.length);
+      index += 1;
+      if (progress < 1) {
+        const delay = Math.round(70 + progress * 170);
         spinTimerRef.current = setTimeout(spin, delay);
       } else {
         setSpinnerPos(-1);
-        // Flash all
         setAllFlash(true);
-        setTimeout(() => setAllFlash(false), 2000);
+        window.setTimeout(() => setAllFlash(false), 700);
       }
     };
-    spinTimerRef.current = setTimeout(spin, 100);
+    spin();
   }, []);
 
   // Detect finished round
@@ -176,8 +185,12 @@ export default function FruitPartyGame({ onBack, roomId }: Props) {
       }, 5000);
     };
 
-    const cur = phaseRef.current;
-    setTimeout(apply, cur === "spinning" ? 500 : 0);
+    // A finished result is accepted only after this client entered spinning.
+    // This prevents opening a stale result immediately when the game is opened.
+    if (phaseRef.current !== "spinning") return;
+    const elapsed = Date.now() - spinStartedAtRef.current;
+    const remainingSpinMs = Math.max(0, 5000 - elapsed);
+    setTimeout(apply, remainingSpinMs);
   }, [lastRounds?.[0]?._id]);
 
   // Auto-start and recover the game if a scheduled server task was delayed.
