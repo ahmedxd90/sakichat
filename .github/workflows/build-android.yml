@@ -61,8 +61,8 @@ jobs:
         if: github.event_name == 'workflow_dispatch'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: saki-chat-1.0.127-direct-apk
-          name: Saki Chat 1.0.127 — Direct APK
+          tag_name: saki-chat-1.0.127-google-fix
+          name: Saki Chat 1.0.127 — Google Fix APK
           prerelease: true
           generate_release_notes: false
           files: android/app/build/outputs/apk/debug/app-debug.apk
