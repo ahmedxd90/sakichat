@@ -5,6 +5,7 @@ import { toast } from "../lib/toast";
 import { useConvex, useMutation } from "convex/react";
 import { Browser } from "@capacitor/browser";
 import { api } from "../../convex/_generated/api";
+import { CONVEX_AUTH_OAUTH_VERIFIER_STORAGE_KEY } from "../lib/convexClient";
 import { ARAB_COUNTRIES } from "../data/countries";
 import { useDeviceFingerprint } from "../hooks/useDeviceFingerprint";
 
@@ -414,7 +415,7 @@ export default function LoginPage() {
           params: { redirectTo },
         });
         if (!result?.redirect || !result.verifier) throw new Error("OAuth redirect was not created");
-        localStorage.setItem("__convexAuthOAuthVerifier", result.verifier);
+        localStorage.setItem(CONVEX_AUTH_OAUTH_VERIFIER_STORAGE_KEY, result.verifier);
         await Browser.open({ url: String(result.redirect) });
       } else {
         await signIn("google", { redirectTo: window.location.origin });

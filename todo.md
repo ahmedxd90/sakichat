@@ -1269,3 +1269,9 @@
 ## رابط تنزيل مباشر للـ APK — 2026-08-18
 - [ ] نشر APK الناتج كـ GitHub Release asset.
 - [ ] التحقق من رابط التنزيل المباشر وإرساله للمستخدم.
+
+## فشل Google بعد اختيار الحساب — 2026-08-18
+- [ ] مطابقة APK الحالي مع commit إصلاح OAuth.
+- [ ] فحص deep link وIntent-filter وgetLaunchUrl/appUrlOpen.
+- [ ] التحقق من إعدادات Google OAuth وConvex callback وverifier.
+- [ ] بناء نسخة جديدة بعد إصلاح السبب الحقيقي.
