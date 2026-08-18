@@ -3,6 +3,12 @@ import { action } from "./_generated/server";
 import { v } from "convex/values";
 import { RtcTokenBuilder, RtcRole } from "agora-token";
 
+/** Public identifier needed by the Agora client; never expose the certificate here. */
+export const getAppId = action({
+  args: {},
+  handler: async () => process.env.AGORA_APP_ID ?? "",
+});
+
 export const generateToken = action({
   args: {
     channelName: v.string(),

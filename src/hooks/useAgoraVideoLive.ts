@@ -8,8 +8,6 @@ import AgoraRTC, {
 import { useAction } from "convex/react";
 import { api } from "../../convex/_generated/api";
 
-const APP_ID = import.meta.env.VITE_AGORA_APP_ID || "";
-
 export interface AgoraVideoLiveState {
   isConnected: boolean;
   isConnecting: boolean;
@@ -46,6 +44,7 @@ export function useAgoraVideoLive(
   const [error, setError] = useState<string | null>(null);
 
   const generateToken = useAction(api.agora.generateToken);
+  const getAppId = useAction((api as any).agora.getAppId);
 
   const cleanup = useCallback(async () => {
     try {
@@ -73,8 +72,18 @@ export function useAgoraVideoLive(
         setIsConnecting(true);
         setError(null);
 
-        if (!APP_ID) {
-          setError("لم يتم تكوين Agora App ID");
+        // Prefer a build-time public ID, then fall back to the server-configured ID.
+        // The App Certificate is never sent to the client.
+        let appId = import.meta.env.VITE_AGORA_APP_ID || "";
+        if (!appId) {
+          try {
+            appId = (await getAppId()) || "";
+          } catch (_) {
+            appId = "";
+          }
+        }
+        if (!appId) {
+          setError("لم يتم تكوين Agora App ID على الخادم");
           setIsConnecting(false);
           return;
         }
@@ -135,7 +144,7 @@ export function useAgoraVideoLive(
           token = null;
         }
 
-        await client.join(APP_ID, safeChannel, token, safeUid);
+        await client.join(appId, safeChannel, token, safeUid);
         joinedRef.current = true;
 
         if (role === "host") {
