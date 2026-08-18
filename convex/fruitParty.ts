@@ -26,6 +26,7 @@ export const getCurrentRound = query({
     return await ctx.db
       .query("fruitPartyRounds")
       .withIndex("by_status", (q) => q.eq("status", "betting"))
+      .filter((q) => q.gt(q.field("endsAt"), Date.now()))
       .order("desc")
       .first();
   },

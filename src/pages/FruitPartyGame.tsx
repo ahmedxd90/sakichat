@@ -179,10 +179,20 @@ export default function FruitPartyGame({ onBack }: Props) {
     setTimeout(apply, cur === "spinning" ? 500 : 0);
   }, [lastRounds?.[0]?._id]);
 
-  // Auto-start
+  // Auto-start and recover the game if a scheduled server task was delayed.
   useEffect(() => {
-    if (currentRound === null) startNewRound().catch(() => {});
-  }, [currentRound]);
+    if (currentRound !== null || phaseRef.current === "result") return;
+    let cancelled = false;
+    const recover = () => {
+      if (!cancelled) startNewRound().catch(() => {});
+    };
+    recover();
+    const timer = window.setInterval(recover, 2000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [currentRound, startNewRound]);
 
   const handleBet = async (fruitKey: string) => {
     if (!currentRound || phase !== "betting" || timeLeft === 0 || placing) return;
