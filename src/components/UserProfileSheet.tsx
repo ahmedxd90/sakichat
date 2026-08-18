@@ -44,7 +44,6 @@ interface UserProfileSheetProps {
   onSendGift: (user: any) => void;
   onViewProfile?: (userId: Id<"users">) => void;
   onMessage?: (userId: Id<"users">) => void;
-  muteMember: any;
   muteChatMember: any;
   kickMember: any;
   banMember: any;
@@ -157,7 +156,7 @@ const DurationPicker = memo(function DurationPicker({ type, userName, onConfirm,
 export default function UserProfileSheet({
   selectedUser, myProfile, isOwner, isAdmin, roomId,
   userActiveItems, userCpPartner, onClose, onSendGift,
-  onViewProfile, onMessage, muteMember, muteChatMember,
+  onViewProfile, onMessage, muteChatMember,
   kickMember, banMember, setAdminRole, onMention, onInviteToSeat,
 }: UserProfileSheetProps) {
   const actualUserId = selectedUser.userId;
@@ -448,20 +447,6 @@ export default function UserProfileSheet({
                   <ShieldCheck size={18} />
                 </button>
               )}
-
-              {/* Mute Mic */}
-              <button 
-                title={selectedUser.isMuted ? "إلغاء كتم الصوت" : "كتم الصوت"}
-                onClick={async () => {
-                  try { await muteMember({ roomId, targetUserId: actualUserId as Id<"users">, isMuted: !selectedUser.isMuted }); onClose(); }
-                  catch (e: any) { toast.error(e?.message || e); }
-                }}
-                className={`w-9 h-9 rounded-xl shadow-sm border flex items-center justify-center transition active:scale-90 ${
-                  selectedUser.isMuted ? "bg-amber-500 text-white border-amber-600" : "bg-white/90 text-amber-600 border-amber-200"
-                }`}
-              >
-                <MicOff size={18} />
-              </button>
 
               {/* Mute Chat */}
               <button 

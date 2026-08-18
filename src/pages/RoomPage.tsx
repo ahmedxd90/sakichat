@@ -164,7 +164,6 @@ function RoomPageInner({ roomId, onBack, onBackgroundLeave, onViewProfile, onMes
   const members = useQuery(api.roomMembersHelper.getRoomMembersEnhanced, { roomId });
   const [joinedAt] = useState(() => Date.now());
   const adminLockStatus = useQuery(api.adminLock.getRoomAdminLockStatus, { roomId });
-  const muteInfo = useQuery(api.roomAccess.getMuteInfo, { roomId });
 
   const messages = useQuery(api.messages.getRoomMessages, { roomId, joinedAt });
   const myProfile = useQuery(api.profiles.getMyProfile);
@@ -206,7 +205,6 @@ function RoomPageInner({ roomId, onBack, onBackgroundLeave, onViewProfile, onMes
   const leaveSeat = useMutation(api.rooms.leaveSeat);
   const kickMember = useMutation(api.rooms.kickMember);
   const banMember = useMutation(api.rooms.banMember);
-  const muteMember = useMutation(api.rooms.muteMember);
   const muteChatMember = useMutation(api.rooms.muteChatMember);
   const sendCustomGift = useMutation(api.rooms.sendCustomGift);
   const setAdminRole = useMutation(api.rooms.setAdminRole);
@@ -273,7 +271,7 @@ function RoomPageInner({ roomId, onBack, onBackgroundLeave, onViewProfile, onMes
   const [effectsPrefs, setEffectsPrefs] = useState<RoomEffectsPrefs>(() => loadRoomEffectsPrefs());
   const [lastEntryEventId, setLastEntryEventId] = useState<string | null>("init");
 
-  const { alert: modalAlert, hideAlert, showChatMuteAlert, showMuteAlert } = useModalAlert();
+  const { alert: modalAlert, hideAlert, showChatMuteAlert } = useModalAlert();
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -374,7 +372,7 @@ function RoomPageInner({ roomId, onBack, onBackgroundLeave, onViewProfile, onMes
       : import.meta.env.VITE_ENABLE_ZEGO_TEST === "true"
   );
   const agoraVoice = useAgoraVoiceRoom(zegoChannel, zegoUserId, zegoUserName, !!myProfile && !!userId && !zegoTestEnabled, isOnSeat, null);
-  const zegoVoice = useZegoVoiceRoom(roomId, zegoUserId, zegoUserName, !!myProfile && !!userId && zegoTestEnabled, isOnSeat, null, Boolean(myMember?.isMuted));
+  const zegoVoice = useZegoVoiceRoom(roomId, zegoUserId, zegoUserName, !!myProfile && !!userId && zegoTestEnabled, isOnSeat, null, false);
   const voiceState = zegoTestEnabled ? zegoVoice : agoraVoice;
   const {
     isConnected,
@@ -703,23 +701,11 @@ function RoomPageInner({ roomId, onBack, onBackgroundLeave, onViewProfile, onMes
   }, [maxSeats, members, room, seatInvitesAvailable]);
 
   const handleTakeSeat = async (seatIndex: number) => {
-    if (myMember?.isMuted) {
-      showMuteAlert((myMember as any).mutedByName ?? "مشرف");
-      return;
-    }
     try { await takeSeat({ roomId, seatIndex }); setSelectedSeat(null); setInviteTargetUser(null); }
-    catch (e: any) {
-      const msg = e?.message ?? String(e);
-      if (msg.includes("MUTED_FROM_SEATS")) showMuteAlert((myMember as any)?.mutedByName ?? "مشرف");
-      else toast.error(cleanErrorMessage(e));
-    }
+    catch (e: any) { toast.error(cleanErrorMessage(e)); }
   };
 
   const handleToggleMute = async () => {
-    if (myMember?.isMuted) {
-      showMuteAlert((myMember as any).mutedByName ?? "مشرف");
-      return;
-    }
     await toggleMute();
   };
 
@@ -1307,7 +1293,6 @@ function RoomPageInner({ roomId, onBack, onBackgroundLeave, onViewProfile, onMes
             onSendGift={(user) => { setGiftTarget(user); setShowGifts(true); setSelectedUser(null); }}
             onViewProfile={(uid) => { setSelectedUser(null); onViewProfile?.(uid); }}
             onMessage={(uid) => { setSelectedUser(null); onMessage?.(uid); }}
-            muteMember={muteMember}
             muteChatMember={muteChatMember}
             kickMember={kickMember}
             banMember={banMember}

@@ -32,7 +32,8 @@ export const toggleSeatLock = mutation({
       const occ = allM.find(
         (m) => m.seatIndex === args.seatIndex && m.userId !== userId
       );
-      if (occ) await ctx.db.patch(occ._id, { seatIndex: undefined, isMuted: true });
+      // Locking a seat only removes its occupant; it must never mute the user's local microphone.
+      if (occ) await ctx.db.patch(occ._id, { seatIndex: undefined });
       await ctx.db.patch(args.roomId, {
         lockedSeats: [...locked, args.seatIndex],
       } as any);

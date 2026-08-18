@@ -463,7 +463,6 @@ export const takeSeat = mutation({
     const mine = members.find((m) => m.userId === userId);
     if (!mine) throw new Error("لست عضواً");
 
-    if (mine.isMuted) throw new Error("MUTED_FROM_SEATS");
     const isOwner = room.ownerId === userId || mine.role === "owner";
     const isAdmin = mine.role === "admin" || mine.role === "super_admin";
     const micPermission = (room as any).micPermission ?? "all";
@@ -553,38 +552,12 @@ export const unbanMember = mutation({
   },
 });
 
+// Microphone mute is local-only. Keep this endpoint for backwards-compatible clients,
+// but do not allow an owner or admin to change another user's local microphone state.
 export const muteMember = mutation({
   args: { roomId: v.id("rooms"), targetUserId: v.id("users"), isMuted: v.boolean() },
-  handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) throw new Error("غير مصرح");
-    const actor = await ctx.db
-      .query("roomMembers")
-      .withIndex("by_room_and_user", (q) => q.eq("roomId", args.roomId).eq("userId", userId))
-      .unique();
-    const target = await ctx.db
-      .query("roomMembers")
-      .withIndex("by_room_and_user", (q) => q.eq("roomId", args.roomId).eq("userId", args.targetUserId))
-      .unique();
-    if (!actor || (actor.role !== "owner" && actor.role !== "admin")) {
-      throw new Error("فقط مالك الغرفة أو المشرف يستطيع كتم المستخدم أو رفع الكتم");
-    }
-    if (!target) throw new Error("المستخدم غير موجود في الغرفة");
-    if (target.role === "owner" && actor.role !== "owner") {
-      throw new Error("لا يمكن للمشرف تعديل كتم مالك الغرفة");
-    }
-    const actorProfile = await ctx.db
-      .query("profiles")
-      .withIndex("by_userId", (q) => q.eq("userId", userId))
-      .unique();
-    await ctx.db.patch(target._id, args.isMuted
-      ? { isMuted: true, mutedByName: actorProfile?.name ?? "مشرف" }
-      : { isMuted: false, mutedByName: undefined });
-    await ctx.scheduler.runAfter(0, internal.roomLogs.createLog, {
-      roomId: args.roomId, userId, targetUserId: args.targetUserId,
-      action: args.isMuted ? "mute" : "unmute"
-    });
-    return null;
+  handler: async () => {
+    throw new Error("كتم الميكروفون محلي فقط؛ يمكن للمستخدم كتم نفسه أو إلغاء الكتم بنفسه");
   },
 });
 

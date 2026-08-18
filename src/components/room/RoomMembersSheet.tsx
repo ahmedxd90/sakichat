@@ -132,7 +132,7 @@ function MemberRow({ member, myProfile, isMuted, onSelect }: { member: any; myPr
   const memberAristoActive = memberAristoLevel > 0 && member.profile?.aristocracyExpiresAt && member.profile.aristocracyExpiresAt > Date.now();
   const isMe = member.profile?.userId === myProfile?.userId;
   const isOnSeat = member.seatIndex !== undefined && member.seatIndex !== null;
-  const memberMuted = isMe ? isMuted : member.isMuted;
+  const memberMuted = isMe ? Boolean(isMuted) : false;
   const nameStyle = getMemberNameStyle(member.profile);
 
   return (

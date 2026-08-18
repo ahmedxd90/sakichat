@@ -237,7 +237,8 @@ const RegularSeat = memo(function RegularSeat({
   const seatSkinUrl: string | undefined = member?.seatSkinUrl ?? undefined;
   const isOwnerSeat = member?.role === "owner";
   const isAdminSeat = member?.role === "admin";
-  const isMicMuted = isMe ? globalMuted : member?.isMuted;
+  // Voice mute is local-only; member.isMuted is an obsolete administrative field.
+  const isMicMuted = isMe ? Boolean(globalMuted) : false;
   const isActuallySpeaking = isSpeaking && !isMicMuted && !!member;
   const pkBorderColor = pkSide === "room1" ? "#3b82f6" : "#ef4444";
   const pkGlowColor = pkSide === "room1" ? "#3b82f6" : "#ef4444";
@@ -486,7 +487,7 @@ function RoomSeatsGridInner({
 function KaraokeSeat({ seatIndex, member, myProfile, isMuted, isSpeaking, isLocked, onPress, onViewProfile, getMemberSpeakerIds, size, isMain = false }: any) {
   const isMe = member?.profile?.userId === myProfile?.userId;
   // Local mute belongs only to the current user's seat; remote seats use their own server state.
-  const seatMuted = isMe ? Boolean(isMuted) : Boolean(member?.isMuted);
+  const seatMuted = isMe ? Boolean(isMuted) : false;
   const profile = member?.profile;
   const aristoLevel = getAristoLevel(profile);
   const isActuallySpeaking = Boolean(member && isSpeaking && !seatMuted);
