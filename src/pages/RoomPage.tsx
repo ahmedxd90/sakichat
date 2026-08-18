@@ -1,5 +1,6 @@
 // @ts-nocheck
 import { useQuery, useMutation } from "convex/react";
+import { Capacitor } from "@capacitor/core";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
 import { useState, useEffect, useRef, useMemo, useCallback, memo, Component, type ReactNode } from "react";
@@ -363,7 +364,12 @@ function RoomPageInner({ roomId, onBack, onBackgroundLeave, onViewProfile, onMes
     onBackgroundLeave?.(roomId);
   };
 
-  const zegoTestEnabled = import.meta.env.VITE_ENABLE_ZEGO_TEST === "true" && Boolean(import.meta.env.VITE_ZEGO_APP_ID && import.meta.env.VITE_ZEGO_SERVER);
+  // Android uses the ZEGOCLOUD pilot by default; web keeps the explicit feature flag.
+  const zegoTestEnabled = Boolean(
+    Capacitor.isNativePlatform()
+      ? true
+      : import.meta.env.VITE_ENABLE_ZEGO_TEST === "true"
+  );
   const agoraVoice = useAgoraVoiceRoom(zegoChannel, zegoUserId, zegoUserName, !!myProfile && !!userId && !zegoTestEnabled, isOnSeat, null);
   const zegoVoice = useZegoVoiceRoom(roomId, zegoUserId, zegoUserName, !!myProfile && !!userId && zegoTestEnabled, isOnSeat, null);
   const voiceState = zegoTestEnabled
@@ -374,6 +380,8 @@ function RoomPageInner({ roomId, onBack, onBackgroundLeave, onViewProfile, onMes
     isConnecting,
     isMuted,
     isSpeakerOff,
+    isPublishing = false,
+    remoteAudioCount = 0,
     speakingUsers: speakingUsersRaw,
     error: zegoError,
     toggleMute,
@@ -1036,6 +1044,15 @@ function RoomPageInner({ roomId, onBack, onBackgroundLeave, onViewProfile, onMes
           onShowSettings={() => setShowSettings(true)}
           onShowMusic={() => setShowMusic(true)}
         />
+
+        {/* Zego status: confirms actual login, publish, and remote playback. */}
+        {zegoTestEnabled && (
+          <div className="mx-3 mt-2 rounded-xl border border-emerald-400/25 bg-emerald-950/35 px-3 py-1.5 text-[11px] text-emerald-200">
+            ZEGOCLOUD: {isConnected ? "متصل" : isConnecting ? "جارٍ الاتصال" : "غير متصل"}
+            {isOnSeat ? ` · ${isPublishing ? "الميكروفون منشور" : "الميكروفون غير منشور"}` : " · اجلس على مقعد للتحدث"}
+            {` · مسارات الآخرين: ${remoteAudioCount}`}
+          </div>
+        )}
 
         {/* Zego Error */}
         {zegoError && (

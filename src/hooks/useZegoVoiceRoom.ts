@@ -2,8 +2,9 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { useAction } from "convex/react";
 import { api } from "../../convex/_generated/api";
 
-const APP_ID = parseInt(import.meta.env.VITE_ZEGO_APP_ID || "0", 10);
-const SERVER = import.meta.env.VITE_ZEGO_SERVER || "";
+// Public ZEGOCLOUD connection values for the Android pilot. The ServerSecret never belongs here.
+const APP_ID = parseInt(import.meta.env.VITE_ZEGO_APP_ID || "736552649", 10);
+const SERVER = import.meta.env.VITE_ZEGO_SERVER || "wss://webliveroom736552649-api.coolzcloud.com/ws";
 
 async function requestPermissions(): Promise<string | null> {
   if (!navigator.mediaDevices?.getUserMedia) {
@@ -25,6 +26,8 @@ export interface ZegoVoiceRoomState {
   isConnecting: boolean;
   isMuted: boolean;
   isSpeakerOff: boolean;
+  isPublishing: boolean;
+  remoteAudioCount: number;
   speakingUsers: Set<string>;
   error: string | null;
   toggleMute: () => Promise<void>;
@@ -47,6 +50,8 @@ export function useZegoVoiceRoom(
   const [isConnecting, setIsConnecting] = useState(false);
   const [isMuted, setIsMuted] = useState(true);
   const [isSpeakerOff, setIsSpeakerOff] = useState(false);
+  const [isPublishing, setIsPublishing] = useState(false);
+  const [remoteAudioCount, setRemoteAudioCount] = useState(0);
   const [speakingUsers, setSpeakingUsers] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
   const joinedRef = useRef(false);
@@ -103,6 +108,8 @@ export function useZegoVoiceRoom(
     speakingTimersRef.current.clear();
     setIsConnected(false);
     setIsConnecting(false);
+    setIsPublishing(false);
+    setRemoteAudioCount(0);
     setSpeakingUsers(new Set());
   }, [roomId, userId, destroyEngine]);
 
@@ -112,8 +119,10 @@ export function useZegoVoiceRoom(
       const stream = await zegoRef.current.createStream({ camera: { audio: true, video: false } });
       localStreamRef.current = stream;
       await zegoRef.current.startPublishingStream(`pub_${userId}`, stream);
+      setIsPublishing(true);
       setIsMuted(false);
     } catch (e) {
+      setIsPublishing(false);
       console.warn("ZEGO: Failed to publish mic", e);
     }
   }, [userId]);
@@ -124,6 +133,7 @@ export function useZegoVoiceRoom(
       zegoRef.current.stopPublishingStream(`pub_${userId}`);
       zegoRef.current.destroyStream(localStreamRef.current);
       localStreamRef.current = null;
+      setIsPublishing(false);
       setIsMuted(true);
     } catch (_e) {}
   }, [userId]);
@@ -196,6 +206,7 @@ export function useZegoVoiceRoom(
             try {
               const remoteStream = await zego.startPlayingStream(s.streamID);
               remoteStreamsRef.current.set(s.streamID, remoteStream);
+              setRemoteAudioCount(remoteStreamsRef.current.size);
               if (!isSpeakerOffRef.current) {
                 const audio = document.createElement("audio");
                 audio.autoplay = true;
@@ -224,6 +235,7 @@ export function useZegoVoiceRoom(
             try {
               zego.stopPlayingStream(s.streamID);
               remoteStreamsRef.current.delete(s.streamID);
+              setRemoteAudioCount(remoteStreamsRef.current.size);
               const el = document.querySelector(`audio[data-zego-stream="${s.streamID}"]`);
               if (el) el.remove();
             } catch (_e) {}
@@ -315,6 +327,8 @@ export function useZegoVoiceRoom(
     isConnecting,
     isMuted,
     isSpeakerOff,
+    isPublishing,
+    remoteAudioCount,
     speakingUsers,
     error,
     toggleMute,
