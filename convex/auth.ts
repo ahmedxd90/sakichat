@@ -70,7 +70,7 @@ const googleRedirectCallback = async ({ redirectTo }: { redirectTo: string }) =>
   if (redirectTo === "saki.chat.co://callback" || redirectTo.startsWith("saki.chat.co://callback?")) {
     return redirectTo;
   }
-  const baseUrl = (process.env.SITE_URL ?? process.env.CONVEX_SITE_URL ?? "").replace(/\\/$/, "");
+  const baseUrl = (process.env.SITE_URL ?? process.env.CONVEX_SITE_URL ?? "").replace(/\/$/, "");
   if (redirectTo.startsWith("?") || redirectTo.startsWith("/")) return `${baseUrl}${redirectTo}`;
   if (baseUrl && redirectTo.startsWith(baseUrl)) return redirectTo;
   throw new Error(`Invalid redirectTo ${redirectTo}`);
