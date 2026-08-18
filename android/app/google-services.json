@@ -1,0 +1,63 @@
+{
+  "project_info": {
+    "project_number": "317097005212",
+    "project_id": "saki-c534a",
+    "storage_bucket": "saki-c534a.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:317097005212:android:572d03842e5999738d9d59",
+        "android_client_info": {
+          "package_name": "saki.chat.co"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "317097005212-3d6gdco3jvecl265hetu6102hmrl303j.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "saki.chat.co",
+            "certificate_hash": "9b98d5ea6a9d6808e64d2289e29c739c15ae285b"
+          }
+        },
+        {
+          "client_id": "317097005212-effkoveos5iroac0v553sh7i850l2db3.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "saki.chat.co",
+            "certificate_hash": "8c6dcd97123891246d46e585c5f463f731aeb39c"
+          }
+        },
+        {
+          "client_id": "317097005212-mo04gphmvsg922jj7ch2f46ivjjdf9ib.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "saki.chat.co",
+            "certificate_hash": "fdf15a12e2f25425d5882a5fe63449c93f03ff89"
+          }
+        },
+        {
+          "client_id": "317097005212-hd9npgrq2fmn6cgfqupq62ghk4s309ph.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB3AbiZNRyLYeIf8w6x-FtkPkWh4R9xJ2s"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "317097005212-hd9npgrq2fmn6cgfqupq62ghk4s309ph.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

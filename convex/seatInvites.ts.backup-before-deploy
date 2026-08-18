@@ -1,0 +1,115 @@
+import { v } from "convex/values";
+import { mutation, query } from "./_generated/server";
+import { getAuthUserId } from "@convex-dev/auth/server";
+
+export const sendSeatInvite = mutation({
+  args: {
+    roomId: v.id("rooms"),
+    targetUserId: v.id("users"),
+    seatIndex: v.number(),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("غير مصرح");
+
+    // التحقق من أن المرسل مالك أو مشرف
+    const member = await ctx.db
+      .query("roomMembers")
+      .withIndex("by_room_and_user", (q) => q.eq("roomId", args.roomId).eq("userId", userId))
+      .unique();
+
+    const room = await ctx.db.get(args.roomId);
+    if (!room) throw new Error("الغرفة غير موجودة");
+
+    const isOwner = room.ownerId === userId;
+    const isAdmin = member?.role === "admin" || member?.role === "super_admin";
+    if (!isOwner && !isAdmin) throw new Error("فقط المالك والمشرفون يمكنهم دعوة المستخدمين للمقاعد");
+
+    // التحقق من عدم وجود دعوة معلقة لنفس المستخدم في نفس الغرفة
+    const existing = await ctx.db
+      .query("roomSeatInvites")
+      .withIndex("by_room_and_user", (q) => q.eq("roomId", args.roomId).eq("targetUserId", args.targetUserId))
+      .filter((q) => q.eq(q.field("status"), "pending"))
+      .first();
+
+    if (existing) {
+      await ctx.db.patch(existing._id, { seatIndex: args.seatIndex, createdAt: Date.now() });
+      return existing._id;
+    }
+
+    const inviteId = await ctx.db.insert("roomSeatInvites", {
+      roomId: args.roomId,
+      senderId: userId,
+      targetUserId: args.targetUserId,
+      seatIndex: args.seatIndex,
+      status: "pending",
+      createdAt: Date.now(),
+    });
+
+    return inviteId;
+  },
+});
+
+export const getMyPendingInvite = query({
+  args: { roomId: v.id("rooms") },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) return null;
+
+    const invite = await ctx.db
+      .query("roomSeatInvites")
+      .withIndex("by_room_and_user", (q) => q.eq("roomId", args.roomId).eq("targetUserId", userId))
+      .filter((q) => q.eq(q.field("status"), "pending"))
+      .first();
+
+    if (!invite) return null;
+    const senderProfile = await ctx.db
+      .query("profiles")
+      .withIndex("by_userId", (q) => q.eq("userId", invite.senderId))
+      .unique();
+
+    return {
+      ...invite,
+      senderName: senderProfile?.name ?? "المشرف",
+      senderAvatar: senderProfile?.avatarUrl,
+    };
+  },
+});
+
+export const respondToSeatInvite = mutation({
+  args: {
+    inviteId: v.id("roomSeatInvites"),
+    accept: v.boolean(),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("غير مصرح");
+
+    const invite = await ctx.db.get(args.inviteId);
+    if (!invite || invite.targetUserId !== userId) throw new Error("الدعوة غير موجودة");
+
+    if (invite.status !== "pending") return;
+
+    if (!args.accept) {
+      await ctx.db.patch(invite._id, { status: "rejected" });
+      return;
+    }
+
+    await ctx.db.patch(invite._id, { status: "accepted" });
+
+    // صعود تلقائي للمقعد
+    const room = await ctx.db.get(invite.roomId);
+    if (!room) return;
+
+    const seats = (room as any).seats ?? {};
+    // إزالة المستخدم من أي مقعد سابق
+    for (const [sIdx, uId] of Object.entries(seats)) {
+      if (uId === userId) {
+        delete seats[Number(sIdx)];
+      }
+    }
+
+    seats[invite.seatIndex] = userId;
+    await ctx.db.patch(invite.roomId, { seats } as any);
+  },
+});

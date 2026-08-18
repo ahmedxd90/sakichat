@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-labelledby="title desc">
+  <title id="title">شخصي</title>
+  <desc id="desc">أيقونة شخص مخفي للحساب الخاص</desc>
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="30%" r="80%">
+      <stop offset="0" stop-color="#263248"/>
+      <stop offset="1" stop-color="#080b12"/>
+    </radialGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#fff0a8"/>
+      <stop offset=".45" stop-color="#f7bd38"/>
+      <stop offset="1" stop-color="#8b4b0b"/>
+    </linearGradient>
+    <filter id="glow"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  </defs>
+  <circle cx="128" cy="128" r="124" fill="url(#bg)" stroke="url(#gold)" stroke-width="8"/>
+  <circle cx="128" cy="93" r="43" fill="#11151e" stroke="#c88b27" stroke-width="4"/>
+  <path d="M54 222c7-48 34-73 74-73s67 25 74 73" fill="#11151e" stroke="#c88b27" stroke-width="5"/>
+  <path d="M76 90c11-33 28-48 52-48 25 0 43 15 53 48-18-9-34-14-53-14-19 0-35 5-52 14Z" fill="#05070b" stroke="#4a3420" stroke-width="3"/>
+  <path d="M88 101c13 10 25 15 40 15 15 0 27-5 40-15" fill="none" stroke="#c88b27" stroke-width="4" stroke-linecap="round" opacity=".85"/>
+  <path d="M79 178h98" stroke="url(#gold)" stroke-width="4" stroke-linecap="round" opacity=".75" filter="url(#glow)"/>
+  <circle cx="128" cy="128" r="116" fill="none" stroke="#fff1a6" stroke-opacity=".18" stroke-width="2"/>
+</svg>

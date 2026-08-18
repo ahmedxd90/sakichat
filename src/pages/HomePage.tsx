@@ -1,0 +1,358 @@
+// @ts-nocheck
+import { useQuery, useMutation } from "convex/react";
+import { api } from "../../convex/_generated/api";
+import { Fragment, useState, useEffect, useRef } from "react";
+import { Id } from "../../convex/_generated/dataModel";
+import { ARAB_COUNTRIES } from "../data/countries";
+import { Page } from "../App";
+import SearchPage from "./SearchPage";
+import WealthPage from "./WealthPage";
+import LeaderboardPage from "./LeaderboardPage";
+import CharismaPage from "./CharismaPage";
+import RoomListCard from "../components/RoomListCard";
+import RoomsLeaderboardPage from "./RoomsLeaderboardPage";
+import CpLeaderboardPage from "./CpLeaderboardPage";
+import DailyRewardsPage from "./DailyRewardsPage";
+import LiveStreamPage from "./LiveStreamPage";
+import BroadcastPage from "./BroadcastPage";
+import CreateRoomPage from "./CreateRoomPage";
+import RechargeGiftPage from "./RechargeGiftPage";
+import WeeklyStarPage from "./WeeklyStarPage";
+import { useLang } from "../hooks/useLang";
+const AHLEEN_PALETTE = { 
+  primary: "#00bfa5",
+  ink: "#0f172a",
+  border: "#f1f5f9",
+  gold: "#f59e0b",
+  silver: "#94a3b8",
+  bronze: "#d97706",
+  slate: "#64748b",
+  emerald: "#10b981",
+  pink: "#ec4899"
+};
+const AHLEEN_UI = { 
+  bg: "#ffffff",
+  goldButton: { background: "linear-gradient(135deg, #f59e0b, #d97706)", color: "#fff" },
+  panel: { background: "#ffffff", border: "1px solid #f1f5f9", boxShadow: "0 2px 10px rgba(0,0,0,0.05)" }
+};
+
+interface HomePageProps {
+  onRoomSelect: (id: Id<"rooms">) => void;
+  setCurrentPage: (p: Page) => void;
+  onUserSelect: (id: Id<"users">) => void;
+  onSubPageChange?: (active: boolean, backFn?: () => void, pageName?: string) => void;
+}
+
+type SubPage = "home" | "leaderboard" | "wealth" | "charisma" | "rooms-lb" | "cp" | "daily" | "live" | "broadcast" | "createRoom" | "recharge" | "weekly-star";
+type RoomTab = "all" | "mine";
+type MyRoomTab = "recent" | "followed" | "managed";
+
+function MyRoomRow({ room, badge, onSelect }: { room: any; badge?: string; onSelect: () => void }) {
+  return (
+    <div className="relative">
+      {badge && <span className="absolute right-3 top-3 z-10 rounded-full bg-amber-400 px-2 py-0.5 text-[9px] font-black text-slate-950 shadow-sm">{badge}</span>}
+      <RoomListCard room={room} onSelect={onSelect} rank={1} />
+    </div>
+  );
+}
+
+function BroadcastTicker({ onOpen }: { onOpen: () => void }) {
+  const messages = useQuery(api.broadcast.getMessages);
+  const { lang } = useLang();
+  const isLoading = messages === undefined;
+  const displayMsgs = (messages ?? []).slice(-6);
+  const loopMsgs = displayMsgs.length > 0 ? [...displayMsgs, ...displayMsgs] : [];
+  const emptyText = isLoading ? (lang === "en" ? "Loading broadcast..." : "جارٍ تحميل الإذاعة...") : (lang === "en" ? "No live broadcast now" : "لا توجد إذاعة حالية");
+
+  return (
+    <button onClick={onOpen} aria-label="فتح الإذاعة" className="mx-4 mb-3 active:scale-[0.98] transition-transform overflow-hidden rounded-2xl flex items-center"
+      style={{ height: 48, background: "linear-gradient(135deg,#fffaf0,#fff7dc)", border: `1px solid ${AHLEEN_PALETTE.gold}66`, width: "calc(100% - 32px)", boxShadow: "0 5px 16px rgba(180,120,20,0.12)" }}>
+      <div className="flex items-center justify-center h-full px-3 text-xs font-black flex-shrink-0"
+        style={{ background: AHLEEN_PALETTE.gold, color: "#fff" }}>
+        {lang === "en" ? "Live" : "إذاعة عاجلة"}
+      </div>
+      <div className="flex-1 overflow-hidden relative h-full flex items-center px-3" style={{ minWidth: 0 }}>
+        <div className="flex items-center whitespace-nowrap" style={{ animation: "bc-fly 24s linear infinite", gap: 32 }}>
+          {loopMsgs.length > 0 ? loopMsgs.map((item: any, i: number) => (
+            <div key={`${item._id ?? "broadcast"}-${i}`} className="flex items-center flex-shrink-0 gap-2">
+              <span className="text-xs font-bold text-amber-600">{item.senderName ?? "Saki Chat"}:</span>
+              <span className="text-xs text-slate-600">{item.content}</span>
+            </div>
+          )) : (
+            <span className="text-xs font-bold text-slate-500">{emptyText}</span>
+          )}
+        </div>
+      </div>
+    </button>
+  );
+}
+
+export default function HomePage({ onRoomSelect, setCurrentPage, onUserSelect, onSubPageChange }: HomePageProps) {
+  const rooms = useQuery(api.rooms.listRooms, {});
+  const banners = useQuery(api.banners.getBanners);
+  const profile = useQuery(api.profiles.getMyProfile);
+  const rechargeGiftSettings = useQuery(api.rechargeGifts.getSettings);
+  const myRoom = useQuery(api.rooms.getMyRoom);
+  const myRooms = useQuery(api.myRooms.getMyRoomsDashboard);
+  const seedBanners = useMutation(api.banners.seedBanners);
+  const { lang, tr, isRtl } = useLang();
+
+  const [selectedCountry, setSelectedCountry] = useState("all");
+  const [currentBanner, setCurrentBanner] = useState(0);
+  const [rechargeBanner, setRechargeBanner] = useState(0);
+  const [showSearch, setShowSearch] = useState(false);
+  const [subPage, setSubPage] = useState<SubPage>("home");
+  const [roomTab, setRoomTab] = useState<RoomTab>("all");
+  const [myRoomTab, setMyRoomTab] = useState<MyRoomTab>("recent");
+
+  const goToSubPage = (p: SubPage) => {
+    setSubPage(p);
+    onSubPageChange?.(true, () => { setSubPage("home"); onSubPageChange?.(false, undefined, "home"); }, p);
+  };
+  const openSearch = () => {
+    setShowSearch(true);
+    onSubPageChange?.(true, () => { setShowSearch(false); onSubPageChange?.(false, undefined, "home"); }, "search");
+  };
+  const closeSearch = () => { setShowSearch(false); onSubPageChange?.(false, undefined, "home"); };
+  const backToHome = () => { setSubPage("home"); onSubPageChange?.(false, undefined, "home"); };
+
+  useEffect(() => { seedBanners(); }, []);
+
+  // Change banner every 3 seconds as requested
+  useEffect(() => {
+    if (!banners || banners.length === 0) return;
+    const t = setInterval(() => {
+      setCurrentBanner((prev) => (prev + 1) % banners.length);
+    }, 3000);
+    return () => clearInterval(t);
+  }, [banners]);
+  useEffect(() => {
+    const t = setInterval(() => setRechargeBanner((prev) => (prev + 1) % 2), 4000);
+    return () => clearInterval(t);
+  }, []);
+
+  if (showSearch) return <SearchPage onBack={closeSearch} onRoomSelect={(id) => { closeSearch(); onRoomSelect(id); }} onUserSelect={(id) => { closeSearch(); onUserSelect(id); }} />;
+  if (subPage === "leaderboard") return <LeaderboardPage onBack={backToHome} onRoomSelect={onRoomSelect} onUserSelect={onUserSelect} />;
+  if (subPage === "wealth") return <WealthPage onBack={backToHome} />;
+  if (subPage === "charisma") return <CharismaPage onBack={backToHome} />;
+  if (subPage === "rooms-lb") return <RoomsLeaderboardPage onBack={backToHome} onRoomSelect={onRoomSelect} onUserSelect={onUserSelect} />;
+  if (subPage === "cp") return <CpLeaderboardPage onBack={backToHome} onUserSelect={onUserSelect} />;
+  if (subPage === "daily") return <DailyRewardsPage onBack={backToHome} />;
+  if (subPage === "live") return <LiveStreamPage onBack={backToHome} onRoomSelect={onRoomSelect} />;
+  if (subPage === "broadcast") return <BroadcastPage onBack={backToHome} />;
+  if (subPage === "createRoom") return <CreateRoomPage onBack={backToHome} onSuccess={(roomId) => { backToHome(); onRoomSelect(roomId); }} />;
+  if (subPage === "recharge") return <RechargeGiftPage onBack={backToHome} />;
+  if (subPage === "weekly-star") return <WeeklyStarPage onBack={backToHome} />;
+
+  const listRooms = rooms ?? [];
+  const activeBanners = banners && banners.length > 0 ? banners : [
+    { imageUrl: "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=800&h=400&fit=crop" },
+    { imageUrl: "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=800&h=400&fit=crop" },
+    { imageUrl: "https://images.unsplash.com/photo-1493225457124-a1a2a5f56468?w=800&h=400&fit=crop" }
+  ];
+  const countriesWithRooms = Array.from(new Set(listRooms.map((r: any) => r.country).filter(Boolean))) as string[];
+
+  const filteredRooms = listRooms.filter((r: any) => {
+    if (selectedCountry !== "all" && r.country !== selectedCountry) return false;
+    return true;
+  });
+  const myRoomLists: Record<MyRoomTab, any[]> = {
+    recent: myRooms?.recent ?? [],
+    followed: myRooms?.followed ?? [],
+    managed: myRooms?.managed ?? [],
+  };
+  const activeMyRooms = myRoomLists[myRoomTab];
+
+  return (
+    <div className="flex flex-col min-h-0 flex-1 overflow-y-auto pb-28 bg-white"
+      style={{ fontFamily: "'Cairo', 'Tajawal', sans-serif" }}
+      dir={isRtl ? "rtl" : "ltr"}
+    >
+      <style>{`
+        @keyframes bc-fly { 0%{transform:translateX(100%)} 100%{transform:translateX(-100%)} }
+      `}</style>
+
+      {/* ── TOP HEADER ── */}
+      <header className="sticky top-0 z-30 px-4 pt-4 pb-2.5 flex items-center justify-between"
+        style={{ background: "rgba(255,255,255,0.98)", backdropFilter: "blur(18px)", borderBottom: `1px solid ${AHLEEN_PALETTE.border}`, boxShadow: "0 2px 8px rgba(0,0,0,0.04)" }}>
+        {/* Left / Right: Tabs ("الكل" & "الخاص بي") */}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setRoomTab("all")}
+            className="px-4 py-1.5 rounded-full text-xs font-black transition-all active:scale-95"
+            style={roomTab === "all" ? AHLEEN_UI.goldButton : { background: "#f1f5f9", color: "#64748b", border: "1px solid #e2e8f0" }}
+          >
+            الكل
+          </button>
+          <button
+            onClick={() => setRoomTab("mine")}
+            aria-label="غرفي"
+            title="غرفي"
+            className="h-8 w-9 rounded-full flex items-center justify-center transition-all active:scale-95"
+            style={roomTab === "mine" ? AHLEEN_UI.goldButton : { background: "#f1f5f9", color: "#64748b", border: "1px solid #e2e8f0" }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/><path d="M9 21v-6h6v6"/></svg>
+          </button>
+        </div>
+
+        {/* Right / Left: Search Button & Room Button */}
+        <div className="flex items-center gap-2">
+          {/* Room / My Room Button */}
+          <button
+            onClick={() => {
+              if (myRoom) {
+                onRoomSelect(myRoom._id);
+              } else {
+                goToSubPage("createRoom");
+              }
+            }}
+            className="px-3 py-1.5 rounded-2xl flex items-center gap-1 active:scale-95 transition-transform font-black text-xs shadow-md"
+            style={{ background: "linear-gradient(135deg, #f59e0b, #d97706)", color: AHLEEN_PALETTE.ink }}
+          >
+            <span>🎙️</span>
+            <span>{myRoom ? "غرفتي" : "إنشاء غرفة"}</span>
+          </button>
+
+          {/* زر الكأس الذهبي: ترتيب الغرف */}
+          <button
+            onClick={() => goToSubPage("leaderboard")}
+            aria-label="لوحة المتصدرين"
+            title="لوحة المتصدرين"
+            className="w-9 h-9 rounded-2xl flex items-center justify-center active:scale-95 transition-transform"
+            style={{ background: `linear-gradient(135deg, ${AHLEEN_PALETTE.gold}, #b66b0b)`, color: AHLEEN_PALETTE.ink, boxShadow: `0 5px 15px ${AHLEEN_PALETTE.gold}44` }}
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round"><path d="M8 3h8v4a4 4 0 0 1-8 0V3Z"/><path d="M8 5H5a3 3 0 0 0 3 3M16 5h3a3 3 0 0 1-3 3M12 11v6M8 21h8M9 17h6"/></svg>
+          </button>
+
+          {/* Search Button */}
+          <button
+            onClick={openSearch}
+            className="w-9 h-9 rounded-2xl flex items-center justify-center active:scale-95 transition-transform"
+            style={{ background: "#f1f5f9", border: "1px solid #e2e8f0", color: "#64748b" }}
+          >
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          </button>
+        </div>
+      </header>
+
+      {roomTab === "mine" && (
+        <section className="px-4 pt-3" dir="rtl">
+          <div className="mb-3 flex items-center justify-between">
+            <div>
+              <p className="text-[11px] font-bold text-slate-400">مساحتك الصوتية</p>
+              <h1 className="mt-0.5 text-lg font-black text-slate-900">الخاصة بي</h1>
+            </div>
+            <span className="rounded-full bg-amber-50 px-3 py-1 text-[10px] font-black text-amber-700">{activeMyRooms.length} غرفة</span>
+          </div>
+
+          <div className="mb-3 flex items-center gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: "none" }}>
+            {([
+              ["recent", "مؤخراً", "🕘"],
+              ["followed", "متابعة", "♡"],
+              ["managed", "مدارة", "♛"],
+            ] as const).map(([key, label, icon]) => (
+              <button key={key} type="button" onClick={() => setMyRoomTab(key)} className="relative flex-shrink-0 px-3 pb-2 pt-1 text-xs font-black transition-colors active:scale-95" style={{ color: myRoomTab === key ? "#0f172a" : "#94a3b8" }}>
+                <span className="ml-1">{icon}</span>{label}
+                {myRoomTab === key && <span className="absolute inset-x-2 -bottom-px h-0.5 rounded-full bg-amber-400" />}
+              </button>
+            ))}
+          </div>
+
+          {myRoomTab === "recent" && myRoom && !activeMyRooms.some((room: any) => String(room._id) === String(myRoom._id)) && (
+            <MyRoomRow room={myRoom} badge="غرفتي" onSelect={() => onRoomSelect(myRoom._id)} />
+          )}
+
+          {activeMyRooms.length === 0 ? (
+            <div className="rounded-[24px] border border-slate-100 bg-slate-50 px-5 py-12 text-center">
+              <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-white text-2xl shadow-sm">{myRoomTab === "followed" ? "♡" : "🎙️"}</div>
+              <p className="text-sm font-black text-slate-700">{myRoomTab === "recent" ? "لا توجد غرف زرتها مؤخرًا" : myRoomTab === "followed" ? "لم تتابع أي غرفة بعد" : "لا توجد غرف مدارة"}</p>
+              <p className="mt-1 text-[11px] text-slate-400">ستظهر الغرف هنا تلقائيًا بعد الدخول أو المتابعة</p>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-3">
+              {activeMyRooms.map((room: any, index: number) => (
+                <MyRoomRow key={room._id} room={room} badge={myRoomTab === "recent" && index === 0 ? "الأخيرة" : undefined} onSelect={() => onRoomSelect(room._id)} />
+              ))}
+            </div>
+          )}
+        </section>
+      )}
+
+      {roomTab === "all" && <>
+      {/* ── BANNERS CAROUSEL (Rotates every 3 seconds) ── */}
+      <div className="px-4 my-3">
+        <div className="relative overflow-hidden rounded-[24px]" style={{ height: 140, border: `1px solid ${AHLEEN_PALETTE.gold}44`, boxShadow: `0 8px 30px rgba(0,0,0,.35)` }}>
+          {activeBanners.map((b: any, index: number) => (
+            <div key={index} className="absolute inset-0 transition-opacity duration-700"
+              style={{ opacity: currentBanner === index ? 1 : 0, pointerEvents: currentBanner === index ? "auto" : "none" }}>
+              <img src={b.imageUrl} alt="" className="w-full h-full object-cover" />
+              <div className="absolute inset-0" style={{ background: "linear-gradient(0deg, rgba(22,5,13,.8) 0%, transparent 60%)" }} />
+              <div className="absolute bottom-3 right-4 left-4 flex items-center justify-between">
+                <span className="text-xs font-black px-2.5 py-1 rounded-full text-white" style={{ background: AHLEEN_PALETTE.ruby, border: `1px solid ${AHLEEN_PALETTE.gold}66` }}>
+                  فعالية Ahleen الملكية
+                </span>
+                <div className="flex gap-1">
+                  {activeBanners.map((_, i) => (
+                    <div key={i} className="h-1.5 rounded-full transition-all" style={{ width: currentBanner === i ? 18 : 6, background: currentBanner === i ? AHLEEN_PALETTE.gold : "rgba(255,255,255,.4)" }} />
+                  ))}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* ── COUNTRY FILTER BAR ── */}
+      <section className="px-4 mt-5 mb-4 flex items-center gap-2 overflow-x-auto pb-2 min-h-[48px] w-full relative z-20" aria-label="فلترة الغرف حسب الدولة" style={{ scrollbarWidth: "none", WebkitOverflowScrolling: "touch", background: "#f8fafc", borderTop: `1px solid ${AHLEEN_PALETTE.border}`, borderBottom: `1px solid ${AHLEEN_PALETTE.border}` }}>
+        <button
+          onClick={() => setSelectedCountry("all")}
+          className="px-3.5 py-1.5 rounded-full text-xs font-bold flex-shrink-0 transition-all"
+          style={selectedCountry === "all" ? AHLEEN_UI.goldButton : { background: "#fff", color: "#64748b", border: "1px solid #e2e8f0" }}
+        >
+          🌍 الكل
+        </button>
+        {ARAB_COUNTRIES.filter((c) => countriesWithRooms.includes(c.code)).map((c) => {
+          const active = selectedCountry === c.code;
+          return (
+            <button
+              key={c.code}
+              onClick={() => setSelectedCountry(c.code)}
+              className="px-3 py-1.5 rounded-full text-xs font-bold flex-shrink-0 flex items-center gap-1.5 transition-all"
+              style={active ? AHLEEN_UI.goldButton : { background: "#fff", color: "#64748b", border: "1px solid #e2e8f0" }}
+            >
+              <span>{c.flag}</span>
+              <span>{c.name}</span>
+            </button>
+          );
+        })}
+      </section>
+      </>}
+
+      {roomTab === "all" && <>
+      {/* ── ROOMS GRID ── */}
+      <div className="px-4 mt-4">
+        {filteredRooms.length === 0 ? (
+          <div className="text-center py-16 rounded-[26px]" style={AHLEEN_UI.panel}>
+            <p className="text-3xl mb-2">🎙️</p>
+            <p className="font-bold text-white text-sm">لا توجد غرف نشطة حالياً</p>
+            <p className="text-xs mt-1" style={{ color: "rgba(255,255,255,.45)" }}>أنشئ غرفتك الخاصة وابدأ الدردشة الآن</p>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-3">
+            {filteredRooms.map((room: any, idx: number) => (
+              <Fragment key={room._id}>
+                <RoomListCard room={room} onSelect={() => onRoomSelect(room._id)} rank={idx + 1} />
+                {idx === 0 && (
+                  <button type="button" onClick={() => goToSubPage(rechargeBanner === 0 ? "recharge" : "weekly-star")} className="group relative mt-0.5 overflow-hidden rounded-2xl border border-amber-300/60 bg-[#3b0712] shadow-[0_8px_24px_rgba(87,11,24,.18)] active:scale-[.99]">
+                    {rechargeBanner === 0 ? <><img src={rechargeGiftSettings?.bannerUrl ?? "/manus-storage/saki-recharge-royal-banner_228d5f43.png"} alt="هدية إعادة الشحن" className="h-[124px] w-full object-cover transition duration-500 group-hover:scale-[1.02]" /><span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-[#26040c]/90 to-transparent px-3 pb-2 pt-7 text-right text-[11px] font-black text-amber-100">هدايا إعادة الشحن</span></> : <><div className="flex h-[124px] items-center gap-4 bg-[radial-gradient(circle_at_20%_20%,rgba(251,191,36,.35),transparent_35%),linear-gradient(135deg,#160a2d,#3b1157,#120718)] px-5"><img src="/manus-storage/weekly-star-title_79761d37.png" alt="النجم الأسبوعي" className="h-24 w-24 object-contain drop-shadow-[0_0_18px_rgba(251,191,36,.8)]" /><div className="text-right"><p className="text-xs font-bold text-amber-200/70">هذا الأسبوع</p><p className="text-2xl font-black text-amber-100">النجم الأسبوعي</p><p className="text-[11px] text-white/60">اضغط لمعرفة الترتيب والمكافآت</p></div></div><span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-[#160a2d]/90 to-transparent px-3 pb-2 pt-7 text-right text-[11px] font-black text-amber-100">النجم الأسبوعي</span></>}
+                  </button>
+                )}
+              </Fragment>
+            ))}
+          </div>
+        )}
+      </div>
+      </>}
+    </div>
+  );
+}

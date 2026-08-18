@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <meta http-equiv="Permissions-Policy" content="microphone=*, camera=*, autoplay=*, fullscreen=*" />
+    <link rel="stylesheet" href="/src/index.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+
+    <title>ساكي</title>
+    <meta name="description" content="تواصل • ترفيه • مجتمع - غرف الصوت العربية" />
+    <meta name="theme-color" content="#ff6a00" />
+    <meta name="format-detection" content="telephone=no" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="ساكي" />
+    <meta name="application-name" content="ساكي" />
+    <meta name="msapplication-TileColor" content="#ff6a00" />
+    <meta name="msapplication-TileImage" content="/saki-icon.png" />
+
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/manifest.json" />
+
+    <!-- YouTube IFrame API -->
+    <script src="https://www.youtube.com/iframe_api"></script>
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <link rel="apple-touch-icon" href="/saki-icon.png" />
+    <link rel="apple-touch-icon" sizes="152x152" href="/saki-icon.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/saki-icon.png" />
+    <link rel="apple-touch-icon" sizes="167x167" href="/saki-icon.png" />
+    <link rel="apple-touch-icon" sizes="512x512" href="/saki-icon.png" />
+
+    <!-- Audio background playback support -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+
+    <!-- Open Graph -->
+    <meta property="og:title" content="ساكي - غرف الصوت العربية" />
+    <meta property="og:description" content="تواصل • ترفيه • مجتمع" />
+    <meta property="og:image" content="/og-preview.png" />
+    <meta property="og:type" content="website" />
+
+    <!-- Preconnect for performance -->
+    <link rel="preconnect" href="https://c.top4top.io" />
+
+    <style>
+      html, body {
+        background-color: #ffffff;
+        margin: 0; padding: 0; height: 100%;
+        overscroll-behavior-y: none;
+      }
+      body {
+        padding: 0;
+        overflow: hidden;
+      }
+      #root {
+        width: 100%;
+        height: 100%;
+        min-height: 100%;
+      }
+      * { -webkit-tap-highlight-color: transparent; -webkit-touch-callout: none; }
+      * { -webkit-overflow-scrolling: touch; }
+      body { -webkit-user-select: none; user-select: none; }
+      input, textarea { -webkit-user-select: text; user-select: text; }
+
+      #native-splash {
+        position: fixed; inset: 0; background: #0f0f1a;
+        display: flex; flex-direction: column;
+        align-items: center; justify-content: center;
+        z-index: 99999;
+        transition: opacity 0.3s ease, transform 0.3s ease;
+      }
+      #native-splash.hide { opacity: 0; transform: scale(1.03); pointer-events: none; }
+      #native-splash img {
+        width: 88px; height: 88px; border-radius: 22px;
+        border: 2px solid rgba(168,85,247,0.45);
+        box-shadow: 0 0 32px rgba(168,85,247,0.3);
+        animation: sp 1.6s ease-in-out infinite;
+      }
+      #native-splash .dots { display: flex; gap: 6px; margin-top: 28px; }
+      #native-splash .dot {
+        width: 7px; height: 7px; border-radius: 50%;
+        background: rgba(168,85,247,0.7);
+        animation: db 1.2s ease-in-out infinite;
+      }
+      #native-splash .dot:nth-child(2) { animation-delay: 0.18s; }
+      #native-splash .dot:nth-child(3) { animation-delay: 0.36s; }
+      @keyframes sp {
+        0%,100% { box-shadow: 0 0 24px rgba(168,85,247,0.3); }
+        50% { box-shadow: 0 0 48px rgba(168,85,247,0.6); }
+      }
+      @keyframes db {
+        0%,80%,100% { transform: scale(0.7); opacity: 0.4; }
+        40% { transform: scale(1.2); opacity: 1; }
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Native splash: shows instantly, hidden by JS after React mounts -->
+    <div id="native-splash">
+        <img src="/saki-icon.png" alt="ساكي" />
+      <div class="dots">
+        <div class="dot"></div>
+        <div class="dot"></div>
+        <div class="dot"></div>
+      </div>
+    </div>
+
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+
+    <script>
+      // Saki startup diagnostics: never reload automatically. Capture the real
+      // bootstrap error and show it on the splash when React/plugin startup stalls.
+      (function () {
+        var splash = document.getElementById('native-splash');
+        var hidden = false;
+        var startedAt = Date.now();
+        var events = [];
+        var lastError = null;
+        function safeText(value) {
+          try { return String(value || '').slice(0, 4000); } catch (_) { return 'تعذر قراءة التفاصيل'; }
+        }
+        function record(kind, value, extra) {
+          var item = { at: new Date().toISOString(), kind: kind, value: safeText(value), extra: extra || '' };
+          events.push(item);
+          if (events.length > 20) events.shift();
+          lastError = item;
+          window.__sakiStartupDiagnostics = { startedAt: new Date(startedAt).toISOString(), events: events };
+          try { localStorage.setItem('saki_startup_diagnostics', JSON.stringify(window.__sakiStartupDiagnostics)); } catch (_) {}
+        }
+        function formatDetails() {
+          var report = {
+            app: 'Saki Chat',
+            url: location.href,
+            platform: navigator.userAgent,
+            online: navigator.onLine,
+            elapsedMs: Date.now() - startedAt,
+            lastError: lastError,
+            events: events
+          };
+          return JSON.stringify(report, null, 2);
+        }
+        function showDiagnostics(reason) {
+          if (hidden || !splash) return;
+          record('watchdog', reason || 'لم يتم تركيب التطبيق خلال المهلة');
+          var report = formatDetails();
+          splash.style.background = '#f8fafc';
+          splash.style.color = '#172033';
+          splash.innerHTML = '<div style="font-family:Cairo,Tajawal,sans-serif;text-align:center;width:min(100%,520px);box-sizing:border-box;padding:24px" dir="rtl">' +
+            '<div style="font-size:40px;margin-bottom:8px;color:#dc2626">!</div>' +
+            '<div style="font-size:19px;font-weight:900">تعذر تشغيل Saki Chat</div>' +
+            '<div style="font-size:13px;color:#475569;line-height:1.8;margin-top:8px">تم إيقاف التحميل الصامت. الخطأ الحقيقي ظاهر في التفاصيل أدناه.</div>' +
+            '<div style="margin-top:16px;padding:12px;border:1px solid #fecaca;border-radius:14px;background:#fff7f7;text-align:left;direction:ltr;max-height:180px;overflow:auto;font:11px/1.55 monospace;white-space:pre-wrap;word-break:break-word">' + safeText(lastError ? (lastError.value + (lastError.extra ? '\\n' + lastError.extra : '')) : reason) + '</div>' +
+            '<div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:14px">' +
+            '<button id="saki-copy-diagnostics" style="border:0;border-radius:12px;padding:11px 16px;background:#172033;color:#fff;font-weight:800">نسخ تفاصيل الخطأ</button>' +
+            '<button id="saki-retry-diagnostics" style="border:0;border-radius:12px;padding:11px 16px;background:#ff6a00;color:#fff;font-weight:800">إعادة المحاولة</button>' +
+            '</div><div id="saki-copy-status" style="font-size:11px;color:#64748b;margin-top:8px"></div>' +
+            '<details style="margin-top:14px;text-align:left;direction:ltr;color:#64748b;font-size:10px"><summary>سجل الإقلاع الكامل</summary><pre style="white-space:pre-wrap;overflow-wrap:anywhere">' + safeText(report) + '</pre></details></div>';
+          var copy = document.getElementById('saki-copy-diagnostics');
+          if (copy) copy.onclick = function () {
+            var status = document.getElementById('saki-copy-status');
+            navigator.clipboard && navigator.clipboard.writeText ? navigator.clipboard.writeText(report).then(function () { if (status) status.textContent = 'تم نسخ التفاصيل'; }).catch(function () { if (status) status.textContent = report; }) : (status && (status.textContent = report));
+          };
+          var retry = document.getElementById('saki-retry-diagnostics');
+          if (retry) retry.onclick = function () { location.reload(); };
+        }
+        window.__sakiShowDiagnostics = showDiagnostics;
+        window.__sakiShowSavedDiagnostics = function () {
+          var saved = null;
+          try { saved = localStorage.getItem('saki_startup_diagnostics'); } catch (_) {}
+          showDiagnostics(saved ? 'آخر سجل محفوظ من محاولة سابقة:\\n' + saved : 'لا يوجد سجل محفوظ من محاولة سابقة');
+        };
+        window.__sakiStartupMark = function (name) { record('stage', name); };
+        window.addEventListener('error', function (event) {
+          var target = event.target;
+          if (target && target !== window && target.src) record('resource.error', 'فشل تحميل مورد: ' + target.src);
+          else record('window.error', event.message || 'JavaScript error', (event.filename || '') + ':' + (event.lineno || '') + ':' + (event.colno || '') + '\\n' + safeText(event.error && event.error.stack));
+        }, true);
+        window.addEventListener('unhandledrejection', function (event) { record('unhandledrejection', event.reason && (event.reason.stack || event.reason.message) || event.reason || 'Promise rejected'); });
+        window.addEventListener('offline', function () { record('network', 'انقطع الاتصال بالإنترنت'); });
+        window.addEventListener('online', function () { record('network', 'عاد الاتصال بالإنترنت'); });
+        window.__hideSplash = function () {
+          if (hidden) return;
+          hidden = true;
+          var el = document.getElementById('native-splash');
+          if (el) { el.classList.add('hide'); setTimeout(function () { if (el.parentNode) el.remove(); }, 350); }
+        };
+        record('stage', 'HTML splash loaded');
+        setTimeout(function () { showDiagnostics('لم يتم تركيب واجهة التطبيق خلال 8 ثوانٍ'); }, 8000);
+      })();
+    </script>
+  </body>
+</html>

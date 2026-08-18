@@ -1,0 +1,102 @@
+<?xml version='1.0' encoding='utf-8'?>
+<widget
+  id="com.sakichat.app"
+  version="1.0.0"
+  xmlns="http://www.w3.org/ns/widgets"
+  xmlns:cdv="http://cordova.apache.org/ns/1.0"
+  xmlns:android="http://schemas.android.com/apk/res/android">
+
+  <name>ساكي شات</name>
+  <description>تطبيق ساكي شات للتواصل الصوتي والاجتماعي</description>
+  <author email="support@sakichat.com" href="https://sakichat.com">SakiChat Team</author>
+
+  <!-- ✅ الصفحة الرئيسية -->
+  <content src="index.html" />
+
+  <!-- ✅ السماح بجميع الروابط -->
+  <access origin="*" />
+  <allow-navigation href="*" />
+  <allow-intent href="*" />
+  <allow-intent href="tel:*" />
+  <allow-intent href="sms:*" />
+  <allow-intent href="mailto:*" />
+
+  <!-- ✅ إعدادات عامة -->
+  <preference name="DisallowOverscroll" value="true" />
+  <preference name="BackupWebStorage" value="none" />
+  <preference name="SplashScreenDelay" value="2000" />
+  <preference name="FadeSplashScreen" value="true" />
+  <preference name="ShowSplashScreenSpinner" value="false" />
+  <preference name="AllowInlineMediaPlayback" value="true" />
+  <preference name="MediaPlaybackRequiresUserAction" value="false" />
+  <preference name="AutoHideSplashScreen" value="true" />
+  <preference name="Orientation" value="portrait" />
+  <preference name="StatusBarOverlaysWebView" value="false" />
+  <preference name="StatusBarBackgroundColor" value="#0f0f1a" />
+  <preference name="StatusBarStyle" value="lightcontent" />
+
+  <!-- ✅ إعدادات Android -->
+  <platform name="android">
+
+    <!-- الأذونات الأساسية -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+
+    <!-- 🎤 الميكروفون - للغرف الصوتية -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+    <uses-permission android:name="android.permission.BLUETOOTH" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+
+    <!-- 📷 الكاميرا - لرفع الصور -->
+    <uses-permission android:name="android.permission.CAMERA" />
+
+    <!-- 📁 الملفات - لرفع الصور والفيديو -->
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
+    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
+
+    <!-- 🔔 الإشعارات -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.VIBRATE" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+
+    <!-- 📍 الموقع (اختياري) -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+
+    <!-- إعدادات Android SDK -->
+    <preference name="android-minSdkVersion" value="22" />
+    <preference name="android-targetSdkVersion" value="34" />
+    <preference name="AndroidPersistentFileLocation" value="Compatibility" />
+    <preference name="AndroidXEnabled" value="true" />
+    <preference name="GradlePluginKotlinEnabled" value="true" />
+
+    <!-- شاشة البداية -->
+    <splash src="res/screen/android/splash.png" density="mdpi" />
+    <splash src="res/screen/android/splash-hdpi.png" density="hdpi" />
+    <splash src="res/screen/android/splash-xhdpi.png" density="xhdpi" />
+    <splash src="res/screen/android/splash-xxhdpi.png" density="xxhdpi" />
+
+    <!-- أيقونات التطبيق -->
+    <icon src="public/icon.svg" />
+
+    <!-- إعدادات WebView -->
+    <preference name="OverrideUserAgent" value="false" />
+    <preference name="AppendUserAgent" value="SakiChatApp/1.0" />
+
+  </platform>
+
+  <!-- ✅ إعدادات iOS (للمستقبل) -->
+  <platform name="ios">
+    <preference name="AllowInlineMediaPlayback" value="true" />
+    <preference name="MediaPlaybackRequiresUserAction" value="false" />
+    <preference name="BackupWebStorage" value="none" />
+    <icon src="public/icon.svg" />
+  </platform>
+
+</widget>

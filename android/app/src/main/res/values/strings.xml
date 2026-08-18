@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Saki</string>
+    <string name="title_activity_main">Saki</string>
+    <string name="package_name">saki.chat.co</string>
+    <string name="custom_url_scheme">saki.chat.co</string>
+</resources>

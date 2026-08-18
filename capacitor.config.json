@@ -1,0 +1,9 @@
+{
+  "appId": "saki.chat.co",
+  "appName": "Saki",
+  "webDir": "dist",
+  "bundledWebRuntime": false,
+  "android": {
+    "webContentsDebuggingEnabled": true
+  }
+}

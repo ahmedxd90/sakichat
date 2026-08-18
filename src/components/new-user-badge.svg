@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+  <defs>
+    <linearGradient id="shield" x1="92" y1="44" x2="426" y2="470" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#67E8F9"/>
+      <stop offset=".34" stop-color="#38BDF8"/>
+      <stop offset=".62" stop-color="#A855F7"/>
+      <stop offset=".84" stop-color="#EC4899"/>
+      <stop offset="1" stop-color="#FBBF24"/>
+    </linearGradient>
+    <linearGradient id="metal" x1="160" y1="80" x2="352" y2="430" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFFFFF"/>
+      <stop offset=".22" stop-color="#BAE6FD"/>
+      <stop offset=".58" stop-color="#C084FC"/>
+      <stop offset="1" stop-color="#FDE68A"/>
+    </linearGradient>
+    <filter id="glow" x="-25%" y="-25%" width="150%" height="160%">
+      <feGaussianBlur stdDeviation="10" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <path d="M256 22 430 88v156c0 113-71 198-174 246C153 442 82 357 82 244V88L256 22Z" fill="#080A20" fill-opacity=".78" stroke="url(#shield)" stroke-width="20" filter="url(#glow)"/>
+  <path d="M256 64 390 114v126c0 88-52 155-134 199-82-44-134-111-134-199V114l134-50Z" fill="url(#shield)" fill-opacity=".18" stroke="url(#metal)" stroke-width="6"/>
+  <path d="m256 102 18 45 49 4-38 31 12 48-41-26-41 26 12-48-38-31 49-4 18-45Z" fill="#FDE68A" stroke="#FFFFFF" stroke-opacity=".8" stroke-width="5"/>
+  <circle cx="256" cy="236" r="63" fill="#0F172A" fill-opacity=".75" stroke="url(#metal)" stroke-width="6"/>
+  <path d="M256 192c-17 0-30 13-30 30s13 30 30 30 30-13 30-30-13-30-30-30Zm-43 91c8-25 25-37 43-37s35 12 43 37" stroke="#E0F2FE" stroke-width="12" stroke-linecap="round"/>
+  <path d="M145 380c28 20 65 38 111 56 46-18 83-36 111-56" stroke="#FDE68A" stroke-opacity=".8" stroke-width="5" stroke-linecap="round"/>
+  <g fill="#FFFFFF"><circle cx="112" cy="129" r="4"/><circle cx="400" cy="158" r="4"/><circle cx="131" cy="304" r="3"/><circle cx="381" cy="314" r="3"/></g>
+</svg>

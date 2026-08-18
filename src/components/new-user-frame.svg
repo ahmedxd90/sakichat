@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+  <defs>
+    <linearGradient id="frame" x1="52" y1="34" x2="458" y2="480" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#67E8F9"/>
+      <stop offset=".28" stop-color="#38BDF8"/>
+      <stop offset=".55" stop-color="#A855F7"/>
+      <stop offset=".78" stop-color="#EC4899"/>
+      <stop offset="1" stop-color="#FBBF24"/>
+    </linearGradient>
+    <linearGradient id="inner" x1="80" y1="60" x2="432" y2="446" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#E0F2FE"/>
+      <stop offset=".4" stop-color="#C084FC"/>
+      <stop offset="1" stop-color="#FDE68A"/>
+    </linearGradient>
+    <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="12" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <circle cx="256" cy="256" r="225" stroke="#38BDF8" stroke-opacity=".25" stroke-width="32" filter="url(#glow)"/>
+  <circle cx="256" cy="256" r="224" stroke="url(#frame)" stroke-width="22" filter="url(#glow)"/>
+  <circle cx="256" cy="256" r="202" stroke="url(#inner)" stroke-width="5" stroke-dasharray="3 15" stroke-linecap="round"/>
+  <circle cx="256" cy="256" r="188" stroke="#FFFFFF" stroke-opacity=".35" stroke-width="3"/>
+  <g fill="#FDE68A" stroke="#FFFFFF" stroke-opacity=".75" stroke-width="2">
+    <path d="M256 20l5.5 13.7L276 39l-14.5 5.3L256 58l-5.5-13.7L236 39l14.5-5.3L256 20Z"/>
+    <path d="M454 185l4 10 10 4-10 4-4 10-4-10-10-4 10-4 4-10Z"/>
+    <path d="M83 372l4 10 10 4-10 4-4 10-4-10-10-4 10-4 4-10Z"/>
+  </g>
+  <g fill="#FFFFFF" opacity=".9">
+    <circle cx="150" cy="74" r="4"/><circle cx="382" cy="102" r="3"/><circle cx="420" cy="337" r="4"/><circle cx="105" cy="216" r="3"/>
+  </g>
+  <!-- transparent center intentionally left empty for avatar -->
+</svg>

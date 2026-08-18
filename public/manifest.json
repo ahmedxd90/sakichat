@@ -1,0 +1,75 @@
+{
+  "name": "ساكي - غرف الصوت العربية",
+  "short_name": "ساكي",
+  "description": "تواصل • ترفيه • مجتمع - غرف الصوت العربية",
+  "start_url": "/?source=pwa",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "orientation": "portrait",
+  "background_color": "#ffffff",
+  "theme_color": "#ff6a00",
+  "lang": "ar",
+  "dir": "rtl",
+  "categories": ["social", "entertainment", "communication"],
+  "prefer_related_applications": false,
+  "icons": [
+    {
+      "src": "/saki-icon.png",
+      "sizes": "256x256",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/saki-icon.png",
+      "sizes": "256x256",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/saki-icon.png",
+      "sizes": "256x256",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/og-preview.png",
+      "sizes": "1200x630",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "ساكي - الشاشة الرئيسية"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "الرئيسية",
+      "short_name": "الرئيسية",
+      "url": "/?shortcut=home",
+      "icons": [{ "src": "/saki-icon.png", "sizes": "256x256" }]
+    },
+    {
+      "name": "الرسائل",
+      "short_name": "رسائل",
+      "url": "/?shortcut=messages",
+      "icons": [{ "src": "/saki-icon.png", "sizes": "256x256" }]
+    },
+    {
+      "name": "الغرف",
+      "short_name": "غرف",
+      "url": "/?shortcut=rooms",
+      "icons": [{ "src": "/saki-icon.png", "sizes": "256x256" }]
+    }
+  ],
+  "related_applications": [],
+  "handle_links": "preferred",
+  "launch_handler": { "client_mode": "focus-existing" },
+  "edge_side_panel": { "preferred_width": 400 }
+}
