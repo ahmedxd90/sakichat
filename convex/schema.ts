@@ -1653,6 +1653,36 @@ export default defineSchema({
   })
     .index("by_livestream", ["livestreamId"])
     .index("by_livestream_and_user", ["livestreamId", "invitedUserId"]),
+  livePkSessions: defineTable({
+    streamAId: v.id("livestreams"),
+    streamBId: v.id("livestreams"),
+    hostAId: v.id("users"),
+    hostBId: v.id("users"),
+    channelName: v.string(),
+    status: v.union(v.literal("active"), v.literal("finished"), v.literal("cancelled")),
+    durationSeconds: v.number(),
+    startedAt: v.number(),
+    endsAt: v.number(),
+    scoreA: v.number(),
+    scoreB: v.number(),
+    winner: v.optional(v.union(v.literal("a"), v.literal("b"), v.literal("draw"))),
+    createdAt: v.number(),
+    endedAt: v.optional(v.number()),
+  })
+    .index("by_streamA", ["streamAId"])
+    .index("by_streamB", ["streamBId"])
+    .index("by_status", ["status"]),
+  livePkInvites: defineTable({
+    inviterStreamId: v.id("livestreams"),
+    targetStreamId: v.id("livestreams"),
+    inviterUserId: v.id("users"),
+    targetUserId: v.id("users"),
+    inviterName: v.optional(v.string()),
+    status: v.union(v.literal("pending"), v.literal("accepted"), v.literal("rejected"), v.literal("expired")),
+    createdAt: v.number(),
+  })
+    .index("by_target_user", ["targetUserId"])
+    .index("by_inviter_stream", ["inviterStreamId"]),
   livestreams: defineTable({
     // Legacy fields retained for existing records.
     userId: v.optional(v.id("users")),
@@ -1720,6 +1750,7 @@ export default defineSchema({
     giftCoins: v.number(),
     giftImageUrl: v.optional(v.string()),
     giftVideoUrl: v.optional(v.string()),
+    pkSessionId: v.optional(v.id("livePkSessions")),
     quantity: v.number(),
     createdAt: v.number(),
   })

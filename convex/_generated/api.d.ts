@@ -52,6 +52,7 @@ import type * as legacyAristocracyCleanup from "../legacyAristocracyCleanup.js";
 import type * as levelConfig from "../levelConfig.js";
 import type * as liveCoHost from "../liveCoHost.js";
 import type * as livestreams from "../livestreams.js";
+import type * as livePk from "../livePk.js";
 import type * as lucky77 from "../lucky77.js";
 import type * as luckyBag from "../luckyBag.js";
 import type * as messages from "../messages.js";
@@ -170,6 +171,7 @@ declare const fullApi: ApiFromModules<{
   levelConfig: typeof levelConfig;
   liveCoHost: typeof liveCoHost;
   livestreams: typeof livestreams;
+  livePk: typeof livePk;
   lucky77: typeof lucky77;
   luckyBag: typeof luckyBag;
   messages: typeof messages;

@@ -6,6 +6,7 @@ import { Id } from "../../convex/_generated/dataModel";
 import UserAvatar from "../components/UserAvatar";
 import { useAgoraVideoLive } from "../hooks/useAgoraVideoLive";
 import { useHardwareBack } from "../hooks/useHardwareBack";
+import { PkBattleOverlay, PkInvitePopup, PkInviteSheet } from "../components/live/PkLiveComponents";
 import RoomGiftsSheet from "../components/room/RoomGiftsSheet";
 import { formatNumber } from "../lib/formatNumber";
 import { VipBadge, VipName, getVipChatBubbleStyle, getVipConfig } from "../components/VipBadge";
@@ -314,7 +315,7 @@ function LiveChat({ messages, onAvatarClick }: any) {
 }
 
 // ── Bottom Bar ────────────────────────────────────────────────────
-function LiveBottomBar({ chatInput, setChatInput, onSend, onGift, onLike, onDuet, likeAnim, role, likeCount }: any) {
+function LiveBottomBar({ chatInput, setChatInput, onSend, onGift, onLike, onDuet, onPk, likeAnim, role, likeCount }: any) {
   return (
     <div className="flex items-center gap-2 px-3 pb-6 pt-2" style={{ background: "linear-gradient(to top, rgba(0,0,0,0.9), transparent)" }}>
       <div className="flex-1 flex items-center gap-2 px-3 py-2 rounded-full" style={{ background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.15)" }}>
@@ -322,7 +323,10 @@ function LiveBottomBar({ chatInput, setChatInput, onSend, onGift, onLike, onDuet
         <button onClick={onSend} disabled={!chatInput.trim()} className="w-6 h-6 rounded-full bg-purple-600 flex items-center justify-center disabled:opacity-40"><Ic.Send /></button>
       </div>
       {role === "host" && (
-        <button onClick={onDuet} className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: "linear-gradient(135deg,#8b5cf6,#6d28d9)" }}><Ic.Duet /></button>
+        <>
+          <button onClick={onDuet} className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: "linear-gradient(135deg,#8b5cf6,#6d28d9)" }}><Ic.Duet /></button>
+          <button onClick={onPk} className="w-10 h-10 rounded-full flex items-center justify-center bg-blue-600 text-white text-[10px] font-black shadow-lg shadow-blue-900/30">PK</button>
+        </>
       )}
       <button onClick={onGift} className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: "linear-gradient(135deg,#f59e0b,#ef4444)" }}><Ic.Gift /></button>
       <button onClick={onLike} className="relative w-10 h-10 rounded-full flex items-center justify-center transition-transform" style={{ background: "linear-gradient(135deg,#ec4899,#ef4444)", transform: likeAnim ? "scale(1.3)" : "scale(1)" }}>
@@ -443,13 +447,13 @@ function DuetInviteSheet({ livestreamId, coHosts, onClose }: any) {
 function CoHostInvitePopup({ invite, onAccept, onReject }: any) {
   return (
     <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/60" dir="rtl">
-      <div className="mx-6 p-6 rounded-3xl text-center" style={{ background: "linear-gradient(180deg,#1a0035,#0d0020)", border: "1px solid rgba(168,85,247,0.5)" }}>
-        <div className="w-14 h-14 rounded-full bg-purple-600/30 flex items-center justify-center mx-auto mb-3"><Ic.Duet /></div>
-        <p className="text-white font-black text-base">دعوة للبث المشترك</p>
-        <p className="text-gray-400 text-sm mt-1">دعاك المضيف للانضمام إلى البث المباشر</p>
+      <div className="mx-6 w-[min(360px,calc(100vw-40px))] p-6 rounded-3xl text-center bg-white shadow-2xl border border-blue-100">
+        <div className="w-16 h-16 rounded-full bg-blue-50 flex items-center justify-center mx-auto mb-3 border border-blue-100"><Ic.Duet /></div>
+        <p className="text-slate-900 font-black text-lg">تمت دعوتك للبث</p>
+        <p className="text-slate-500 text-sm mt-2">{invite.inviterName || "المضيف"} يدعوك للانضمام إلى البث كضيف صوتي</p>
         <div className="flex gap-3 mt-5">
-          <button onClick={onReject} className="flex-1 py-3 rounded-2xl bg-white/10 text-white font-bold text-sm">رفض</button>
-          <button onClick={onAccept} className="flex-1 py-3 rounded-2xl font-bold text-sm text-white" style={{ background: "linear-gradient(135deg,#8b5cf6,#6d28d9)" }}>قبول</button>
+          <button onClick={onReject} className="flex-1 py-3 rounded-2xl bg-slate-100 text-slate-700 font-bold text-sm">إلغاء</button>
+          <button onClick={onAccept} className="flex-1 py-3 rounded-2xl font-bold text-sm text-white bg-blue-600 shadow-lg shadow-blue-200">تأكيد</button>
         </div>
       </div>
     </div>
@@ -459,6 +463,9 @@ function CoHostInvitePopup({ invite, onAccept, onReject }: any) {
 // ── Main Component ────────────────────────────────────────────────
 export default function VideoLivePage({ livestreamId, role: initialRole, onBack }: VideoLivePageProps) {
   const stream = useQuery(api.livestreams.getLivestream, { livestreamId });
+  const activePk = useQuery(api.livePk.getActivePkForLivestream, { livestreamId });
+  const pendingPkInvites = useQuery(api.livePk.getPendingPkInvites) ?? [];
+  const availablePkStreams = useQuery(api.livestreams.getActiveLivestreams) ?? [];
   const messages = useQuery(api.livestreams.getLiveMessages, { livestreamId });
   const giftEvents = useQuery(api.livestreams.getLiveGiftEvents, { livestreamId });
   const myProfile = useQuery(api.profiles.getMyProfile);
@@ -477,6 +484,9 @@ export default function VideoLivePage({ livestreamId, role: initialRole, onBack 
   const endLivestream = useMutation(api.livestreams.endLivestream);
   const respondCoHostInvite = useMutation(api.liveCoHost.respondCoHostInvite);
   const removeCoHost = useMutation(api.liveCoHost.removeCoHost);
+  const sendPkInvite = useMutation(api.livePk.sendPkInvite);
+  const respondToPkInvite = useMutation(api.livePk.respondToPkInvite);
+  const endPk = useMutation(api.livePk.endPk);
 
   const isCoHost = !!myCoHostStatus;
   const effectiveRole = initialRole === "host" ? "host" : isCoHost ? "host" : "audience";
@@ -489,9 +499,9 @@ export default function VideoLivePage({ livestreamId, role: initialRole, onBack 
   const [chatInput, setChatInput] = useState("");
   const [showGifts, setShowGifts] = useState(false);
   const [showDuet, setShowDuet] = useState(false);
+  const [showPk, setShowPk] = useState(false);
   const [showViewers, setShowViewers] = useState(false);
   const [flyingEvents, setFlyingEvents] = useState<Array<any>>([]);
-  const [fullscreenGift, setFullscreenGift] = useState<any>(null);
   const [joinEvents, setJoinEvents] = useState<Array<any>>([]);
   const [likeAnim, setLikeAnim] = useState(false);
   const [showEndConfirm, setShowEndConfirm] = useState(false);
@@ -507,7 +517,9 @@ export default function VideoLivePage({ livestreamId, role: initialRole, onBack 
   const [giftQuantity, setGiftQuantity] = useState(1);
   const [showQuantityMenu, setShowQuantityMenu] = useState(false);
 
-  const channelName = stream?.channelName ?? "";
+  const opponentStreamId = activePk ? (activePk.streamAId === livestreamId ? activePk.streamBId : activePk.streamAId) : null;
+  const opponentStream = useQuery(api.livestreams.getLivestream, opponentStreamId ? { livestreamId: opponentStreamId } : "skip");
+  const channelName = activePk?.channelName ?? stream?.channelName ?? "";
   const agora = useAgoraVideoLive(channelName, myProfile?._id ?? stream?.hostId ?? "", effectiveRole, !!stream && !!channelName, initialRole === "host");
 
   // Join as viewer
@@ -547,7 +559,6 @@ export default function VideoLivePage({ livestreamId, role: initialRole, onBack 
     const id = ++flyingIdRef.current;
     const event = { id, emoji: latest.giftEmoji, name: latest.giftName, imageUrl: latest.giftImageUrl, videoUrl: latest.giftVideoUrl, senderName: latest.senderName, receiverName: latest.receiverName || stream?.hostProfile?.name, coins: latest.giftCoins * (latest.quantity ?? 1), qty: latest.quantity ?? 1 };
     setFlyingEvents((prev) => [...prev, event]);
-    if ((latest.giftCoins * (latest.quantity ?? 1)) >= 50000 || latest.giftVideoUrl) setFullscreenGift(event);
     setTimeout(() => setFlyingEvents((prev) => prev.filter((g) => g.id !== id)), 3000);
   }, [giftEvents?.[0]?._id]);
 
@@ -597,6 +608,17 @@ export default function VideoLivePage({ livestreamId, role: initialRole, onBack 
       await sendLiveCustomGift({ livestreamId, customGiftId: selectedCustomGift._id, quantity: giftQuantity });
       setShowGifts(false); setSelectedCustomGift(null); setGiftQuantity(1); setShowQuantityMenu(false); setGiftTargets([]); setGiftTarget(null);
     } catch (e: any) { alert(e.message ?? "فشل إرسال الهدية"); }
+  };
+
+  const handlePkInvite = async (targetStreamId: any) => {
+    try { await sendPkInvite({ targetStreamId }); setShowPk(false); } catch (e: any) { alert(e.message ?? "فشل إرسال دعوة PK"); }
+  };
+  const handlePkResponse = async (accept: boolean, inviteId: any) => {
+    try { await respondToPkInvite({ inviteId, accept, durationSeconds: 180 }); } catch (e: any) { alert(e.message ?? "تعذر تحديث دعوة PK"); }
+  };
+  const handleEndPk = async () => {
+    if (!activePk) return;
+    try { await endPk({ sessionId: activePk._id }); } catch (e: any) { alert(e.message ?? "تعذر إنهاء تحدي PK"); }
   };
 
   const handleOpenGifts = () => {
@@ -673,6 +695,7 @@ export default function VideoLivePage({ livestreamId, role: initialRole, onBack 
 
       {/* Top Bar */}
       <LiveTopBar stream={stream} role={initialRole} likeCount={likeCount} onClose={handleAudienceLeave} onEndConfirm={() => setShowEndConfirm(true)} onHostAvatarClick={handleHostAvatarClick} onViewersClick={() => setShowViewers(true)} />
+      {activePk && opponentStream && <PkBattleOverlay session={activePk} currentStreamId={livestreamId} currentStream={stream} opponentStream={opponentStream} onEnd={isHost ? handleEndPk : undefined} />}
 
       {/* Host Controls */}
       {effectiveRole === "host" && <HostControls agora={agora} />}
@@ -699,7 +722,6 @@ export default function VideoLivePage({ livestreamId, role: initialRole, onBack 
           </div>
         ))}
       </div>
-      <FullscreenGiftOverlay gift={fullscreenGift} onDone={() => setFullscreenGift(null)} />
 
       {/* Floating Hearts */}
       <FloatingHearts hearts={hearts} />
@@ -712,7 +734,7 @@ export default function VideoLivePage({ livestreamId, role: initialRole, onBack 
       {/* Chat + Bottom Controls */}
       <div className="absolute bottom-0 left-0 right-0 z-10" data-no-heart>
         <LiveChat messages={messages} onAvatarClick={handleChatAvatarClick} />
-        <LiveBottomBar chatInput={chatInput} setChatInput={setChatInput} onSend={handleSendMessage} onGift={handleOpenGifts} onLike={handleLike} onDuet={() => setShowDuet(true)} likeAnim={likeAnim} role={initialRole} likeCount={likeCount} />
+        <LiveBottomBar chatInput={chatInput} setChatInput={setChatInput} onSend={handleSendMessage} onGift={handleOpenGifts} onLike={handleLike} onDuet={() => setShowDuet(true)} onPk={() => setShowPk(true)} likeAnim={likeAnim} role={initialRole} likeCount={likeCount} />
       </div>
 
       {/* Gifts Sheet */}
@@ -739,6 +761,7 @@ export default function VideoLivePage({ livestreamId, role: initialRole, onBack 
 
       {/* Duet Sheet */}
       {showDuet && initialRole === "host" && <DuetInviteSheet livestreamId={livestreamId} coHosts={coHosts} onClose={() => setShowDuet(false)} />}
+      {showPk && initialRole === "host" && <PkInviteSheet streams={availablePkStreams} currentStreamId={livestreamId} onInvite={handlePkInvite} onClose={() => setShowPk(false)} />}
 
       {/* Viewers Sheet */}
       {showViewers && (
@@ -763,6 +786,9 @@ export default function VideoLivePage({ livestreamId, role: initialRole, onBack 
       {/* Co-Host Invite Popup */}
       {myCoHostInvite && initialRole !== "host" && !isCoHost && (
         <CoHostInvitePopup invite={myCoHostInvite} onAccept={() => respondCoHostInvite({ livestreamId, accept: true })} onReject={() => respondCoHostInvite({ livestreamId, accept: false })} />
+      )}
+      {pendingPkInvites.find((invite: any) => invite.targetStreamId === livestreamId) && (
+        <PkInvitePopup invite={pendingPkInvites.find((invite: any) => invite.targetStreamId === livestreamId)} onAccept={() => handlePkResponse(true, pendingPkInvites.find((invite: any) => invite.targetStreamId === livestreamId)._id)} onReject={() => handlePkResponse(false, pendingPkInvites.find((invite: any) => invite.targetStreamId === livestreamId)._id)} />
       )}
 
       {/* End Confirm */}

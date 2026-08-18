@@ -271,12 +271,15 @@ export const sendLiveGift = mutation({
     await ctx.db.patch(profile._id, { goldCoins: (profile.goldCoins ?? 0) - totalCost });
     const stream = await ctx.db.get(args.livestreamId);
     const hostProfile = stream ? await ctx.db.query("profiles").withIndex("by_userId", (q) => q.eq("userId", stream.hostId)).unique() : null;
-    await ctx.db.insert("liveGiftEvents", { livestreamId: args.livestreamId, senderId: userId, senderName: profile.name, senderAvatarUrl: profile.avatarUrl, receiverName: hostProfile?.name, receiverAvatarUrl: hostProfile?.avatarUrl, giftName: args.giftName, giftEmoji: args.giftEmoji, giftCoins: args.giftCoins, quantity: qty, createdAt: Date.now() });
+    const pkA = await ctx.db.query("livePkSessions").withIndex("by_streamA", (q) => q.eq("streamAId", args.livestreamId)).filter((q) => q.eq(q.field("status"), "active")).unique();
+    const pkSession = pkA ?? await ctx.db.query("livePkSessions").withIndex("by_streamB", (q) => q.eq("streamBId", args.livestreamId)).filter((q) => q.eq(q.field("status"), "active")).unique();
+    await ctx.db.insert("liveGiftEvents", { livestreamId: args.livestreamId, senderId: userId, senderName: profile.name, senderAvatarUrl: profile.avatarUrl, receiverName: hostProfile?.name, receiverAvatarUrl: hostProfile?.avatarUrl, giftName: args.giftName, giftEmoji: args.giftEmoji, giftCoins: args.giftCoins, pkSessionId: pkSession?._id, quantity: qty, createdAt: Date.now() });
     await ctx.db.insert("liveMessages", { livestreamId: args.livestreamId, userId, content: `أرسل ${args.giftEmoji} ${args.giftName} × ${qty}`, senderName: profile.name, senderAvatarUrl: profile.avatarUrl, isVip: profile.isVip ?? false, vipLevel: profile.vipLevel, type: "gift", giftName: args.giftName, giftEmoji: args.giftEmoji, giftCoins: totalCost, createdAt: Date.now() });
     if (stream) {
       await ctx.db.patch(args.livestreamId, { totalCoins: (stream.totalCoins ?? 0) + totalCost });
       const hostProfile = await ctx.db.query("profiles").withIndex("by_userId", (q) => q.eq("userId", stream.hostId)).unique();
       if (hostProfile && stream.hostId !== userId) await ctx.db.patch(hostProfile._id, { goldCoins: (hostProfile.goldCoins ?? 0) + Math.floor(totalCost * 0.7), diamonds: (hostProfile.diamonds ?? 0) + Math.floor(totalCost * 0.3) });
+      if (pkSession) await ctx.db.patch(pkSession._id, stream._id === pkSession.streamAId ? { scoreA: pkSession.scoreA + totalCost } : { scoreB: pkSession.scoreB + totalCost });
     }
     return null;
   },
@@ -297,14 +300,17 @@ export const sendLiveCustomGift = mutation({
     await ctx.db.patch(profile._id, { goldCoins: (profile.goldCoins ?? 0) - totalCost });
     const stream = await ctx.db.get(args.livestreamId);
     const hostProfile = stream ? await ctx.db.query("profiles").withIndex("by_userId", (q) => q.eq("userId", stream.hostId)).unique() : null;
+    const pkA = await ctx.db.query("livePkSessions").withIndex("by_streamA", (q) => q.eq("streamAId", args.livestreamId)).filter((q) => q.eq(q.field("status"), "active")).unique();
+    const pkSession = pkA ?? await ctx.db.query("livePkSessions").withIndex("by_streamB", (q) => q.eq("streamBId", args.livestreamId)).filter((q) => q.eq(q.field("status"), "active")).unique();
     const videoUrl = (gift as any).videoUrl ?? ((gift as any).videoStorageId ? await ctx.storage.getUrl((gift as any).videoStorageId) ?? undefined : undefined);
     const thumbnailUrl = (gift as any).thumbnailUrl ?? ((gift as any).thumbnailStorageId ? await ctx.storage.getUrl((gift as any).thumbnailStorageId) ?? undefined : undefined);
-    await ctx.db.insert("liveGiftEvents", { livestreamId: args.livestreamId, senderId: userId, senderName: profile.name, senderAvatarUrl: profile.avatarUrl, receiverName: hostProfile?.name, receiverAvatarUrl: hostProfile?.avatarUrl, giftName: gift.name, giftEmoji: "🎁", giftCoins: gift.price, giftImageUrl: thumbnailUrl ?? videoUrl, giftVideoUrl: videoUrl, quantity: qty, createdAt: Date.now() });
+    await ctx.db.insert("liveGiftEvents", { livestreamId: args.livestreamId, senderId: userId, senderName: profile.name, senderAvatarUrl: profile.avatarUrl, receiverName: hostProfile?.name, receiverAvatarUrl: hostProfile?.avatarUrl, giftName: gift.name, giftEmoji: "🎁", giftCoins: gift.price, giftImageUrl: thumbnailUrl ?? videoUrl, giftVideoUrl: videoUrl, pkSessionId: pkSession?._id, quantity: qty, createdAt: Date.now() });
     await ctx.db.insert("liveMessages", { livestreamId: args.livestreamId, userId, content: `أرسل هدية ${gift.name} × ${qty}`, senderName: profile.name, senderAvatarUrl: profile.avatarUrl, isVip: profile.isVip ?? false, vipLevel: profile.vipLevel, type: "gift", giftName: gift.name, giftEmoji: "🎁", giftCoins: totalCost, createdAt: Date.now() });
     if (stream) {
       await ctx.db.patch(args.livestreamId, { totalCoins: (stream.totalCoins ?? 0) + totalCost });
       const hostProfile = await ctx.db.query("profiles").withIndex("by_userId", (q) => q.eq("userId", stream.hostId)).unique();
       if (hostProfile && stream.hostId !== userId) await ctx.db.patch(hostProfile._id, { goldCoins: (hostProfile.goldCoins ?? 0) + Math.floor(totalCost * 0.7), diamonds: (hostProfile.diamonds ?? 0) + Math.floor(totalCost * 0.3) });
+      if (pkSession) await ctx.db.patch(pkSession._id, stream._id === pkSession.streamAId ? { scoreA: pkSession.scoreA + totalCost } : { scoreB: pkSession.scoreB + totalCost });
     }
     return null;
   },
