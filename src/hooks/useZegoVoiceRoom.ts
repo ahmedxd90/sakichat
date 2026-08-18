@@ -73,7 +73,7 @@ export function useZegoVoiceRoom(
     const timers = speakingTimersRef.current;
     const oldTimer = timers.get(speakerId);
     if (oldTimer) clearTimeout(oldTimer);
-    if (Number(level) > 3) {
+    if (Number(level) > 1) {
       setSpeakingUsers((prev) => {
         const next = new Set(prev);
         next.add(speakerId);
@@ -87,7 +87,7 @@ export function useZegoVoiceRoom(
           return next;
         });
         timers.delete(speakerId);
-      }, 650));
+      }, 420));
     }
   }, []);
 
@@ -259,22 +259,35 @@ export function useZegoVoiceRoom(
         }
       });
 
-      (zego as any).on("remoteSoundLevelUpdate", (payload: any) => {
-        const list = Array.isArray(payload) ? payload : [];
-        for (const item of list) {
-          const streamId = String(item?.streamID ?? item?.streamId ?? item?.userID ?? item?.userId ?? "");
-          const speakerId = streamId.replace(/^pub_/, "");
-          const level = Number(item?.soundLevel ?? item?.level ?? item?.volume ?? 0);
-          markSpeaking(speakerId, level);
+      // ZEGOCLOUD Web SDK returns remote levels as Record<streamID, level>,
+      // not as an array of objects. Normalize both formats for SDK compatibility.
+      const handleRemoteSoundLevels = (payload: any) => {
+        if (Array.isArray(payload)) {
+          for (const item of payload) {
+            const streamId = String(item?.streamID ?? item?.streamId ?? item?.userID ?? item?.userId ?? "");
+            const level = Number(item?.soundLevel ?? item?.level ?? item?.volume ?? 0);
+            markSpeaking(streamId.replace(/^pub_/, ""), level);
+          }
+          return;
         }
-      });
+        if (payload && typeof payload === "object") {
+          for (const [streamId, rawLevel] of Object.entries(payload)) {
+            markSpeaking(String(streamId).replace(/^pub_/, ""), Number(rawLevel));
+          }
+        }
+      };
+      (zego as any).on("remoteSoundLevelUpdate", handleRemoteSoundLevels);
 
-      (zego as any).on("localSoundLevelUpdate", (payload: any) => {
+      const handleLocalSoundLevel = (payload: any) => {
         const level = typeof payload === "number"
           ? payload
           : Number(payload?.soundLevel ?? payload?.level ?? payload?.volume ?? 0);
         if (localStreamRef.current) markSpeaking(userId, level);
-      });
+      };
+      // Official Web SDK event name is capturedSoundLevelUpdate; retain the
+      // legacy alias for older SDK builds used by some Android WebViews.
+      (zego as any).on("capturedSoundLevelUpdate", handleLocalSoundLevel);
+      (zego as any).on("localSoundLevelUpdate", handleLocalSoundLevel);
 
       // Generate token
       let token: string;
