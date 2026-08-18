@@ -20,7 +20,7 @@ import { AppUpdate, AppUpdateAvailability } from "@capawesome/capacitor-app-upda
 import ForceUpdateScreen from "./components/ForceUpdateScreen";
 import "./vip-animations.css";
 
-const CURRENT_APP_VERSION = "1.0.120";
+const CURRENT_APP_VERSION = "1.0.121";
 
 // ── Lazy imports ──────────────────────────────────────────────────────────
 const LoginPage = lazy(() => import("./pages/LoginPage"));
