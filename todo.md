@@ -1275,3 +1275,9 @@
 - [ ] فحص deep link وIntent-filter وgetLaunchUrl/appUrlOpen.
 - [ ] التحقق من إعدادات Google OAuth وConvex callback وverifier.
 - [ ] بناء نسخة جديدة بعد إصلاح السبب الحقيقي.
+
+## إصلاح موجات الصوت على المقاعد — 2026-08-18
+- [ ] فحص callback مستوى الصوت من ZEGOCLOUD وربطه بالـ userId.
+- [ ] فحص تحديث RoomSeatsGrid وبيانات data-seat للموجات.
+- [ ] إصلاح التحديث اللحظي للمتحدثين المحليين والبعيدين.
+- [ ] اختبار وبناء نسخة Android بعد نجاح الإصلاح.

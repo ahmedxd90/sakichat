@@ -73,25 +73,37 @@ export function useZegoVoiceRoom(
 
   const markSpeaking = useCallback((speakerId: string, level: number) => {
     if (!speakerId) return;
+    const numericLevel = Number(level);
+    if (!Number.isFinite(numericLevel) || numericLevel <= 0.5) return;
+
+    const raw = String(speakerId);
+    const base = raw.replace(/^pub_/, "");
+    const sanitized = base.replace(/[^a-zA-Z0-9_-]/g, "");
+    // Keep aliases so seat grids can match ZEGOCLOUD stream IDs, raw IDs,
+    // sanitized IDs, and the legacy hashed Agora-style ID.
+    const hash = String(Math.abs(base.split("").reduce((acc, c) => acc * 31 + c.charCodeAt(0), 0) % 100000000));
+    const aliases = [...new Set([raw, base, sanitized, `pub_${base}`, `pub_${sanitized}`, hash, `pub_${hash}`].filter(Boolean))];
     const timers = speakingTimersRef.current;
-    const oldTimer = timers.get(speakerId);
-    if (oldTimer) clearTimeout(oldTimer);
-    if (Number(level) > 1) {
-      setSpeakingUsers((prev) => {
-        const next = new Set(prev);
-        next.add(speakerId);
-        return next;
-      });
-      timers.set(speakerId, setTimeout(() => {
+
+    setSpeakingUsers((prev) => {
+      const next = new Set(prev);
+      aliases.forEach((alias) => next.add(alias));
+      return next;
+    });
+
+    aliases.forEach((alias) => {
+      const oldTimer = timers.get(alias);
+      if (oldTimer) clearTimeout(oldTimer);
+      timers.set(alias, setTimeout(() => {
         setSpeakingUsers((prev) => {
-          if (!prev.has(speakerId)) return prev;
+          if (!prev.has(alias)) return prev;
           const next = new Set(prev);
-          next.delete(speakerId);
+          next.delete(alias);
           return next;
         });
-        timers.delete(speakerId);
-      }, 420));
-    }
+        timers.delete(alias);
+      }, 500));
+    });
   }, []);
 
   const destroyEngine = useCallback(() => {
