@@ -375,10 +375,13 @@ function RoomSeatsGridInner({
     return isRoom1 ? "room2" : "room1";
   };
 
-  const getMemberUid = (member: any) =>
-    member?.profile?.userId
-      ? String(Math.abs(member.profile.userId.split("").reduce((acc: number, c: string) => acc * 31 + c.charCodeAt(0), 0) % 100000000))
-      : "";
+  const getMemberSpeakerIds = (member: any): string[] => {
+    const raw = member?.profile?.userId != null ? String(member.profile.userId) : "";
+    if (!raw) return [];
+    // Agora historically used a numeric hash; ZEGOCLOUD uses the raw userId in pub_<userId>.
+    const hash = String(Math.abs(raw.split("").reduce((acc: number, c: string) => acc * 31 + c.charCodeAt(0), 0) % 100000000));
+    return [raw, hash, `pub_${raw}`, `pub_${hash}`];
+  };
 
   // تصغير المقاعد تلقائياً للأعداد الكبيرة
   const scale = maxSeats > 10 ? 0.75 : 1;
@@ -420,8 +423,8 @@ function RoomSeatsGridInner({
         <div className={`grid grid-cols-5 gap-x-1`} style={{ rowGap: `${gapY * 4}px` }}>
           {Array.from({ length: maxSeats }, (_, i) => {
             const member = members?.find((m) => m.seatIndex === i);
-            const memberUid = getMemberUid(member);
-            const isSpeaking = speakingUsers.has(memberUid);
+            const memberSpeakerIds = getMemberSpeakerIds(member);
+            const isSpeaking = memberSpeakerIds.some((speakerId) => speakingUsers.has(speakerId));
             const isMe = member?.profile?.userId === myProfile?.userId;
             const isLocked = lockedSeats.includes(i);
             const pkSide = getPKSide(i);
