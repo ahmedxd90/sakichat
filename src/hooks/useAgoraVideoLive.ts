@@ -26,7 +26,8 @@ export function useAgoraVideoLive(
   channelName: string,
   userId: string,
   role: "host" | "audience",
-  enabled: boolean
+  enabled: boolean,
+  publishVideo = true
 ): AgoraVideoLiveState {
   const clientRef = useRef<IAgoraRTCClient | null>(null);
   const cameraTrackRef = useRef<ICameraVideoTrack | null>(null);
@@ -148,19 +149,18 @@ export function useAgoraVideoLive(
         joinedRef.current = true;
 
         if (role === "host") {
-          const [micTrack, cameraTrack] =
-            await AgoraRTC.createMicrophoneAndCameraTracks(
-              { encoderConfig: "music_standard" },
-              { encoderConfig: "720p_1", facingMode: "user" }
-            );
+          const micTrack = await AgoraRTC.createMicrophoneAudioTrack({ encoderConfig: "music_standard" });
           micTrackRef.current = micTrack;
-          cameraTrackRef.current = cameraTrack;
+          const publishTracks: Array<IMicrophoneAudioTrack | ICameraVideoTrack> = [micTrack];
 
-          if (localVideoRef.current) {
-            cameraTrack.play(localVideoRef.current);
+          if (publishVideo) {
+            const cameraTrack = await AgoraRTC.createCameraVideoTrack({ encoderConfig: "720p_1", facingMode: "user" });
+            cameraTrackRef.current = cameraTrack;
+            if (localVideoRef.current) cameraTrack.play(localVideoRef.current);
+            publishTracks.push(cameraTrack);
           }
 
-          await client.publish([micTrack, cameraTrack]);
+          await client.publish(publishTracks);
         }
 
         if (mountedRef.current) {
@@ -184,7 +184,7 @@ export function useAgoraVideoLive(
       mountedRef.current = false;
       cleanup();
     };
-  }, [enabled, channelName, userId, role]);
+  }, [enabled, channelName, userId, role, publishVideo]);
 
   const toggleMute = useCallback(async () => {
     if (!micTrackRef.current) return;

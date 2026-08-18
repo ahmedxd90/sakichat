@@ -20,7 +20,7 @@ import { AppUpdate, AppUpdateAvailability } from "@capawesome/capacitor-app-upda
 import ForceUpdateScreen from "./components/ForceUpdateScreen";
 import "./vip-animations.css";
 
-const CURRENT_APP_VERSION = "1.0.118";
+const CURRENT_APP_VERSION = "1.0.119";
 
 // ── Lazy imports ──────────────────────────────────────────────────────────
 const LoginPage = lazy(() => import("./pages/LoginPage"));
@@ -40,6 +40,7 @@ const ChatPage = lazy(() => import("./pages/ChatPage"));
 const GlobalGiftBanner = lazy(() => import("./components/GlobalGiftBanner"));
 const GlobalBombBanner = lazy(() => import("./components/GlobalBombBanner"));
 const GlobalLuckyBagBanner = lazy(() => import("./components/GlobalLuckyBagBanner"));
+const GlobalLiveEventBanner = lazy(() => import("./components/GlobalLiveEventBanner"));
 const BackgroundRoomBubble = lazy(() => import("./components/BackgroundRoomBubble"));
 const BannedScreen = lazy(() => import("./components/BannedScreen"));
 const AdminBanPage = lazy(() => import("./pages/AdminBanPage"));
@@ -420,7 +421,11 @@ function AuthenticatedApp() {
     if (currentPage === "dailyRewards") { setCurrentPage("me"); return; }
     if (currentPage === "aristocracy") { setCurrentPage("me"); return; }
     if (currentPage === "activities") { setCurrentPage("home"); return; }
-    if (currentPage === "live") { setCurrentPage("home"); return; }
+    if (currentPage === "live") {
+      if ((window as any).__sakiLiveHostActive) return;
+      setCurrentPage("home");
+      return;
+    }
     if (currentPage === "user-profile") {
       if (selectedRoomId) { setCurrentPage("room"); setSelectedUserId(null); }
       else { setCurrentPage("home"); setSelectedUserId(null); }
@@ -537,6 +542,7 @@ function AuthenticatedApp() {
       <Suspense fallback={null}>
         <GlobalChatNotification />
         <GlobalGiftBanner />
+        <GlobalLiveEventBanner />
         <GlobalLuckyBagBanner onGoToRoom={(roomId) => { setBgRoomId(null); setBgRoom(null); setReturnToRoom(null); setSelectedRoomId(roomId as Id<"rooms">); setCurrentPage("room"); }} />
       </Suspense>
 

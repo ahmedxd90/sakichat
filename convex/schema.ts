@@ -1691,7 +1691,8 @@ export default defineSchema({
     lastSeen: v.number(),
   })
     .index("by_livestream", ["livestreamId"])
-    .index("by_livestream_and_user", ["livestreamId", "userId"]),
+    .index("by_livestream_and_user", ["livestreamId", "userId"])
+    .index("by_joinedAt", ["joinedAt"]),
   liveMessages: defineTable({
     livestreamId: v.id("livestreams"),
     userId: v.id("users"),
@@ -1712,6 +1713,8 @@ export default defineSchema({
     senderId: v.id("users"),
     senderName: v.optional(v.string()),
     senderAvatarUrl: v.optional(v.string()),
+    receiverName: v.optional(v.string()),
+    receiverAvatarUrl: v.optional(v.string()),
     giftName: v.string(),
     giftEmoji: v.optional(v.string()),
     giftCoins: v.number(),
@@ -1719,7 +1722,9 @@ export default defineSchema({
     giftVideoUrl: v.optional(v.string()),
     quantity: v.number(),
     createdAt: v.number(),
-  }).index("by_livestream", ["livestreamId"]),
+  })
+    .index("by_livestream", ["livestreamId"])
+    .index("by_createdAt", ["createdAt"]),
   liveBans: defineTable({
     livestreamId: v.id("livestreams"),
     userId: v.id("users"),

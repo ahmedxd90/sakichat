@@ -5,6 +5,7 @@ import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
 import UserAvatar from "../components/UserAvatar";
 import { useAgoraVideoLive } from "../hooks/useAgoraVideoLive";
+import { useHardwareBack } from "../hooks/useHardwareBack";
 import RoomGiftsSheet from "../components/room/RoomGiftsSheet";
 import { formatNumber } from "../lib/formatNumber";
 import { VipBadge, VipName, getVipChatBubbleStyle, getVipConfig } from "../components/VipBadge";
@@ -225,14 +226,14 @@ function ViewersSheet({ viewers, isHost, livestreamId, liveBans, liveChatMutes, 
 }
 
 // ── Top Bar ───────────────────────────────────────────────────────
-function LiveTopBar({ stream, role, onClose, onEndConfirm, onHostAvatarClick, onViewersClick }: any) {
+function LiveTopBar({ stream, role, likeCount, onClose, onEndConfirm, onHostAvatarClick, onViewersClick }: any) {
   return (
     <div className="relative z-10 flex items-center justify-between px-4 pt-10 pb-3">
       <button onClick={role === "host" ? onEndConfirm : onClose} className="w-9 h-9 rounded-xl bg-black/50 backdrop-blur flex items-center justify-center"><Ic.Close /></button>
       <div className="flex items-center gap-2">
-        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-red-600/90 backdrop-blur">
-          <div className="w-2 h-2 rounded-full bg-white animate-pulse" />
-          <span className="text-white text-xs font-black">LIVE</span>
+          <div className="flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-full bg-red-600/90 backdrop-blur">
+          <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-white animate-pulse" /><span className="text-white text-xs font-black">LIVE</span></div>
+          <span className="text-white/90 text-[9px] font-bold">♥ {likeCount ?? 0}</span>
         </div>
         <button onClick={onViewersClick} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-black/50 backdrop-blur active:scale-95 transition-transform">
           <Ic.Viewers /><span className="text-white text-xs font-bold">{stream.viewerCount ?? 0}</span>
@@ -269,14 +270,31 @@ function FlyingGiftBanner({ events }: { events: Array<any> }) {
   return (
     <div className="absolute inset-0 pointer-events-none z-20 overflow-hidden">
       {events.map((g) => (
-        <div key={g.id} className="absolute left-4 bottom-40 flex items-center gap-2 px-3 py-2 rounded-full" style={{ background: "rgba(168,85,247,0.85)", animation: "flyGift 3s ease-out forwards" }}>
+        <div key={g.id} className="absolute left-4 bottom-40 flex items-center gap-2 px-3 py-2 rounded-full" style={{ background: "linear-gradient(90deg,rgba(37,99,235,0.94),rgba(124,58,237,0.94))", animation: "flyGift 3s ease-out forwards", boxShadow: "0 8px 24px rgba(37,99,235,0.35)" }}>
           {g.imageUrl ? <img src={g.imageUrl} alt="" className="w-7 h-7 rounded-lg object-cover" /> : <span className="text-xl">{g.emoji || "🎁"}</span>}
           <div>
-            <p className="text-white text-xs font-bold">{g.senderName}</p>
-            <p className="text-purple-200 text-[10px]">{g.name} × {g.qty}</p>
+            <p className="text-white text-xs font-bold">{g.senderName} أرسل هدية إلى {g.receiverName || "المضيف"}</p>
+            <p className="text-blue-100 text-[10px]">{g.name} × {g.qty} · {g.coins ? `${(g.coins / 1000).toFixed(0)}K` : "هدية"}</p>
           </div>
         </div>
       ))}
+    </div>
+  );
+}
+
+function FullscreenGiftOverlay({ gift, onDone }: { gift: any; onDone: () => void }) {
+  useEffect(() => {
+    const timer = window.setTimeout(onDone, 6500);
+    return () => window.clearTimeout(timer);
+  }, [gift?.id, onDone]);
+  if (!gift) return null;
+  return (
+    <div className="absolute inset-0 z-[35] flex items-center justify-center pointer-events-none bg-black/30">
+      <div className="flex flex-col items-center gap-3 animate-[giftPop_450ms_ease-out]">
+        <div className="rounded-full px-5 py-2 bg-blue-600/90 text-white text-sm font-black shadow-2xl">{gift.senderName} أرسل هدية إلى {gift.receiverName || "المضيف"}</div>
+        {gift.videoUrl ? <video src={gift.videoUrl} autoPlay muted playsInline className="max-w-[86vw] max-h-[58vh] object-contain" /> : gift.imageUrl ? <img src={gift.imageUrl} alt={gift.name} className="max-w-[62vw] max-h-[48vh] object-contain drop-shadow-2xl" /> : <div className="text-8xl">{gift.emoji || "🎁"}</div>}
+        <div className="rounded-full bg-white/90 px-4 py-1 text-blue-700 text-xs font-black">{gift.name} × {gift.qty} · {Math.round((gift.coins || 0) / 1000)}K</div>
+      </div>
     </div>
   );
 }
@@ -473,11 +491,14 @@ export default function VideoLivePage({ livestreamId, role: initialRole, onBack 
   const [showDuet, setShowDuet] = useState(false);
   const [showViewers, setShowViewers] = useState(false);
   const [flyingEvents, setFlyingEvents] = useState<Array<any>>([]);
+  const [fullscreenGift, setFullscreenGift] = useState<any>(null);
+  const [joinEvents, setJoinEvents] = useState<Array<any>>([]);
   const [likeAnim, setLikeAnim] = useState(false);
   const [showEndConfirm, setShowEndConfirm] = useState(false);
   const [selectedUser, setSelectedUser] = useState<any>(null);
   const [hearts, setHearts] = useState<Array<{ id: number; x: number }>>([]);
   const flyingIdRef = useRef(0);
+  const joinIdRef = useRef<string | null>(null);
   const heartIdRef = useRef(0);
 
   const [giftTarget, setGiftTarget] = useState<any>(null);
@@ -487,7 +508,7 @@ export default function VideoLivePage({ livestreamId, role: initialRole, onBack 
   const [showQuantityMenu, setShowQuantityMenu] = useState(false);
 
   const channelName = stream?.channelName ?? "";
-  const agora = useAgoraVideoLive(channelName, myProfile?._id ?? stream?.hostId ?? "", effectiveRole, !!stream && !!channelName);
+  const agora = useAgoraVideoLive(channelName, myProfile?._id ?? stream?.hostId ?? "", effectiveRole, !!stream && !!channelName, initialRole === "host");
 
   // Join as viewer
   useEffect(() => {
@@ -497,6 +518,16 @@ export default function VideoLivePage({ livestreamId, role: initialRole, onBack 
       return () => { leaveLivestreamViewer({ livestreamId }); };
     }
   }, [stream?.isLive, isCoHost]);
+
+  useHardwareBack(() => {
+    if (initialRole === "host") return;
+    void handleAudienceLeave();
+  }, true);
+
+  useEffect(() => {
+    (window as any).__sakiLiveHostActive = initialRole === "host";
+    return () => { (window as any).__sakiLiveHostActive = false; };
+  }, [initialRole]);
 
   // Play remote co-host videos
   useEffect(() => {
@@ -514,9 +545,21 @@ export default function VideoLivePage({ livestreamId, role: initialRole, onBack 
     if (!giftEvents || giftEvents.length === 0) return;
     const latest = giftEvents[0];
     const id = ++flyingIdRef.current;
-    setFlyingEvents((prev) => [...prev, { id, emoji: latest.giftEmoji, name: latest.giftName, imageUrl: latest.giftImageUrl, senderName: latest.senderName, qty: latest.quantity ?? 1 }]);
+    const event = { id, emoji: latest.giftEmoji, name: latest.giftName, imageUrl: latest.giftImageUrl, videoUrl: latest.giftVideoUrl, senderName: latest.senderName, receiverName: latest.receiverName || stream?.hostProfile?.name, coins: latest.giftCoins * (latest.quantity ?? 1), qty: latest.quantity ?? 1 };
+    setFlyingEvents((prev) => [...prev, event]);
+    if ((latest.giftCoins * (latest.quantity ?? 1)) >= 50000 || latest.giftVideoUrl) setFullscreenGift(event);
     setTimeout(() => setFlyingEvents((prev) => prev.filter((g) => g.id !== id)), 3000);
   }, [giftEvents?.[0]?._id]);
+
+  useEffect(() => {
+    const latestViewer = liveViewers[0];
+    if (!latestViewer || joinIdRef.current === latestViewer._id) return;
+    joinIdRef.current = latestViewer._id;
+    if (latestViewer.userId === myProfile?._id) return;
+    const id = `${latestViewer._id}-${Date.now()}`;
+    setJoinEvents((prev) => [...prev, { id, userId: latestViewer.userId, userName: latestViewer.userName, userAvatarUrl: latestViewer.userAvatarUrl }]);
+    window.setTimeout(() => setJoinEvents((prev) => prev.filter((item) => item.id !== id)), 4000);
+  }, [liveViewers[0]?._id, myProfile?._id]);
 
   // Tap screen for hearts
   const handleScreenTap = useCallback((e: React.MouseEvent) => {
@@ -629,7 +672,7 @@ export default function VideoLivePage({ livestreamId, role: initialRole, onBack 
       </div>
 
       {/* Top Bar */}
-      <LiveTopBar stream={stream} role={initialRole} onClose={handleAudienceLeave} onEndConfirm={() => setShowEndConfirm(true)} onHostAvatarClick={handleHostAvatarClick} onViewersClick={() => setShowViewers(true)} />
+      <LiveTopBar stream={stream} role={initialRole} likeCount={likeCount} onClose={handleAudienceLeave} onEndConfirm={() => setShowEndConfirm(true)} onHostAvatarClick={handleHostAvatarClick} onViewersClick={() => setShowViewers(true)} />
 
       {/* Host Controls */}
       {effectiveRole === "host" && <HostControls agora={agora} />}
@@ -648,6 +691,15 @@ export default function VideoLivePage({ livestreamId, role: initialRole, onBack 
 
       {/* Flying Gifts */}
       <FlyingGiftBanner events={flyingEvents} />
+      <div className="absolute top-28 right-4 left-4 z-25 pointer-events-none flex flex-col items-end gap-2">
+        {joinEvents.map((event) => (
+          <div key={event.id} className="flex items-center gap-2 rounded-full bg-white/95 px-3 py-2 shadow-xl border border-blue-200 animate-[slideIn_350ms_ease-out]">
+            <UserAvatar userId={event.userId} avatarUrl={event.userAvatarUrl} name={event.userName} size={28} className="border-2 border-blue-500" />
+            <span className="text-slate-800 text-xs font-bold">{event.userName || "مستخدم"} انضم إلى البث</span>
+          </div>
+        ))}
+      </div>
+      <FullscreenGiftOverlay gift={fullscreenGift} onDone={() => setFullscreenGift(null)} />
 
       {/* Floating Hearts */}
       <FloatingHearts hearts={hearts} />
@@ -726,6 +778,8 @@ export default function VideoLivePage({ livestreamId, role: initialRole, onBack 
       <style>{`
         @keyframes flyGift { 0%{transform:translateY(0) scale(1);opacity:1} 70%{transform:translateY(-120px) scale(1.1);opacity:1} 100%{transform:translateY(-200px) scale(0.8);opacity:0} }
         @keyframes floatHeart { 0%{transform:translateY(0) scale(1);opacity:1} 50%{transform:translateY(-80px) scale(1.2);opacity:0.8} 100%{transform:translateY(-160px) scale(0.6);opacity:0} }
+        @keyframes giftPop { 0%{opacity:0;transform:scale(.78)} 100%{opacity:1;transform:scale(1)} }
+        @keyframes slideIn { 0%{opacity:0;transform:translateX(20px)} 100%{opacity:1;transform:translateX(0)} }
         .scrollbar-hide::-webkit-scrollbar{display:none}
         .scrollbar-hide{-ms-overflow-style:none;scrollbar-width:none}
       `}</style>

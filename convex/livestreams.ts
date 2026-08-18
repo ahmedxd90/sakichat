@@ -269,9 +269,10 @@ export const sendLiveGift = mutation({
     const totalCost = args.giftCoins * qty;
     if ((profile.goldCoins ?? 0) < totalCost) throw new Error("رصيد غير كافٍ");
     await ctx.db.patch(profile._id, { goldCoins: (profile.goldCoins ?? 0) - totalCost });
-    await ctx.db.insert("liveGiftEvents", { livestreamId: args.livestreamId, senderId: userId, senderName: profile.name, senderAvatarUrl: profile.avatarUrl, giftName: args.giftName, giftEmoji: args.giftEmoji, giftCoins: args.giftCoins, quantity: qty, createdAt: Date.now() });
-    await ctx.db.insert("liveMessages", { livestreamId: args.livestreamId, userId, content: `أرسل ${args.giftEmoji} ${args.giftName} × ${qty}`, senderName: profile.name, senderAvatarUrl: profile.avatarUrl, isVip: profile.isVip ?? false, vipLevel: profile.vipLevel, type: "gift", giftName: args.giftName, giftEmoji: args.giftEmoji, giftCoins: totalCost, createdAt: Date.now() });
     const stream = await ctx.db.get(args.livestreamId);
+    const hostProfile = stream ? await ctx.db.query("profiles").withIndex("by_userId", (q) => q.eq("userId", stream.hostId)).unique() : null;
+    await ctx.db.insert("liveGiftEvents", { livestreamId: args.livestreamId, senderId: userId, senderName: profile.name, senderAvatarUrl: profile.avatarUrl, receiverName: hostProfile?.name, receiverAvatarUrl: hostProfile?.avatarUrl, giftName: args.giftName, giftEmoji: args.giftEmoji, giftCoins: args.giftCoins, quantity: qty, createdAt: Date.now() });
+    await ctx.db.insert("liveMessages", { livestreamId: args.livestreamId, userId, content: `أرسل ${args.giftEmoji} ${args.giftName} × ${qty}`, senderName: profile.name, senderAvatarUrl: profile.avatarUrl, isVip: profile.isVip ?? false, vipLevel: profile.vipLevel, type: "gift", giftName: args.giftName, giftEmoji: args.giftEmoji, giftCoins: totalCost, createdAt: Date.now() });
     if (stream) {
       await ctx.db.patch(args.livestreamId, { totalCoins: (stream.totalCoins ?? 0) + totalCost });
       const hostProfile = await ctx.db.query("profiles").withIndex("by_userId", (q) => q.eq("userId", stream.hostId)).unique();
@@ -294,11 +295,12 @@ export const sendLiveCustomGift = mutation({
     const totalCost = gift.price * qty;
     if ((profile.goldCoins ?? 0) < totalCost) throw new Error("رصيد غير كافٍ");
     await ctx.db.patch(profile._id, { goldCoins: (profile.goldCoins ?? 0) - totalCost });
+    const stream = await ctx.db.get(args.livestreamId);
+    const hostProfile = stream ? await ctx.db.query("profiles").withIndex("by_userId", (q) => q.eq("userId", stream.hostId)).unique() : null;
     const videoUrl = (gift as any).videoUrl ?? ((gift as any).videoStorageId ? await ctx.storage.getUrl((gift as any).videoStorageId) ?? undefined : undefined);
     const thumbnailUrl = (gift as any).thumbnailUrl ?? ((gift as any).thumbnailStorageId ? await ctx.storage.getUrl((gift as any).thumbnailStorageId) ?? undefined : undefined);
-    await ctx.db.insert("liveGiftEvents", { livestreamId: args.livestreamId, senderId: userId, senderName: profile.name, senderAvatarUrl: profile.avatarUrl, giftName: gift.name, giftEmoji: "🎁", giftCoins: gift.price, giftImageUrl: thumbnailUrl ?? videoUrl, giftVideoUrl: videoUrl, quantity: qty, createdAt: Date.now() });
+    await ctx.db.insert("liveGiftEvents", { livestreamId: args.livestreamId, senderId: userId, senderName: profile.name, senderAvatarUrl: profile.avatarUrl, receiverName: hostProfile?.name, receiverAvatarUrl: hostProfile?.avatarUrl, giftName: gift.name, giftEmoji: "🎁", giftCoins: gift.price, giftImageUrl: thumbnailUrl ?? videoUrl, giftVideoUrl: videoUrl, quantity: qty, createdAt: Date.now() });
     await ctx.db.insert("liveMessages", { livestreamId: args.livestreamId, userId, content: `أرسل هدية ${gift.name} × ${qty}`, senderName: profile.name, senderAvatarUrl: profile.avatarUrl, isVip: profile.isVip ?? false, vipLevel: profile.vipLevel, type: "gift", giftName: gift.name, giftEmoji: "🎁", giftCoins: totalCost, createdAt: Date.now() });
-    const stream = await ctx.db.get(args.livestreamId);
     if (stream) {
       await ctx.db.patch(args.livestreamId, { totalCoins: (stream.totalCoins ?? 0) + totalCost });
       const hostProfile = await ctx.db.query("profiles").withIndex("by_userId", (q) => q.eq("userId", stream.hostId)).unique();
@@ -319,5 +321,24 @@ export const getLiveGiftEvents = query({
   args: { livestreamId: v.id("livestreams") },
   handler: async (ctx, args) => {
     return await ctx.db.query("liveGiftEvents").withIndex("by_livestream", (q) => q.eq("livestreamId", args.livestreamId)).order("desc").take(20);
+  },
+});
+
+export const getRecentGlobalLiveEvents = query({
+  args: {},
+  handler: async (ctx) => {
+    const gifts = await ctx.db.query("liveGiftEvents").withIndex("by_createdAt").order("desc").take(20);
+    const joins = await ctx.db.query("liveViewers").withIndex("by_joinedAt").order("desc").take(20);
+    const activeGifts = [] as any[];
+    for (const gift of gifts) {
+      const stream = await ctx.db.get(gift.livestreamId);
+      if (stream?.isLive) activeGifts.push({ ...gift, streamTitle: stream.title, hostId: stream.hostId });
+    }
+    const activeJoins = [] as any[];
+    for (const join of joins) {
+      const stream = await ctx.db.get(join.livestreamId);
+      if (stream?.isLive) activeJoins.push({ ...join, streamTitle: stream.title, hostId: stream.hostId });
+    }
+    return { gifts: activeGifts.slice(0, 10), joins: activeJoins.slice(0, 10) };
   },
 });
