@@ -40,6 +40,16 @@ function IconPlay({ active }: { active: boolean }) {
   );
 }
 
+function IconLive({ active }: { active: boolean }) {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <rect x="3" y="5" width="18" height="14" rx="3" />
+      <path d="m10 9 5 3-5 3V9Z" fill={active ? "currentColor" : "none"} />
+      <path d="M7 3v2M17 3v2" />
+    </svg>
+  );
+}
+
 function IconComment({ active }: { active: boolean }) {
   return (
     <svg width="22" height="22" viewBox="0 0 512 512" fill="currentColor">
@@ -76,6 +86,7 @@ export default function BottomNav({ currentPage, setCurrentPage }: {
   const tabs = [
     { id: "home" as Page, label: tr("nav_home"), Icon: IconHome },
     { id: "moments" as Page, label: tr("nav_moments"), Icon: IconStar },
+    { id: "live" as Page, label: "بث مباشر", Icon: IconLive },
     { id: "messages" as Page, label: tr("nav_messages"), Icon: IconComment },
     { id: "me" as Page, label: tr("nav_me"), Icon: IconUser },
   ];

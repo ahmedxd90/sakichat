@@ -20,7 +20,7 @@ import { AppUpdate, AppUpdateAvailability } from "@capawesome/capacitor-app-upda
 import ForceUpdateScreen from "./components/ForceUpdateScreen";
 import "./vip-animations.css";
 
-const CURRENT_APP_VERSION = "1.0.102";
+const CURRENT_APP_VERSION = "1.0.116";
 
 // ── Lazy imports ──────────────────────────────────────────────────────────
 const LoginPage = lazy(() => import("./pages/LoginPage"));
@@ -50,6 +50,7 @@ const CreateStoryPage = lazy(() => import("./pages/CreateStoryPage"));
 const StoryViewerPage = lazy(() => import("./pages/StoryViewerPage"));
 const ActivitiesPage = lazy(() => import("./pages/ActivitiesPage"));
 const DailyRewardsPage = lazy(() => import("./pages/DailyRewardsPage"));
+const LiveStreamPage = lazy(() => import("./pages/LiveStreamPage"));
 const AristocracyPage = lazy(() => import("./pages/AristocracyPage"));
 const CpHomePage = lazy(() => import("./pages/CpHomePage"));
 const SecurityBlockScreen = lazy(() => import("./components/SecurityBlockScreen"));
@@ -76,7 +77,7 @@ function PageLoader() {
 export type Page =
   | "home" | "moments" | "reels" | "messages" | "me" | "compatibility" | "games"
   | "room" | "create-room" | "create-moment" | "create-reel" | "create-story"
-  | "user-profile" | "activities" | "dailyRewards" | "aristocracy";
+  | "user-profile" | "activities" | "dailyRewards" | "aristocracy" | "live";
 
 // ── VideoCallsManager ──
 const VideoCallsManager = memo(function VideoCallsManager({ profile, activeCall, setActiveCall, showOutgoing, setShowOutgoing }: {
@@ -419,6 +420,7 @@ function AuthenticatedApp() {
     if (currentPage === "dailyRewards") { setCurrentPage("me"); return; }
     if (currentPage === "aristocracy") { setCurrentPage("me"); return; }
     if (currentPage === "activities") { setCurrentPage("home"); return; }
+    if (currentPage === "live") { setCurrentPage("home"); return; }
     if (currentPage === "user-profile") {
       if (selectedRoomId) { setCurrentPage("room"); setSelectedUserId(null); }
       else { setCurrentPage("home"); setSelectedUserId(null); }
@@ -541,6 +543,7 @@ function AuthenticatedApp() {
       <div style={{ display: currentPage === "room" ? "none" : "flex", flexDirection: "column", flex: 1, minHeight: 0, overflowX: "hidden", overflowY: currentPage === "aristocracy" ? "auto" : "hidden", WebkitOverflowScrolling: "touch", touchAction: currentPage === "aristocracy" ? "pan-y" : undefined, paddingBottom: (currentPage !== "activities" && currentPage !== "aristocracy" && !homeSubActive) ? "calc(60px + env(safe-area-inset-bottom))" : 0 }}>
         <Suspense fallback={<PageLoader />}>
           {currentPage === "activities" && <ActivitiesPage onBack={() => setCurrentPage("home")} />}
+          {currentPage === "live" && <LiveStreamPage onBack={() => setCurrentPage("home")} onRoomSelect={(id) => { setSelectedRoomId(id); setCurrentPage("room"); }} />}
           {currentPage === "dailyRewards" && <DailyRewardsPage onBack={() => setCurrentPage("me")} />}
           {currentPage === "aristocracy" && <AristocracyPage onBack={() => setCurrentPage("me")} onAdminAristocracy={profile?.isSuperAdmin ? () => setMeSubPage("admin-aristocracy") : undefined} />}
           {currentPage === "home" && (

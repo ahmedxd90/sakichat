@@ -1627,23 +1627,116 @@ export default defineSchema({
   })
     .index("by_caller", ["callerId"])
     .index("by_receiver", ["receiverId"]),
+  // Saki Live: keep legacy room co-host records compatible while supporting livestream co-hosts.
   liveCoHosts: defineTable({
-    roomId: v.id("rooms"),
+    roomId: v.optional(v.id("rooms")),
+    hostId: v.optional(v.id("users")),
+    coHostId: v.optional(v.id("users")),
+    status: v.optional(v.union(v.literal("pending"), v.literal("active"), v.literal("ended"))),
+    livestreamId: v.optional(v.id("livestreams")),
+    userId: v.optional(v.id("users")),
+    userName: v.optional(v.string()),
+    userAvatarUrl: v.optional(v.string()),
+    joinedAt: v.optional(v.number()),
+    createdAt: v.optional(v.number()),
+  })
+    .index("by_room", ["roomId"])
+    .index("by_livestream", ["livestreamId"])
+    .index("by_livestream_and_user", ["livestreamId", "userId"]),
+  liveCoHostInvites: defineTable({
+    livestreamId: v.id("livestreams"),
     hostId: v.id("users"),
-    coHostId: v.id("users"),
-    status: v.union(v.literal("pending"), v.literal("active"), v.literal("ended")),
+    invitedUserId: v.id("users"),
+    invitedUserName: v.optional(v.string()),
+    status: v.union(v.literal("pending"), v.literal("accepted"), v.literal("rejected"), v.literal("ended")),
     createdAt: v.number(),
-  }).index("by_room", ["roomId"]),
+  })
+    .index("by_livestream", ["livestreamId"])
+    .index("by_livestream_and_user", ["livestreamId", "invitedUserId"]),
   livestreams: defineTable({
-    userId: v.id("users"),
-    title: v.optional(v.string()),
+    // Legacy fields retained for existing records.
+    userId: v.optional(v.id("users")),
     thumbnailUrl: v.optional(v.string()),
     isActive: v.optional(v.boolean()),
+    // Saki Live fields.
+    hostId: v.optional(v.id("users")),
+    title: v.optional(v.string()),
+    channelName: v.optional(v.string()),
+    roomId: v.optional(v.id("rooms")),
+    isLive: v.optional(v.boolean()),
     viewerCount: v.optional(v.number()),
+    likeCount: v.optional(v.number()),
+    totalCoins: v.optional(v.number()),
+    country: v.optional(v.string()),
+    sakiId: v.optional(v.string()),
+    startedAt: v.optional(v.number()),
+    endedAt: v.optional(v.number()),
     createdAt: v.number(),
   })
     .index("by_user", ["userId"])
-    .index("by_active", ["isActive"]),
+    .index("by_active", ["isActive"])
+    .index("by_host", ["hostId"])
+    .index("by_isLive", ["isLive"]),
+  liveViewers: defineTable({
+    livestreamId: v.id("livestreams"),
+    userId: v.id("users"),
+    userName: v.optional(v.string()),
+    userAvatarUrl: v.optional(v.string()),
+    isVip: v.optional(v.boolean()),
+    vipLevel: v.optional(v.number()),
+    aristocracyLevel: v.optional(v.number()),
+    wealthLevel: v.optional(v.number()),
+    charismaLevel: v.optional(v.number()),
+    joinedAt: v.number(),
+    lastSeen: v.number(),
+  })
+    .index("by_livestream", ["livestreamId"])
+    .index("by_livestream_and_user", ["livestreamId", "userId"]),
+  liveMessages: defineTable({
+    livestreamId: v.id("livestreams"),
+    userId: v.id("users"),
+    content: v.string(),
+    senderName: v.optional(v.string()),
+    senderAvatarUrl: v.optional(v.string()),
+    isVip: v.optional(v.boolean()),
+    vipLevel: v.optional(v.number()),
+    aristocracyLevel: v.optional(v.number()),
+    type: v.optional(v.string()),
+    giftName: v.optional(v.string()),
+    giftEmoji: v.optional(v.string()),
+    giftCoins: v.optional(v.number()),
+    createdAt: v.number(),
+  }).index("by_livestream", ["livestreamId"]),
+  liveGiftEvents: defineTable({
+    livestreamId: v.id("livestreams"),
+    senderId: v.id("users"),
+    senderName: v.optional(v.string()),
+    senderAvatarUrl: v.optional(v.string()),
+    giftName: v.string(),
+    giftEmoji: v.optional(v.string()),
+    giftCoins: v.number(),
+    giftImageUrl: v.optional(v.string()),
+    giftVideoUrl: v.optional(v.string()),
+    quantity: v.number(),
+    createdAt: v.number(),
+  }).index("by_livestream", ["livestreamId"]),
+  liveBans: defineTable({
+    livestreamId: v.id("livestreams"),
+    userId: v.id("users"),
+    bannedBy: v.id("users"),
+    reason: v.optional(v.string()),
+    createdAt: v.number(),
+  })
+    .index("by_livestream", ["livestreamId"])
+    .index("by_livestream_and_user", ["livestreamId", "userId"]),
+  liveChatMutes: defineTable({
+    livestreamId: v.id("livestreams"),
+    userId: v.id("users"),
+    mutedBy: v.id("users"),
+    createdAt: v.number(),
+  })
+    .index("by_livestream", ["livestreamId"])
+    .index("by_livestream_and_user", ["livestreamId", "userId"]),
   chatBlocks: defineTable({
     blockerId: v.id("users"),
     blockedId: v.id("users"),
