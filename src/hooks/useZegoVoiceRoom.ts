@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useAction } from "convex/react";
 import { api } from "../../convex/_generated/api";
+import { createZegoVoiceEffect, destroyZegoVoiceEffect, type ZegoVoiceEffectHandle } from "../lib/zegoVoiceEffects";
 
 // Public ZEGOCLOUD connection values for the Android pilot. The ServerSecret never belongs here.
 const APP_ID = parseInt(import.meta.env.VITE_ZEGO_APP_ID || "736552649", 10);
@@ -64,6 +65,7 @@ export function useZegoVoiceRoom(
   const isSpeakerOffRef = useRef(false);
   const squirrelVoiceEnabledRef = useRef(false);
   const childVoiceEnabledRef = useRef(false);
+  const voiceEffectRef = useRef<ZegoVoiceEffectHandle | null>(null);
   const remoteStreamsRef = useRef<Map<string, any>>(new Map());
   const speakingTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
   const generateToken = useAction(api.zego.generateToken);
@@ -99,6 +101,10 @@ export function useZegoVoiceRoom(
   }, []);
 
   const cleanup = useCallback(async () => {
+    if (voiceEffectRef.current) {
+      await destroyZegoVoiceEffect(voiceEffectRef.current);
+      voiceEffectRef.current = null;
+    }
     if (localStreamRef.current && zegoRef.current) {
       try {
         zegoRef.current.stopPublishingStream(`pub_${userId}`);
@@ -352,33 +358,38 @@ export function useZegoVoiceRoom(
   const applyVoiceEffect = useCallback(async (effect: "none" | "squirrel" | "child") => {
     const engine = zegoRef.current;
     const stream = localStreamRef.current;
-    const value = effect === "squirrel" ? 8 : effect === "child" ? 11 : 0;
-    if (engine && stream && typeof engine.setVoiceChangerParam === "function") {
-      try {
-        await engine.setVoiceChangerParam(stream, value);
-        squirrelVoiceEnabledRef.current = effect === "squirrel";
-        childVoiceEnabledRef.current = effect === "child";
-        setSquirrelVoiceEnabledState(effect === "squirrel");
-        setChildVoiceEnabledState(effect === "child");
-        setError(null);
-        return;
-      } catch (e: any) {
-        squirrelVoiceEnabledRef.current = false;
-        childVoiceEnabledRef.current = false;
-        setSquirrelVoiceEnabledState(false);
-        setChildVoiceEnabledState(false);
-        setError("مؤثر الصوت غير متاح في إصدار ZEGOCLOUD الحالي");
-        return;
-      }
+    if (!engine || !stream || typeof engine.replaceTrack !== "function") {
+      if (effect !== "none") setError("مسار المؤثر الصوتي غير جاهز؛ اجلس على المقعد أولًا");
+      return;
     }
-    if (effect === "none") {
+    try {
+      if (voiceEffectRef.current) {
+        await engine.replaceTrack(stream, stream.getAudioTracks()[0]);
+        await destroyZegoVoiceEffect(voiceEffectRef.current);
+        voiceEffectRef.current = null;
+      }
+      if (effect !== "none") {
+        const handle = await createZegoVoiceEffect(stream, effect);
+        await engine.replaceTrack(stream, handle.processedTrack);
+        voiceEffectRef.current = handle;
+      }
+      squirrelVoiceEnabledRef.current = effect === "squirrel";
+      childVoiceEnabledRef.current = effect === "child";
+      setSquirrelVoiceEnabledState(effect === "squirrel");
+      setChildVoiceEnabledState(effect === "child");
+      setError(null);
+    } catch (e: any) {
+      if (voiceEffectRef.current) {
+        await destroyZegoVoiceEffect(voiceEffectRef.current);
+        voiceEffectRef.current = null;
+      }
+      try { await engine.replaceTrack(stream, stream.getAudioTracks()[0]); } catch (_) {}
       squirrelVoiceEnabledRef.current = false;
       childVoiceEnabledRef.current = false;
       setSquirrelVoiceEnabledState(false);
       setChildVoiceEnabledState(false);
-      return;
+      setError(e?.message || "تعذر تشغيل مؤثر الصوت");
     }
-    setError("مؤثر الصوت غير متاح في إصدار ZEGOCLOUD الحالي");
   }, []);
 
   const setSquirrelVoiceEnabled = useCallback(async (enabled: boolean) => {
