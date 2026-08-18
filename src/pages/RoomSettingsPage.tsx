@@ -21,8 +21,8 @@ const CATEGORIES = [
 
 const THEMES = [
   { key: "luxury_white", theme: "", label: "الافتراضي", gradient: "linear-gradient(135deg,#ffffff,#fff7ed)", isLuxury: true },
-  { key: "cinema", theme: "cinema", label: "ثيم السينما", gradient: "linear-gradient(135deg,#1a0000,#3d0000)", isLuxury: false },
   { key: "karaoke", theme: "karaoke", label: "ثيم Karaoke", gradient: "linear-gradient(135deg,#12002b 0%,#4c1d95 45%,#c026d3 100%)", isLuxury: false, isKaraoke: true },
+  { key: "cinema", theme: "cinema", label: "ثيم السينما", gradient: "linear-gradient(135deg,#1a0000,#3d0000)", isLuxury: false },
 ];
 
 const BG_PRESETS = [
@@ -491,9 +491,9 @@ export default function RoomSettingsPage({ roomId, onBack }: RoomSettingsPagePro
           <div onClick={() => setSubPage("theme")} className="flex items-center justify-between px-4 py-3.5 border-b border-gray-100 active:bg-gray-50 cursor-pointer">
             <div className="flex items-center space-x-2 space-x-reverse">
               <span className="text-gray-300 text-xs">◀</span>
-              <span className="text-sm text-gray-500 font-medium">{THEMES.find(t => t.theme === (room.roomTheme || ""))?.label || "الافتراضي"}</span>
+              <span className={`text-sm font-medium ${room.roomTheme === "karaoke" ? "text-fuchsia-600" : "text-gray-500"}`}>{THEMES.find(t => t.theme === (room.roomTheme || ""))?.label || "الافتراضي"}</span>
             </div>
-            <span className="text-sm font-medium text-gray-800">الثيم</span>
+            <span className="flex items-center gap-2 text-sm font-medium text-gray-800">الثيم {room.roomTheme !== "karaoke" ? <span className="rounded-full bg-fuchsia-100 px-2 py-0.5 text-[9px] font-black text-fuchsia-600">KARAOKE متاح</span> : null}</span>
           </div>
 
           <div onClick={() => setSubPage("backgrounds")} className="flex items-center justify-between px-4 py-3.5 active:bg-gray-50 cursor-pointer">
