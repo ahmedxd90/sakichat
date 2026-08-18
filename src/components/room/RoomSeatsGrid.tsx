@@ -489,6 +489,8 @@ function RoomSeatsGridInner({
 
 function KaraokeSeat({ seatIndex, member, myProfile, isMuted, isSpeaking, isLocked, onPress, onViewProfile, getMemberSpeakerIds, size, isMain = false }: any) {
   const isMe = member?.profile?.userId === myProfile?.userId;
+  // Local mute belongs only to the current user's seat; remote seats use their own server state.
+  const seatMuted = isMe ? Boolean(isMuted) : Boolean(member?.isMuted);
   const profile = member?.profile;
   const waveColor = isMain ? "#f0abfc" : "#d946ef";
   const displayName = profile?.name || (member ? "مستخدم" : `مقعد ${seatIndex}`);
@@ -501,7 +503,7 @@ function KaraokeSeat({ seatIndex, member, myProfile, isMuted, isSpeaking, isLock
           {isEmpty ? <svg width={isMain ? 34 : 24} height={isMain ? 34 : 24} viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.9)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="2" width="6" height="12" rx="3" /><path d="M5 10a7 7 0 0 0 14 0M12 17v4M8 21h8" /></svg> : <UserAvatar profile={profile} size={size - 8} />}
         </div>
         <span className="absolute -bottom-1 z-20 flex h-5 min-w-5 items-center justify-center rounded-full border border-fuchsia-200/40 bg-fuchsia-900/85 px-1 text-[9px] font-black text-fuchsia-50">{seatIndex === 0 ? "MIC" : seatIndex}</span>
-        <span className="absolute -left-1 bottom-1 z-20 flex h-5 w-5 items-center justify-center rounded-full border border-white/20 bg-fuchsia-700/90">{isMuted ? <MicOffSVG size={10} /> : <MicOnSVG size={10} />}</span>
+        <span className="absolute -left-1 bottom-1 z-20 flex h-5 w-5 items-center justify-center rounded-full border border-white/20 bg-fuchsia-700/90">{seatMuted ? <MicOffSVG size={10} /> : <MicOnSVG size={10} />}</span>
         {isLocked && <span className="absolute inset-0 z-30 flex items-center justify-center rounded-full bg-black/50"><LockSVG size={20} /></span>}
       </button>
       <button type="button" onClick={() => member && onViewProfile(member.profile?.userId)} className="max-w-full truncate text-[10px] font-bold text-fuchsia-100" style={{ textShadow: "0 0 8px rgba(217,70,239,.8)" }}>{displayName}</button>
