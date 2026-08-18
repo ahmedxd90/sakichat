@@ -8,6 +8,8 @@ import android.view.View;
 import android.view.Window;
 import android.view.WindowInsets;
 import android.view.WindowInsetsController;
+import android.webkit.WebSettings;
+import android.webkit.WebView;
 
 import com.getcapacitor.BridgeActivity;
 
@@ -18,8 +20,21 @@ public class MainActivity extends BridgeActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        configureWebViewAudio();
         enableImmersiveMode();
         requestAppPermissions();
+    }
+
+    private void configureWebViewAudio() {
+        WebView webView = getBridge().getWebView();
+        if (webView == null) return;
+        WebSettings settings = webView.getSettings();
+        settings.setJavaScriptEnabled(true);
+        settings.setDomStorageEnabled(true);
+        // ZEGOCLOUD Web SDK creates MediaStream audio tracks inside the WebView.
+        // Without this flag Android may block remote audio until an extra gesture.
+        settings.setMediaPlaybackRequiresUserGesture(false);
+        webView.setKeepScreenOn(false);
     }
 
     private void requestAppPermissions() {

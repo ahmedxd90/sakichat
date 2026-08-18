@@ -211,6 +211,10 @@ export function useZegoVoiceRoom(
                 void audio.play().catch((e) => {
                   console.warn("ZEGO: remote audio play blocked", e);
                   setError("الصوت متصل لكن تشغيل السماعة محظور. اضغط داخل الغرفة مرة واحدة ثم أعد المحاولة");
+                  const retryPlayback = () => {
+                    void audio.play().catch(() => {});
+                  };
+                  document.addEventListener("pointerdown", retryPlayback, { once: true, passive: true });
                 });
               }
             } catch (_e) {}

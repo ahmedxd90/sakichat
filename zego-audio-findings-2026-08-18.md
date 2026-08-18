@@ -19,3 +19,5 @@ Official sources:
 - https://developer.android.com/training/permissions/requesting
 
 Additional research: the official API reference page was opened but rendered only a shell. The implementation currently relies on `localSoundLevelUpdate` and `remoteSoundLevelUpdate`; the next fix will make these handlers tolerant of both scalar and list payloads and will use a short speaking timeout so the UI does not depend on a single callback shape.
+
+Official voice-call guide confirms the remote flow: call `startPlayingStream(streamID)`, assign the returned MediaStream to a local `<audio>` or `<video>` element's `srcObject`, and perform publish/play only after LOGINED. The current code follows this basic flow, so the remaining Android-specific fix should focus on WebView media permission/autoplay and exposing publisher/playback state.
