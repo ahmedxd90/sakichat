@@ -570,7 +570,7 @@ function RoomPageInner({ roomId, onBack, onBackgroundLeave, onViewProfile, onMes
     if (latestEmojiEvent._id !== lastEmojiEventId) {
       setLastEmojiEventId(latestEmojiEvent._id);
       const ev = latestEmojiEvent as any;
-      const newItem: SeatEmojiItem = { id: ev._id + Date.now(), seatIndex: ev.seatIndex, imageUrl: ev.imageUrl, senderName: ev.senderName };
+      const newItem: SeatEmojiItem = { id: ev._id + Date.now(), seatIndex: ev.seatIndex, imageUrl: ev.imageUrl, svgaUrl: ev.svgaUrl, isAnimated: ev.isAnimated, emojiType: ev.emojiType, senderName: ev.senderName };
       setActiveEmojis((prev) => [...prev, newItem]);
       setTimeout(() => setActiveEmojis((prev) => prev.filter((x) => x.id !== newItem.id)), 7000);
     }
