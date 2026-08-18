@@ -41,6 +41,7 @@ export default function RoomBottomBar({
 }: RoomBottomBarProps) {
   const [isTyping, setIsTyping] = useState(false);
   const [showTextEmoji, setShowTextEmoji] = useState(false);
+  const [micBusy, setMicBusy] = useState(false);
   const TEXT_EMOJIS = ["😀","😂","😍","🥰","😎","😭","😡","🤔","👍","👏","❤️","🔥","🎉","✨","😊","🙏","😢","🤣","💪","💯","🙌","😘","😇","🤍"];
 
   useEffect(() => {
@@ -51,6 +52,17 @@ export default function RoomBottomBar({
       setIsTyping(true);
     }
   }, [mentionText]);
+
+  const handleMuteToggle = async () => {
+    if (!isOnSeat || micBusy) return;
+    setMicBusy(true);
+    try {
+      await Promise.resolve(onToggleMute());
+    } finally {
+      // Allow the ZEGOCLOUD state update to reach the button before another tap.
+      window.setTimeout(() => setMicBusy(false), 350);
+    }
+  };
 
   const handleSend = () => {
     if (!messageText.trim()) return;
@@ -188,8 +200,8 @@ export default function RoomBottomBar({
 
           {/* ── Mic ── */}
           <button
-            onClick={onToggleMute}
-            disabled={!isOnSeat || isChatMuted && false}
+            onClick={handleMuteToggle}
+            disabled={!isOnSeat || micBusy || isChatMuted && false}
             className={`w-9 h-9 rounded-2xl flex items-center justify-center active:scale-90 transition-all flex-shrink-0 ${!isOnSeat ? "opacity-30" : ""}`}
             style={
               !isOnSeat

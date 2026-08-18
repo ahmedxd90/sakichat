@@ -389,11 +389,17 @@ export function useZegoVoiceRoom(
   }, [userId]);
 
   const toggleMute = useCallback(async () => {
-    if (!localStreamRef.current || !zegoRef.current) return;
+    if (!zegoRef.current || !isOnSeat || isGloballyMuted) return;
     const nextMuted = !isMuted;
-    if (nextMuted) await setPublishedAudioMuted(true);
-    else await restartPublishing();
-  }, [isMuted, setPublishedAudioMuted, restartPublishing]);
+    if (nextMuted) {
+      if (localStreamRef.current) await setPublishedAudioMuted(true);
+      else setIsMuted(true);
+    } else {
+      // Do not require an existing local stream here. On Android WebView the
+      // old stream may already be destroyed while the button still says muted.
+      await restartPublishing();
+    }
+  }, [isMuted, isOnSeat, isGloballyMuted, setPublishedAudioMuted, restartPublishing]);
 
   const toggleSpeaker = useCallback(() => {
     const newOff = !isSpeakerOff;
