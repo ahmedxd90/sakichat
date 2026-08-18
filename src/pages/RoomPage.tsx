@@ -376,9 +376,7 @@ function RoomPageInner({ roomId, onBack, onBackgroundLeave, onViewProfile, onMes
   );
   const agoraVoice = useAgoraVoiceRoom(zegoChannel, zegoUserId, zegoUserName, !!myProfile && !!userId && !zegoTestEnabled, isOnSeat, null);
   const zegoVoice = useZegoVoiceRoom(roomId, zegoUserId, zegoUserName, !!myProfile && !!userId && zegoTestEnabled, isOnSeat, null);
-  const voiceState = zegoTestEnabled
-    ? { ...zegoVoice, squirrelVoiceEnabled: false, setSquirrelVoiceEnabled: async (_enabled: boolean) => {} }
-    : agoraVoice;
+  const voiceState = zegoTestEnabled ? zegoVoice : agoraVoice;
   const {
     isConnected,
     isConnecting,

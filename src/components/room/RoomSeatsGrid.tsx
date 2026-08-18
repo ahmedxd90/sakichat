@@ -424,10 +424,6 @@ function RoomSeatsGridInner({
         {isKaraoke ? (
           <div className="flex flex-col items-center gap-2.5 px-1">
             <div className="flex flex-col items-center gap-0.5">
-              <div className="flex items-center gap-1.5 rounded-full border border-fuchsia-300/35 bg-fuchsia-950/45 px-3 py-1 text-[9px] font-black tracking-[0.16em] text-fuchsia-100 shadow-[0_0_18px_rgba(217,70,239,0.28)]">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="9" y="2" width="6" height="12" rx="3" /><path d="M5 10a7 7 0 0 0 14 0M12 17v4M8 21h8" /></svg>
-                MAIN MIC
-              </div>
               <KaraokeSeat
                 seatIndex={0}
                 member={members?.find((m) => m.seatIndex === 0)}
@@ -500,9 +496,9 @@ function KaraokeSeat({ seatIndex, member, myProfile, isMuted, isSpeaking, isLock
       <button type="button" onClick={onPress} className="relative flex items-center justify-center rounded-full outline-none transition-transform active:scale-95" style={{ width: size, height: size }} aria-label={isEmpty ? `فتح المقعد ${seatIndex}` : `مقعد ${displayName}`}>
         {isSpeaking && <VoiceRings color={waveColor} isMe={isMe} al={isMain ? 7 : 0} size={size} />}
         <div className="relative z-10 flex h-full w-full items-center justify-center rounded-full border-2" style={{ borderColor: isSpeaking ? waveColor : isMain ? "#f0abfc" : "rgba(232,121,249,.6)", background: isEmpty ? "linear-gradient(145deg,rgba(255,255,255,.2),rgba(168,85,247,.18))" : "rgba(24,5,45,.2)", boxShadow: isSpeaking ? `0 0 0 3px ${waveColor}55,0 0 24px ${waveColor}aa` : `0 0 16px rgba(217,70,239,.28)` }}>
-          {isEmpty ? <svg width={isMain ? 34 : 24} height={isMain ? 34 : 24} viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.9)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="2" width="6" height="12" rx="3" /><path d="M5 10a7 7 0 0 0 14 0M12 17v4M8 21h8" /></svg> : <UserAvatar profile={profile} size={size - 8} />}
+          {isEmpty ? <svg width={isMain ? 34 : 24} height={isMain ? 34 : 24} viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.9)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="2" width="6" height="12" rx="3" /><path d="M5 10a7 7 0 0 0 14 0M12 17v4M8 21h8" /></svg> : <UserAvatar userId={profile?.userId} avatarUrl={profile?.avatarUrl} name={profile?.name} size={size - 8} showFrame={!profile?.isPrivateProfile} isVip={Boolean(profile?.isVip)} vipLevel={profile?.vipLevel} isSuperAdmin={Boolean(profile?.isSuperAdmin)} />}
         </div>
-        <span className="absolute -bottom-1 z-20 flex h-5 min-w-5 items-center justify-center rounded-full border border-fuchsia-200/40 bg-fuchsia-900/85 px-1 text-[9px] font-black text-fuchsia-50">{seatIndex === 0 ? "MIC" : seatIndex}</span>
+        {seatIndex !== 0 && <span className="absolute -bottom-1 z-20 flex h-5 min-w-5 items-center justify-center rounded-full border border-fuchsia-200/40 bg-fuchsia-900/85 px-1 text-[9px] font-black text-fuchsia-50">{seatIndex}</span>}
         <span className="absolute -left-1 bottom-1 z-20 flex h-5 w-5 items-center justify-center rounded-full border border-white/20 bg-fuchsia-700/90">{seatMuted ? <MicOffSVG size={10} /> : <MicOnSVG size={10} />}</span>
         {isLocked && <span className="absolute inset-0 z-30 flex items-center justify-center rounded-full bg-black/50"><LockSVG size={20} /></span>}
       </button>

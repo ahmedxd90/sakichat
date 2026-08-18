@@ -70,31 +70,23 @@ async function createSquirrelTrack(rawTrack: IMicrophoneAudioTrack) {
   let processor: AudioNode;
 
   const connectFallback = () => {
-    const fallback = context.createScriptProcessor(8192, 1, 1);
-    const filter = context.createBiquadFilter();
-    filter.type = "highshelf"; filter.frequency.value = 1800; filter.gain.value = 8;
-    source.connect(fallback); fallback.connect(filter); filter.connect(destination);
-    return fallback;
+    const fallback = context.createScriptProcessor(1024, 1, 1);
+    const highpass = context.createBiquadFilter();
+    highpass.type = "highpass"; highpass.frequency.value = 140;
+    const shelf = context.createBiquadFilter();
+    shelf.type = "highshelf"; shelf.frequency.value = 1500; shelf.gain.value = 9;
+    const compressor = context.createDynamicsCompressor();
+    compressor.threshold.value = -24; compressor.knee.value = 18; compressor.ratio.value = 4; compressor.attack.value = 0.003; compressor.release.value = 0.08;
+    source.connect(fallback); fallback.connect(highpass); highpass.connect(shelf); shelf.connect(compressor); compressor.connect(destination);
+    return compressor;
   };
   if (context.audioWorklet?.addModule && typeof AudioWorkletNode !== "undefined") {
     const workletCode = `
       class SakiSquirrelProcessor extends AudioWorkletProcessor {
-        constructor() { super(); this.buffer = new Float32Array(32768); this.write = 0; this.read = 0; this.ready = false; this.pitch = 1.48; }
         process(inputs, outputs) {
           const input = inputs[0]?.[0]; const output = outputs[0]?.[0];
           if (!output) return true;
-          if (input) for (let i = 0; i < input.length; i++) { this.buffer[this.write] = input[i]; this.write = (this.write + 1) % this.buffer.length; }
-          let available = (this.write - this.read + this.buffer.length) % this.buffer.length;
-          if (!this.ready && available > 8192) { this.read = (this.write - 8192 + this.buffer.length) % this.buffer.length; this.ready = true; }
-          for (let i = 0; i < output.length; i++) {
-            available = (this.write - this.read + this.buffer.length) % this.buffer.length;
-            if (!this.ready || available < 4) { output[i] = 0; continue; }
-            const a = this.buffer[Math.floor(this.read)];
-            const b = this.buffer[(Math.floor(this.read) + 1) % this.buffer.length];
-            const f = this.read - Math.floor(this.read);
-            output[i] = (a + (b - a) * f) * 0.82;
-            this.read = (this.read + this.pitch) % this.buffer.length;
-          }
+          for (let i = 0; i < output.length; i++) output[i] = (input?.[i] ?? 0) * 0.92;
           return true;
         }
       }
@@ -105,8 +97,14 @@ async function createSquirrelTrack(rawTrack: IMicrophoneAudioTrack) {
       await context.audioWorklet.addModule(blobUrl);
       const worklet = new AudioWorkletNode(context, "saki-squirrel-voice", { numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [1] });
       source.connect(worklet);
-      worklet.connect(destination);
-      processor = worklet;
+      const highpass = context.createBiquadFilter();
+      highpass.type = "highpass"; highpass.frequency.value = 140;
+      const shelf = context.createBiquadFilter();
+      shelf.type = "highshelf"; shelf.frequency.value = 1500; shelf.gain.value = 9;
+      const compressor = context.createDynamicsCompressor();
+      compressor.threshold.value = -24; compressor.knee.value = 18; compressor.ratio.value = 4; compressor.attack.value = 0.003; compressor.release.value = 0.08;
+      worklet.connect(highpass); highpass.connect(shelf); shelf.connect(compressor); compressor.connect(destination);
+      processor = compressor;
     } catch {
       processor = connectFallback();
     } finally { URL.revokeObjectURL(blobUrl); }
