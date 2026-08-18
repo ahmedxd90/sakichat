@@ -1,5 +1,9 @@
 import { ConvexReactClient } from "convex/react";
 
-export const convex = new ConvexReactClient(import.meta.env.VITE_CONVEX_URL as string);
+// Public Convex deployment URL used by production Web and Capacitor builds.
+// VITE_CONVEX_URL still takes precedence when provided by the build environment.
+const convexUrl = import.meta.env.VITE_CONVEX_URL || "https://tremendous-eel-230.convex.cloud";
+
+export const convex = new ConvexReactClient(convexUrl);
 
 export const CONVEX_AUTH_OAUTH_VERIFIER_KEY = "__convexAuthOAuthVerifier";
