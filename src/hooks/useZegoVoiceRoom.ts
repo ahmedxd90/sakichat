@@ -149,6 +149,7 @@ export function useZegoVoiceRoom(
     try {
       const stream = await zegoRef.current.createStream({ camera: { audio: true, video: false } });
       localStreamRef.current = stream;
+      stream.getAudioTracks?.().forEach((track: MediaStreamTrack) => { track.enabled = true; });
       if (typeof zegoRef.current.setVoiceChangerParam === "function") {
         if (squirrelVoiceEnabledRef.current) await zegoRef.current.setVoiceChangerParam(stream, 8);
         else if (childVoiceEnabledRef.current) await zegoRef.current.setVoiceChangerParam(stream, 11);
@@ -348,11 +349,35 @@ export function useZegoVoiceRoom(
     return () => { cleanup(); };
   }, [enabled, userId, roomId]);
 
+  const setPublishedAudioMuted = useCallback(async (muted: boolean) => {
+    const engine = zegoRef.current;
+    const stream = localStreamRef.current;
+    if (!engine || !stream) return;
+    try {
+      const streamId = `pub_${userId}`;
+      // ZEGOCLOUD Web SDK uses mutePublishStreamAudio; muteMicrophone is not
+      // the reliable publish-control API in Android WebView builds.
+      if (typeof engine.mutePublishStreamAudio === "function") {
+        await Promise.resolve(engine.mutePublishStreamAudio(streamId, muted));
+      }
+      const track = stream.getAudioTracks?.()[0];
+      if (track) track.enabled = !muted;
+      setIsMuted(muted);
+    } catch (error) {
+      const track = stream.getAudioTracks?.()[0];
+      if (track) {
+        track.enabled = !muted;
+        setIsMuted(muted);
+      } else {
+        console.warn("ZEGO: failed to change publish mute state", error);
+      }
+    }
+  }, [userId]);
+
   const toggleMute = useCallback(async () => {
     if (!localStreamRef.current || !zegoRef.current) return;
-    const newMuted = !isMuted;
-    try { zegoRef.current.muteMicrophone(newMuted); setIsMuted(newMuted); } catch (_e) {}
-  }, [isMuted]);
+    await setPublishedAudioMuted(!isMuted);
+  }, [isMuted, setPublishedAudioMuted]);
 
   const toggleSpeaker = useCallback(() => {
     const newOff = !isSpeakerOff;
@@ -364,9 +389,8 @@ export function useZegoVoiceRoom(
   }, [isSpeakerOff]);
 
   const setMicEnabled = useCallback(async (en: boolean) => {
-    if (!zegoRef.current) return;
-    try { zegoRef.current.muteMicrophone(!en); setIsMuted(!en); } catch (_e) {}
-  }, []);
+    await setPublishedAudioMuted(!en);
+  }, [setPublishedAudioMuted]);
 
   const applyVoiceEffect = useCallback(async (effect: "none" | "squirrel" | "child") => {
     const engine = zegoRef.current;

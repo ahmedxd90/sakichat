@@ -199,6 +199,69 @@ export const placeBet = mutation({
   },
 });
 
+async function settleRound(ctx: any, roundId: any) {
+  const round = await ctx.db.get(roundId);
+  if (!round || round.status === "finished") return;
+  await ctx.db.patch(roundId, { status: "closed" });
+
+  const fruits = Object.entries(FRUIT_ITEMS);
+  const weights = fruits.map(([, item]) => 100 / item.multiplier);
+  const totalWeight = weights.reduce((sum, value) => sum + value, 0);
+  let random = Math.random() * totalWeight;
+  let winnerFruit = fruits[0][0];
+  for (let index = 0; index < fruits.length; index++) {
+    random -= weights[index];
+    if (random <= 0) { winnerFruit = fruits[index][0]; break; }
+  }
+  const winnerData = FRUIT_ITEMS[winnerFruit as keyof typeof FRUIT_ITEMS];
+  const bets = await ctx.db.query("fruitPartyBets").withIndex("by_round", (q: any) => q.eq("roundId", roundId)).collect();
+  const totalPool = bets.reduce((sum: number, bet: any) => sum + bet.amount, 0);
+
+  for (const bet of bets) {
+    if (bet.won !== undefined) continue;
+    const won = bet.fruitKey === winnerFruit;
+    const payout = won ? bet.amount * winnerData.multiplier : 0;
+    await ctx.db.patch(bet._id, { won, payout });
+    const profile = await ctx.db.query("profiles").withIndex("by_userId", (q: any) => q.eq("userId", bet.userId)).unique();
+    if (won && payout > 0 && profile) {
+      const balanceAfter = (profile.goldCoins ?? 0) + payout;
+      await ctx.db.patch(profile._id, { goldCoins: balanceAfter });
+      await ctx.db.insert("sakiPartyTransactions", {
+        roundId, userId: bet.userId, kind: "payout", fruitKey: bet.fruitKey,
+        amount: payout, balanceAfter, createdAt: Date.now(),
+      });
+    }
+    const leaderboard = await ctx.db.query("fruitPartyLeaderboard").withIndex("by_userId", (q: any) => q.eq("userId", bet.userId)).unique();
+    if (leaderboard) {
+      await ctx.db.patch(leaderboard._id, {
+        totalWon: leaderboard.totalWon + payout,
+        totalBet: leaderboard.totalBet + bet.amount,
+        gamesPlayed: leaderboard.gamesPlayed + 1,
+        updatedAt: Date.now(),
+      });
+    } else {
+      await ctx.db.insert("fruitPartyLeaderboard", {
+        userId: bet.userId, totalWon: payout, totalBet: bet.amount,
+        gamesPlayed: 1, updatedAt: Date.now(),
+      });
+    }
+  }
+  await ctx.db.patch(roundId, { status: "finished", winnerFruit, totalPool });
+  await ctx.scheduler.runAfter(10000, internal.fruitParty.autoStartRound, {});
+}
+
+export const resolveExpiredRound = mutation({
+  args: { roundId: v.id("fruitPartyRounds") },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("يجب تسجيل الدخول");
+    const round = await ctx.db.get(args.roundId);
+    if (!round || round.status !== "betting") return;
+    if (Date.now() < round.endsAt) return;
+    await settleRound(ctx, args.roundId);
+  },
+});
+
 export const startNewRound = mutation({
   args: {},
   handler: async (ctx) => {
@@ -215,7 +278,7 @@ export const startNewRound = mutation({
     const now = Date.now();
     const expired = existing.find((r) => r.endsAt <= now);
     if (expired) {
-      await ctx.scheduler.runAfter(0, internal.fruitParty.finishRound, { roundId: expired._id });
+      await settleRound(ctx, expired._id);
       return expired._id;
     }
     for (const r of existing) {
@@ -240,73 +303,7 @@ export const startNewRound = mutation({
 export const finishRound = internalMutation({
   args: { roundId: v.id("fruitPartyRounds") },
   handler: async (ctx, args) => {
-    const round = await ctx.db.get(args.roundId);
-    if (!round || round.status === "finished") return;
-
-    await ctx.db.patch(args.roundId, { status: "closed" });
-
-    const fruits = Object.entries(FRUIT_ITEMS);
-    const weights = fruits.map(([, v]) => 100 / v.multiplier);
-    const totalWeight = weights.reduce((a, b) => a + b, 0);
-    let rand = Math.random() * totalWeight;
-    let winnerFruit = fruits[0][0];
-    for (let i = 0; i < fruits.length; i++) {
-      rand -= weights[i];
-      if (rand <= 0) { winnerFruit = fruits[i][0]; break; }
-    }
-
-    const winnerFruitData = FRUIT_ITEMS[winnerFruit as keyof typeof FRUIT_ITEMS];
-
-    const bets = await ctx.db
-      .query("fruitPartyBets")
-      .withIndex("by_round", (q) => q.eq("roundId", args.roundId))
-      .collect();
-
-    const totalPool = bets.reduce((sum, b) => sum + b.amount, 0);
-
-    for (const bet of bets) {
-      // Retries after a transient scheduler failure must not pay the same bet twice.
-      if (bet.won !== undefined) continue;
-      const won = bet.fruitKey === winnerFruit;
-      const payout = won ? bet.amount * winnerFruitData.multiplier : 0;
-
-      await ctx.db.patch(bet._id, { won, payout });
-
-      if (won && payout > 0) {
-        const profile = await ctx.db.query("profiles").withIndex("by_userId", (q) => q.eq("userId", bet.userId)).unique();
-        if (profile) {
-          const balanceAfter = (profile.goldCoins ?? 0) + payout;
-          await ctx.db.patch(profile._id, { goldCoins: balanceAfter });
-          await ctx.db.insert("sakiPartyTransactions", {
-            roundId: args.roundId,
-            userId: bet.userId,
-            kind: "payout",
-            fruitKey: bet.fruitKey,
-            amount: payout,
-            balanceAfter,
-            createdAt: Date.now(),
-          });
-        }
-        const lb = await ctx.db.query("fruitPartyLeaderboard").withIndex("by_userId", (q) => q.eq("userId", bet.userId)).unique();
-        if (lb) {
-          await ctx.db.patch(lb._id, { totalWon: lb.totalWon + payout, totalBet: lb.totalBet + bet.amount, gamesPlayed: lb.gamesPlayed + 1, updatedAt: Date.now() });
-        } else {
-          await ctx.db.insert("fruitPartyLeaderboard", { userId: bet.userId, totalWon: payout, totalBet: bet.amount, gamesPlayed: 1, updatedAt: Date.now() });
-        }
-      } else {
-        const lb = await ctx.db.query("fruitPartyLeaderboard").withIndex("by_userId", (q) => q.eq("userId", bet.userId)).unique();
-        if (lb) {
-          await ctx.db.patch(lb._id, { totalBet: lb.totalBet + bet.amount, gamesPlayed: lb.gamesPlayed + 1, updatedAt: Date.now() });
-        } else {
-          await ctx.db.insert("fruitPartyLeaderboard", { userId: bet.userId, totalWon: 0, totalBet: bet.amount, gamesPlayed: 1, updatedAt: Date.now() });
-        }
-      }
-    }
-
-    await ctx.db.patch(args.roundId, { status: "finished", winnerFruit, totalPool });
-
-    // Five seconds of spin plus five seconds showing the result, then a new round.
-    await ctx.scheduler.runAfter(10000, internal.fruitParty.autoStartRound, {});
+    await settleRound(ctx, args.roundId);
   },
 });
 

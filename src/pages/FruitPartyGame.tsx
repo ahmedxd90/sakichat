@@ -181,7 +181,8 @@ export default function FruitPartyGame({ onBack }: Props) {
 
   // Auto-start and recover the game if a scheduled server task was delayed.
   useEffect(() => {
-    if (currentRound !== null || phaseRef.current === "result") return;
+    // Convex returns undefined while loading; only recover after the query settles to null.
+    if (currentRound === undefined) return;
     let cancelled = false;
     const recover = () => {
       if (!cancelled) startNewRound().catch(() => {});
@@ -196,16 +197,16 @@ export default function FruitPartyGame({ onBack }: Props) {
 
   const handleBet = async (fruitKey: string) => {
     if (!currentRound || phase !== "betting" || timeLeft === 0 || placing) return;
-    if (!selectedKeys.includes(fruitKey)) {
+    const isNewSelection = !selectedKeys.includes(fruitKey);
+    if (isNewSelection) {
       if (selectedKeys.length >= 6) {
         toast.error("يمكنك اختيار 6 أصناف فقط في الجولة");
         return;
       }
+      // The first tap both selects the item and places the requested bet.
       setSelectedKeys((prev) => [...prev, fruitKey]);
-      toast.success("تم اختيار الصنف. اضغط مرة أخرى لوضع الرهان");
-      return;
     }
-    // Rate limit: prevent rapid clicks; repeated bets on the same selected item are allowed.
+    // Rate limit: repeated bets on the same selected item are allowed.
     setPlacing(true);
     try {
       await placeBetMut({ roundId: currentRound._id, fruitKey, amount: selectedAmount });
