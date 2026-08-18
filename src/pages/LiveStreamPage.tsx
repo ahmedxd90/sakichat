@@ -180,14 +180,14 @@ function LiveCard({ stream, onClick }: { stream: any; onClick: () => void }) {
       onClick={onClick}
       className="w-full flex items-center gap-3 p-3 rounded-2xl active:scale-[0.98] transition-all relative overflow-hidden"
       style={{
-        background: "linear-gradient(135deg,rgba(10,0,25,0.98),rgba(20,0,40,0.95))",
-        border: "1px solid rgba(239,68,68,0.2)",
-        boxShadow: "0 4px 20px rgba(0,0,0,0.4)",
+        background: "linear-gradient(135deg,#ffffff,#f8fbff)",
+        border: "1px solid #dbeafe",
+        boxShadow: "0 8px 22px rgba(37,99,235,0.10)",
       }}
     >
       {/* Glow effect */}
       <div className="absolute inset-0 pointer-events-none" style={{
-        background: "radial-gradient(ellipse at 0% 50%, rgba(239,68,68,0.06) 0%, transparent 60%)"
+        background: "radial-gradient(ellipse at 0% 50%, rgba(59,130,246,0.08) 0%, transparent 60%)"
       }} />
 
       {/* Room cover */}
@@ -195,7 +195,7 @@ function LiveCard({ stream, onClick }: { stream: any; onClick: () => void }) {
         {stream.roomCoverUrl
           ? <img src={stream.roomCoverUrl} className="w-full h-full object-cover" />
           : <div className="w-full h-full flex items-center justify-center"
-              style={{ background: "linear-gradient(135deg,#1a0035,#3d0070)" }}>
+              style={{ background: "linear-gradient(135deg,#dbeafe,#eff6ff)" }}>
               <span className="text-2xl">📡</span>
             </div>
         }
@@ -222,7 +222,7 @@ function LiveCard({ stream, onClick }: { stream: any; onClick: () => void }) {
 
       {/* Info */}
       <div className="flex-1 min-w-0 text-right">
-        <p className="text-white font-black text-sm truncate mb-0.5">{stream.title}</p>
+        <p className="text-slate-900 font-black text-sm truncate mb-0.5">{stream.title}</p>
         {stream.roomName && (
           <p className="text-red-400/80 text-[10px] truncate mb-1.5 flex items-center gap-1 justify-end">
             <span>{stream.roomName}</span>
@@ -230,7 +230,7 @@ function LiveCard({ stream, onClick }: { stream: any; onClick: () => void }) {
           </p>
         )}
         <div className="flex items-center gap-1.5 mb-2 justify-end">
-          <span className="text-gray-300 text-[10px] truncate">{stream.hostProfile?.name}</span>
+          <span className="text-slate-600 text-[10px] truncate">{stream.hostProfile?.name}</span>
           {stream.sakiId && <span className="text-purple-400 text-[9px] font-mono">#{stream.sakiId}</span>}
           <UserAvatar userId={stream.hostId} avatarUrl={stream.hostProfile?.avatarUrl} name={stream.hostProfile?.name} size={16} className="border border-red-500/50" />
         </div>
@@ -247,10 +247,20 @@ function LiveCard({ stream, onClick }: { stream: any; onClick: () => void }) {
             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#a855f7" strokeWidth="2">
               <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" /><circle cx="9" cy="7" r="4" />
             </svg>
-            <span className="text-purple-300 text-[10px] font-bold">{stream.viewerCount ?? 0}</span>
+            <span className="text-blue-600 text-[10px] font-bold">{stream.viewerCount ?? 0}</span>
           </div>
           {country && <span className="text-[11px]">{country.flag}</span>}
         </div>
+        {stream.viewerPreview?.length > 0 && (
+          <div className="mt-2 flex items-center justify-end gap-1.5">
+            <div className="flex -space-x-2 space-x-reverse">
+              {stream.viewerPreview.slice(0, 5).map((viewer: any) => (
+                <UserAvatar key={viewer._id} userId={viewer.userId} avatarUrl={viewer.userAvatarUrl} name={viewer.userName} size={20} className="border-2 border-white shadow-sm" />
+              ))}
+            </div>
+            <span className="text-[10px] font-bold text-slate-500">داخلون الآن</span>
+          </div>
+        )}
       </div>
 
       {/* Animated waves on left */}
@@ -259,10 +269,10 @@ function LiveCard({ stream, onClick }: { stream: any; onClick: () => void }) {
           <div key={i} className="rounded-full w-1"
             style={{
               height: `${8 + (i % 3) * 7}px`,
-              background: "linear-gradient(180deg,#ef4444,#dc2626)",
+              background: "linear-gradient(180deg,#60a5fa,#2563eb)",
               animation: `live-wave ${0.4 + i * 0.1}s ease-in-out infinite`,
               animationDelay: `${i * 0.08}s`,
-              boxShadow: "0 0 6px rgba(239,68,68,0.5)",
+              boxShadow: "0 0 6px rgba(37,99,235,0.28)",
             }} />
         ))}
       </div>
@@ -314,15 +324,15 @@ export default function LiveStreamPage({ onBack, onRoomSelect, myRoom }: LiveStr
 
   return (
     <div className="flex flex-col min-h-screen" dir="rtl"
-      style={{ background: "linear-gradient(180deg,#080015 0%,#0d001f 40%,#080015 100%)" }}>
+      style={{ background: "linear-gradient(180deg,#f8fbff 0%,#ffffff 42%,#eef6ff 100%)" }}>
 
       {/* Header */}
       <div className="sticky top-0 z-40 backdrop-blur-xl"
-        style={{ background: "rgba(8,0,21,0.95)", borderBottom: "1px solid rgba(239,68,68,0.15)" }}>
+        style={{ background: "rgba(255,255,255,0.94)", borderBottom: "1px solid #dbeafe", boxShadow: "0 8px 24px rgba(37,99,235,0.08)" }}>
         <div className="flex items-center justify-between px-4 py-3">
           <button onClick={onBack}
-            className="w-9 h-9 rounded-xl bg-white/8 flex items-center justify-center active:scale-95 border border-white/10">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
+            className="w-9 h-9 rounded-xl bg-blue-50 flex items-center justify-center active:scale-95 border border-blue-100">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2">
               <path d="M9 18l6-6-6-6" />
             </svg>
           </button>
@@ -332,25 +342,25 @@ export default function LiveStreamPage({ onBack, onRoomSelect, myRoom }: LiveStr
             <div className="relative w-8 h-8 flex items-center justify-center">
               <div className="absolute inset-0 rounded-full animate-ping opacity-30"
                 style={{ background: "rgba(239,68,68,0.5)" }} />
-              <div className="w-3 h-3 rounded-full bg-red-500" />
+              <div className="w-3 h-3 rounded-full bg-blue-600" />
             </div>
             <div>
-              <h2 className="text-white font-black text-base leading-none">البث المباشر</h2>
-              <p className="text-red-400/70 text-[10px]">Live Streaming</p>
+              <h2 className="text-slate-900 font-black text-base leading-none">البث المباشر</h2>
+              <p className="text-blue-500 text-[10px] font-bold">Live Streaming</p>
             </div>
           </div>
 
           {myLivestream ? (
             <button onClick={handleOpenMyLive}
               className="flex items-center gap-1.5 px-3 py-2 rounded-xl font-bold text-xs text-white active:scale-95"
-              style={{ background: "linear-gradient(135deg,#ef4444,#dc2626)", boxShadow: "0 0 15px rgba(239,68,68,0.5)" }}>
+              style={{ background: "linear-gradient(135deg,#2563eb,#1d4ed8)", boxShadow: "0 8px 18px rgba(37,99,235,0.24)" }}>
               <div className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
               بثي الآن
             </button>
           ) : (
             <button onClick={() => setShowCreate(true)}
               className="flex items-center gap-1.5 px-3 py-2 rounded-xl font-bold text-xs text-white active:scale-95"
-              style={{ background: "linear-gradient(135deg,#ef4444,#dc2626)", boxShadow: "0 0 15px rgba(239,68,68,0.4)" }}>
+              style={{ background: "linear-gradient(135deg,#2563eb,#1d4ed8)", boxShadow: "0 8px 18px rgba(37,99,235,0.24)" }}>
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5">
                 <path d="M12 5v14M5 12h14" />
               </svg>
@@ -363,23 +373,22 @@ export default function LiveStreamPage({ onBack, onRoomSelect, myRoom }: LiveStr
       {/* Hero Banner */}
       {!myLivestream && (
         <div className="mx-4 mt-4 p-4 rounded-2xl relative overflow-hidden"
-          style={{
-            background: "linear-gradient(135deg,rgba(239,68,68,0.12),rgba(220,38,38,0.06))",
-            border: "1px solid rgba(239,68,68,0.2)",
+          style={{ background: "linear-gradient(135deg,#eff6ff,#ffffff)",
+            border: "1px solid #bfdbfe",
           }}>
           <div className="absolute inset-0 pointer-events-none" style={{
-            background: "radial-gradient(ellipse at 100% 50%, rgba(239,68,68,0.1) 0%, transparent 60%)"
+            background: "radial-gradient(ellipse at 100% 50%, rgba(59,130,246,0.13) 0%, transparent 60%)"
           }} />
           <div className="flex items-center gap-4">
             <div className="flex-1 text-right">
-              <h3 className="text-white font-black text-base mb-1">ابدأ بثك المباشر الآن! 🔴</h3>
-              <p className="text-gray-400 text-xs leading-relaxed">شارك لحظاتك مع الجميع وتفاعل مع متابعيك في الوقت الفعلي</p>
+              <h3 className="text-slate-900 font-black text-base mb-1">ابدأ بثك المباشر الآن</h3>
+              <p className="text-slate-500 text-xs leading-relaxed">شارك لحظاتك وتفاعل مع المستخدمين في الوقت الفعلي</p>
             </div>
             <button onClick={() => setShowCreate(true)}
               className="flex-shrink-0 w-14 h-14 rounded-2xl flex items-center justify-center active:scale-90 transition-all"
               style={{
-                background: "linear-gradient(135deg,#ef4444,#dc2626)",
-                boxShadow: "0 0 25px rgba(239,68,68,0.6)",
+                background: "linear-gradient(135deg,#2563eb,#1d4ed8)",
+                boxShadow: "0 10px 24px rgba(37,99,235,0.25)",
               }}>
               <svg width="24" height="24" viewBox="0 0 24 24" fill="white">
                 <path d="M15 10l4.553-2.069A1 1 0 0121 8.87v6.26a1 1 0 01-1.447.894L15 14M3 8a2 2 0 012-2h10a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V8z"/>
@@ -394,19 +403,19 @@ export default function LiveStreamPage({ onBack, onRoomSelect, myRoom }: LiveStr
         <button onClick={handleOpenMyLive}
           className="mx-4 mt-4 p-4 rounded-2xl relative overflow-hidden active:scale-[0.98] transition-all"
           style={{
-            background: "linear-gradient(135deg,rgba(239,68,68,0.18),rgba(220,38,38,0.1))",
-            border: "1.5px solid rgba(239,68,68,0.5)",
-            boxShadow: "0 0 30px rgba(239,68,68,0.2)",
+            background: "linear-gradient(135deg,#eff6ff,#ffffff)",
+            border: "1.5px solid #93c5fd",
+            boxShadow: "0 8px 22px rgba(37,99,235,0.10)",
           }}>
           {/* Pulse ring */}
           <div className="absolute -top-2 -right-2 w-6 h-6 rounded-full animate-ping opacity-40"
-            style={{ background: "rgba(239,68,68,0.6)" }} />
+            style={{ background: "rgba(37,99,235,0.24)" }} />
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-xl overflow-hidden flex-shrink-0 border border-red-500/30">
+            <div className="w-12 h-12 rounded-xl overflow-hidden flex-shrink-0 border border-blue-200">
               {myRoom?.coverUrl
                 ? <img src={myRoom.coverUrl} className="w-full h-full object-cover" />
                 : <div className="w-full h-full flex items-center justify-center"
-                    style={{ background: "linear-gradient(135deg,#1a0035,#3d0070)" }}>
+                    style={{ background: "linear-gradient(135deg,#dbeafe,#eff6ff)" }}>
                     <span className="text-xl">📡</span>
                   </div>
               }
@@ -414,21 +423,21 @@ export default function LiveStreamPage({ onBack, onRoomSelect, myRoom }: LiveStr
             <div className="flex-1 min-w-0 text-right">
               <div className="flex items-center gap-2 mb-0.5 justify-end">
                 <div className="flex items-center gap-1 px-2 py-0.5 rounded-full"
-                  style={{ background: "rgba(239,68,68,0.9)" }}>
+                  style={{ background: "#2563eb" }}>
                   <div className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
                   <span className="text-white text-[9px] font-black">مباشر الآن</span>
                 </div>
               </div>
-              <p className="text-white font-black text-sm truncate">{myLivestream.title}</p>
+              <p className="text-slate-900 font-black text-sm truncate">{myLivestream.title}</p>
               <div className="flex items-center gap-3 mt-0.5 justify-end">
-                <span className="text-gray-400 text-[10px]">🪙 {myLivestream.totalCoins ?? 0}</span>
-                <span className="text-gray-400 text-[10px]">❤️ {myLivestream.likeCount ?? 0}</span>
-                <span className="text-gray-400 text-[10px]">👁️ {myLivestream.viewerCount ?? 0}</span>
+                <span className="text-slate-500 text-[10px]">🪙 {myLivestream.totalCoins ?? 0}</span>
+                <span className="text-slate-500 text-[10px]">❤️ {myLivestream.likeCount ?? 0}</span>
+                <span className="text-slate-500 text-[10px]">👁️ {myLivestream.viewerCount ?? 0}</span>
               </div>
             </div>
             <div className="flex flex-col gap-2">
               <div className="px-3 py-1.5 rounded-xl text-xs font-bold text-white"
-                style={{ background: "rgba(239,68,68,0.4)", border: "1px solid rgba(239,68,68,0.5)" }}>
+                style={{ background: "#2563eb", border: "1px solid #1d4ed8" }}>
                 دخول
               </div>
               <button onClick={(e) => { e.stopPropagation(); handleEndLive(); }}
@@ -444,18 +453,18 @@ export default function LiveStreamPage({ onBack, onRoomSelect, myRoom }: LiveStr
       {/* Stats Bar */}
       {livestreams && livestreams.length > 0 && (
         <div className="mx-4 mt-4 flex items-center gap-3 p-3 rounded-2xl"
-          style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
+          style={{ background: "rgba(255,255,255,0.86)", border: "1px solid #dbeafe", boxShadow: "0 6px 18px rgba(37,99,235,0.06)" }}>
           <div className="flex items-center gap-1.5">
             <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-            <span className="text-white font-black text-sm">{livestreams.length}</span>
-            <span className="text-gray-400 text-xs">بث نشط</span>
+            <span className="text-slate-900 font-black text-sm">{livestreams.length}</span>
+            <span className="text-slate-500 text-xs">بث نشط</span>
           </div>
           <div className="w-px h-4 bg-white/10" />
           <div className="flex items-center gap-1.5">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#a855f7" strokeWidth="2">
               <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" /><circle cx="9" cy="7" r="4" />
             </svg>
-            <span className="text-purple-300 text-xs font-bold">
+            <span className="text-blue-600 text-xs font-bold">
               {livestreams.reduce((s, l) => s + (l.viewerCount ?? 0), 0)} مشاهد
             </span>
           </div>
@@ -473,13 +482,13 @@ export default function LiveStreamPage({ onBack, onRoomSelect, myRoom }: LiveStr
       <div className="flex-1 px-4 mt-4 pb-8 space-y-3">
         <div className="flex items-center gap-2 mb-3">
           <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full"
-            style={{ background: "rgba(239,68,68,0.15)", border: "1px solid rgba(239,68,68,0.3)" }}>
+            style={{ background: "#eff6ff", border: "1px solid #bfdbfe" }}>
             <div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-            <span className="text-red-400 font-black text-xs">البثوث المباشرة</span>
+            <span className="text-blue-700 font-black text-xs">البثوث المباشرة</span>
           </div>
           {livestreams && livestreams.length > 0 && (
             <span className="px-2 py-0.5 rounded-full text-[10px] font-black text-white"
-              style={{ background: "linear-gradient(135deg,#ef4444,#dc2626)" }}>
+              style={{ background: "linear-gradient(135deg,#2563eb,#1d4ed8)" }}>
               {livestreams.length}
             </span>
           )}
@@ -488,7 +497,7 @@ export default function LiveStreamPage({ onBack, onRoomSelect, myRoom }: LiveStr
         {!livestreams ? (
           <div className="flex flex-col items-center justify-center py-20 gap-4">
             <div className="relative">
-              <div className="w-12 h-12 border-2 border-red-500/30 border-t-red-500 rounded-full animate-spin" />
+              <div className="w-12 h-12 border-2 border-blue-200 border-t-blue-600 rounded-full animate-spin" />
               <div className="absolute inset-0 flex items-center justify-center">
                 <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
               </div>
@@ -505,8 +514,8 @@ export default function LiveStreamPage({ onBack, onRoomSelect, myRoom }: LiveStr
                 <span className="text-4xl">📡</span>
               </div>
             </div>
-            <p className="text-white font-black text-xl mb-1">لا توجد بثوث مباشرة</p>
-            <p className="text-gray-500 text-sm mb-6">كن أول من يبث الآن وابدأ التفاعل!</p>
+            <p className="text-slate-900 font-black text-xl mb-1">لا توجد بثوث مباشرة</p>
+            <p className="text-slate-500 text-sm mb-6">كن أول من يبث الآن وابدأ التفاعل!</p>
             <button onClick={() => setShowCreate(true)}
               className="px-8 py-3.5 rounded-2xl font-black text-white text-sm active:scale-95 transition-all"
               style={{

@@ -15,9 +15,10 @@ export const getActiveLivestreams = query({
       streams.map(async (stream) => {
         const profile = await ctx.db.query("profiles").withIndex("by_userId", (q) => q.eq("userId", stream.hostId)).unique();
         const room = stream.roomId ? await ctx.db.get(stream.roomId) : null;
+        const viewerPreview = await ctx.db.query("liveViewers").withIndex("by_livestream", (q) => q.eq("livestreamId", stream._id)).order("desc").take(5);
         let avatarUrl = profile?.avatarUrl;
         if (profile?.avatarStorageId && !avatarUrl) avatarUrl = await ctx.storage.getUrl(profile.avatarStorageId) ?? undefined;
-        return { ...stream, hostProfile: { ...profile, avatarUrl }, roomCoverUrl: room?.coverUrl ?? null, roomName: room?.name ?? null, roomNumericId: room?.roomNumericId ?? null };
+        return { ...stream, hostProfile: { ...profile, avatarUrl }, roomCoverUrl: room?.coverUrl ?? null, roomName: room?.name ?? null, roomNumericId: room?.roomNumericId ?? null, viewerPreview };
       })
     );
   },
