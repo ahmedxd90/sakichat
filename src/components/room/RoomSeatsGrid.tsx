@@ -422,9 +422,9 @@ function RoomSeatsGridInner({
         )}
 
         {isKaraoke ? (
-          <div className="flex flex-col items-center gap-4 px-1">
-            <div className="flex flex-col items-center gap-1">
-              <div className="flex items-center gap-2 rounded-full border border-fuchsia-300/35 bg-fuchsia-950/45 px-4 py-1.5 text-[10px] font-black tracking-[0.16em] text-fuchsia-100 shadow-[0_0_18px_rgba(217,70,239,0.28)]">
+          <div className="flex flex-col items-center gap-2.5 px-1">
+            <div className="flex flex-col items-center gap-0.5">
+              <div className="flex items-center gap-1.5 rounded-full border border-fuchsia-300/35 bg-fuchsia-950/45 px-3 py-1 text-[9px] font-black tracking-[0.16em] text-fuchsia-100 shadow-[0_0_18px_rgba(217,70,239,0.28)]">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="9" y="2" width="6" height="12" rx="3" /><path d="M5 10a7 7 0 0 0 14 0M12 17v4M8 21h8" /></svg>
                 MAIN MIC
               </div>
@@ -438,11 +438,11 @@ function RoomSeatsGridInner({
                 onPress={() => onSeatPress(0)}
                 onViewProfile={onViewProfile}
                 getMemberSpeakerIds={getMemberSpeakerIds}
-                size={92}
+                size={76}
                 isMain
               />
             </div>
-            <div className="grid w-full grid-cols-5 gap-x-1.5 gap-y-4">
+            <div className="grid w-full grid-cols-5 gap-x-1 gap-y-2.5">
               {Array.from({ length: 10 }, (_, offset) => {
                 const i = offset + 1;
                 const member = members?.find((m) => m.seatIndex === i);
@@ -458,7 +458,7 @@ function RoomSeatsGridInner({
                     onPress={() => onSeatPress(i)}
                     onViewProfile={onViewProfile}
                     getMemberSpeakerIds={getMemberSpeakerIds}
-                    size={62}
+                    size={52}
                   />
                 );
               })}

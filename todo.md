@@ -1129,3 +1129,8 @@
 - [ ] فحص مسار dist ونسخ Web assets إلى android/app/src/main/assets/public.
 - [ ] التأكد من احتواء APK على نصوص Karaoke الجديدة.
 - [ ] إعادة مزامنة Capacitor وبناء إصدار Android جديد.
+
+## تنقيح واجهة Karaoke في Android — 2026-08-18
+- [ ] إخفاء شريط حالة ZEGOCLOUD الأخضر من واجهة Android.
+- [ ] تصغير المقعد الرئيسي العلوي وجميع المقاعد العشرة في ثيم Karaoke.
+- [ ] مزامنة ملفات Web داخل Android وبناء نسخة اختبار جديدة.

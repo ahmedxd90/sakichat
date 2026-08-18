@@ -1051,8 +1051,8 @@ function RoomPageInner({ roomId, onBack, onBackgroundLeave, onViewProfile, onMes
           onShowMusic={() => setShowMusic(true)}
         />
 
-        {/* Zego status: confirms actual login, publish, and remote playback. */}
-        {zegoTestEnabled && (
+        {/* Zego status is intentionally hidden in the production Android UI; errors remain visible below. */}
+        {zegoTestEnabled && !Capacitor.isNativePlatform() && (
           <div className="mx-3 mt-2 rounded-xl border border-emerald-400/25 bg-emerald-950/35 px-3 py-1.5 text-[11px] text-emerald-200">
             ZEGOCLOUD: {isConnected ? "متصل" : isConnecting ? "جارٍ الاتصال" : "غير متصل"}
             {isOnSeat ? ` · ${isPublishing ? "الميكروفون منشور" : "الميكروفون غير منشور"}` : " · اجلس على مقعد للتحدث"}
