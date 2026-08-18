@@ -5,11 +5,19 @@ import { api } from "../../convex/_generated/api";
 const APP_ID = parseInt(import.meta.env.VITE_ZEGO_APP_ID || "0", 10);
 const SERVER = import.meta.env.VITE_ZEGO_SERVER || "";
 
-async function requestPermissions() {
+async function requestPermissions(): Promise<string | null> {
+  if (!navigator.mediaDevices?.getUserMedia) {
+    return "الميكروفون غير متاح داخل WebView هذا الجهاز";
+  }
   try {
     const s = await navigator.mediaDevices.getUserMedia({ audio: true });
     s.getTracks().forEach((t) => t.stop());
-  } catch (_e) {}
+    return null;
+  } catch (e: any) {
+    return e?.name === "NotAllowedError"
+      ? "تم رفض صلاحية الميكروفون. افتح إعدادات التطبيق > الصلاحيات > الميكروفون واسمح بها ثم أعد دخول الغرفة"
+      : `تعذر تشغيل الميكروفون: ${e?.message || String(e)}`;
+  }
 }
 
 export interface ZegoVoiceRoomState {
@@ -77,7 +85,7 @@ export function useZegoVoiceRoom(
     try {
       const stream = await zegoRef.current.createStream({ camera: { audio: true, video: false } });
       localStreamRef.current = stream;
-      zegoRef.current.startPublishingStream(`pub_${userId}`, stream);
+      await zegoRef.current.startPublishingStream(`pub_${userId}`, stream);
       setIsMuted(false);
     } catch (e) {
       console.warn("ZEGO: Failed to publish mic", e);
@@ -108,7 +116,12 @@ export function useZegoVoiceRoom(
     }
     if (joinedRef.current || zegoRef.current) return;
 
-    await requestPermissions();
+    const permissionError = await requestPermissions();
+    if (permissionError) {
+      setError(permissionError);
+      setIsConnecting(false);
+      return;
+    }
 
     setIsConnecting(true);
     setError(null);
@@ -117,6 +130,18 @@ export function useZegoVoiceRoom(
       const { ZegoExpressEngine } = await import("zego-express-engine-webrtc");
       const zego = new ZegoExpressEngine(APP_ID, SERVER);
       zegoRef.current = zego;
+
+      const capabilities = await (zego as any).checkSystemRequirements?.();
+      if (capabilities && (!capabilities.webRTC || !capabilities.microphone)) {
+        const missing = [
+          !capabilities.webRTC ? "WebRTC" : "",
+          !capabilities.microphone ? "الميكروفون" : "",
+        ].filter(Boolean).join(" و ");
+        setError(`الجهاز لا يدعم ${missing} داخل WebView`);
+        setIsConnecting(false);
+        destroyEngine();
+        return;
+      }
 
       zego.on("roomStateChanged", (_rID: string, reason: string, errorCode: number) => {
         console.log("ZEGO roomStateChanged:", reason, "code:", errorCode);
@@ -148,9 +173,19 @@ export function useZegoVoiceRoom(
               if (!isSpeakerOffRef.current) {
                 const audio = document.createElement("audio");
                 audio.autoplay = true;
+                audio.controls = false;
+                audio.muted = false;
+                audio.volume = 1;
+                audio.setAttribute("playsinline", "true");
                 audio.srcObject = remoteStream;
                 audio.setAttribute("data-zego-stream", s.streamID);
                 document.body.appendChild(audio);
+                // Android WebView may not honor autoplay for a newly attached MediaStream.
+                // Explicitly start playback and surface a useful error if the platform blocks it.
+                void audio.play().catch((e) => {
+                  console.warn("ZEGO: remote audio play blocked", e);
+                  setError("الصوت متصل لكن تشغيل السماعة محظور. اضغط داخل الغرفة مرة واحدة ثم أعد المحاولة");
+                });
               }
             } catch (_e) {}
           }
