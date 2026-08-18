@@ -73,6 +73,7 @@ export default function FruitPartyGame({ onBack }: Props) {
   const myBetsRef      = useRef<any[]>([]);
   const spinTimerRef   = useRef<any>(null);
   const resultTimerRef = useRef<any>(null);
+  const recoveryRoundRef = useRef<string | null>(null);
 
   useEffect(() => {
     myBetsRef.current = myBets ?? [];
@@ -101,20 +102,27 @@ export default function FruitPartyGame({ onBack }: Props) {
       setAllFlash(false);
       setShowResultSheet(false);
       setSelectedKeys([]);
+      recoveryRoundRef.current = null;
       clearTimeout(spinTimerRef.current);
       clearTimeout(resultTimerRef.current);
     }
     prevRoundIdRef.current = rid;
   }, [currentRound?._id]);
 
-  // Start spinning when time runs out
+  // Start spinning when time runs out and ask the server to recover a missed scheduled finish.
   useEffect(() => {
     if (timeLeft === 0 && phaseRef.current === "betting" && currentRound) {
       phaseRef.current = "spinning";
       setPhase("spinning");
       startSpinAnimation();
+      if (recoveryRoundRef.current !== currentRound._id) {
+        recoveryRoundRef.current = currentRound._id;
+        startNewRound().catch(() => {
+          recoveryRoundRef.current = null;
+        });
+      }
     }
-  }, [timeLeft]);
+  }, [timeLeft, currentRound?._id, startNewRound]);
 
   const startSpinAnimation = useCallback(() => {
     let idx = 0;

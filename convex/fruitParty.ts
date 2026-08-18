@@ -211,13 +211,18 @@ export const startNewRound = mutation({
       .query("fruitPartyRounds")
       .withIndex("by_status", (q) => q.eq("status", "betting"))
       .collect();
+    const now = Date.now();
+    const expired = existing.find((r) => r.endsAt <= now);
+    if (expired) {
+      await ctx.scheduler.runAfter(0, internal.fruitParty.finishRound, { roundId: expired._id });
+      return expired._id;
+    }
     for (const r of existing) {
       await ctx.db.patch(r._id, { status: "closed" });
     }
 
     const allRounds = await ctx.db.query("fruitPartyRounds").collect();
     const roundNumber = allRounds.length + 1;
-    const now = Date.now();
 
     const roundId = await ctx.db.insert("fruitPartyRounds", {
       status: "betting",
@@ -259,6 +264,8 @@ export const finishRound = internalMutation({
     const totalPool = bets.reduce((sum, b) => sum + b.amount, 0);
 
     for (const bet of bets) {
+      // Retries after a transient scheduler failure must not pay the same bet twice.
+      if (bet.won !== undefined) continue;
       const won = bet.fruitKey === winnerFruit;
       const payout = won ? bet.amount * winnerFruitData.multiplier : 0;
 
