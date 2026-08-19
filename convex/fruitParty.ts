@@ -26,8 +26,9 @@ export const getCurrentRound = query({
     return await ctx.db
       .query("fruitPartyRounds")
       .withIndex("by_room", (q) => q.eq("roomId", args.roomId))
+      // Return expired betting rounds too so the client can recover and settle them.
+      // Hiding them here leaves the UI at 0 seconds with no server record to resolve.
       .filter((q) => q.eq(q.field("status"), "betting"))
-      .filter((q) => q.gt(q.field("endsAt"), Date.now()))
       .order("desc")
       .first();
   },
@@ -204,8 +205,8 @@ export const placeBet = mutation({
 async function settleRound(ctx: any, roundId: any) {
   const round = await ctx.db.get(roundId);
   if (!round || round.status === "finished") return;
-  await ctx.db.patch(roundId, { status: "closed" });
-
+  // Do not move the round to a terminal intermediate state before settlement.
+  // If settlement fails, the betting round must remain recoverable and retryable.
   const fruits = Object.entries(FRUIT_ITEMS);
   const weights = fruits.map(([, item]) => 100 / item.multiplier);
   const totalWeight = weights.reduce((sum, value) => sum + value, 0);
@@ -287,9 +288,8 @@ export const startNewRound = mutation({
       await settleRound(ctx, expired._id);
       return expired._id;
     }
-    for (const r of existing) {
-      await ctx.db.patch(r._id, { status: "closed" });
-    }
+    const active = existing.find((r) => r.endsAt > now);
+    if (active) return active._id;
 
     const allRounds = await ctx.db
       .query("fruitPartyRounds")
@@ -324,15 +324,20 @@ export const autoStartRound = internalMutation({
       .query("fruitPartyRounds")
       .withIndex("by_room", (q) => q.eq("roomId", args.roomId))
       .filter((q) => q.eq(q.field("status"), "betting"))
-      .first();
-    if (existing) return;
+      .collect();
+    const now = Date.now();
+    const expired = existing.find((r) => r.endsAt <= now);
+    if (expired) {
+      await settleRound(ctx, expired._id);
+      return;
+    }
+    if (existing.some((r) => r.endsAt > now)) return;
 
     const allRounds = await ctx.db
       .query("fruitPartyRounds")
       .withIndex("by_room", (q) => q.eq("roomId", args.roomId))
       .collect();
     const roundNumber = allRounds.length + 1;
-    const now = Date.now();
 
     const roundId = await ctx.db.insert("fruitPartyRounds", {
       roomId: args.roomId,
