@@ -65,6 +65,7 @@ export default function FruitPartyGame({ onBack, roomId }: Props) {
   const [allFlash, setAllFlash]         = useState(false);
   const [showResultSheet, setShowResultSheet] = useState(false);
   const [lastRoundMyBets, setLastRoundMyBets] = useState<any[]>([]);
+  const [diagnostic, setDiagnostic] = useState<{ title: string; details: string } | null>(null);
   const [lastRoundWinnerKey, setLastRoundWinnerKey] = useState<string | null>(null);
 
   const intervalRef    = useRef<any>(null);
@@ -193,6 +194,29 @@ export default function FruitPartyGame({ onBack, roomId }: Props) {
     setTimeout(apply, remainingSpinMs);
   }, [lastRounds?.[0]?._id]);
 
+  // Surface a visible diagnostic instead of leaving the user on a silent 0-second screen.
+  useEffect(() => {
+    if (currentRound !== null || currentRound === undefined) return;
+    const timer = window.setTimeout(() => {
+      setDiagnostic({
+        title: "لم تصل جولة فعالة من الخادم",
+        details: `roomId=${String(roomId ?? "مفقود")} • لا توجد جولة betting فعالة • سيتم طلب جولة جديدة تلقائيًا`,
+      });
+    }, 3500);
+    return () => window.clearTimeout(timer);
+  }, [currentRound, roomId]);
+
+  useEffect(() => {
+    if (phase !== "spinning") return;
+    const timer = window.setTimeout(() => {
+      setDiagnostic({
+        title: "توقفت اللعبة أثناء السحب",
+        details: `roundId=${String(activeRoundRef.current?._id ?? "مفقود")} • roomId=${String(roomId ?? "مفقود")} • آخر عداد=${timeLeft} • لم تصل نتيجة finished خلال 8 ثوانٍ`,
+      });
+    }, 8000);
+    return () => window.clearTimeout(timer);
+  }, [phase, roomId, timeLeft]);
+
   // Auto-start and recover the game if a scheduled server task was delayed.
   useEffect(() => {
     // Convex returns undefined while loading; only recover after the query settles to null.
@@ -226,7 +250,13 @@ export default function FruitPartyGame({ onBack, roomId }: Props) {
       await placeBetMut({ roundId: currentRound._id, fruitKey, amount: selectedAmount });
       toast.success(`رهنت ${selectedAmount.toLocaleString()} على ${FRUIT_ITEMS.find(f => f.key === fruitKey)?.label}`);
     } catch (e: any) {
-      toast.error(e.message ?? "حدث خطأ");
+      const message = e?.message ?? "حدث خطأ غير معروف من الخادم";
+      const balance = profile?.goldCoins ?? "غير متاح";
+      setDiagnostic({
+        title: "تعذر تنفيذ الرهان",
+        details: `${message} • roomId=${String(roomId ?? "مفقود")} • roundId=${String(currentRound?._id ?? "مفقود")} • phase=${phase} • timeLeft=${timeLeft} • الرصيد=${balance}`,
+      });
+      toast.error(message);
     } finally {
       setTimeout(() => setPlacing(false), 300); // debounce
     }
@@ -432,6 +462,29 @@ export default function FruitPartyGame({ onBack, roomId }: Props) {
           ))}
         </div>
       </div>
+
+      {diagnostic && (
+        <div className="mx-4 mb-2 rounded-2xl border border-red-400/50 bg-red-950/80 p-3 text-right text-xs text-red-100 shadow-lg" dir="rtl">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="font-black text-red-200">تشخيص اللعبة: {diagnostic.title}</p>
+              <p className="mt-1 break-words font-mono text-[10px] leading-5 text-red-100/80">{diagnostic.details}</p>
+            </div>
+            <button type="button" onClick={() => setDiagnostic(null)} className="rounded-lg px-2 py-1 text-red-200 hover:bg-red-400/20">×</button>
+          </div>
+          <button type="button" onClick={async () => {
+            try {
+              setDiagnostic(null);
+              await ensureRoomRound();
+              toast.success("تم طلب مزامنة جولة جديدة");
+            } catch (e: any) {
+              setDiagnostic({ title: "فشل طلب الجولة الجديدة", details: e?.message ?? String(e) });
+            }
+          }} className="mt-2 rounded-xl bg-red-400/20 px-3 py-2 font-black text-red-100 ring-1 ring-red-300/30">
+            إعادة مزامنة الجولة
+          </button>
+        </div>
+      )}
 
       {/* ── Status bar ── */}
       <div className="px-4 py-2 flex-shrink-0 flex items-center justify-between"
