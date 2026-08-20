@@ -345,7 +345,18 @@ function AndroidOnlyLogin({
         fontFamily: "'Cairo', sans-serif",
       }}
     >
-      <div className="absolute inset-0" style={{ background: "linear-gradient(180deg, rgba(6,18,43,0.22) 0%, rgba(4,9,26,0.72) 100%)" }} />
+      <video
+        className="absolute inset-0 h-full w-full object-cover"
+        src="https://k.top4top.io/m_3884wv3l20.mp4"
+        autoPlay
+        muted
+        loop
+        playsInline
+        preload="auto"
+        aria-hidden="true"
+        onError={(event) => { event.currentTarget.style.display = "none"; }}
+      />
+      <div className="absolute inset-0" style={{ background: "linear-gradient(180deg, rgba(6,18,43,0.30) 0%, rgba(4,9,26,0.78) 100%)" }} />
       <div className="relative z-10 w-full max-w-[360px] flex flex-col items-center text-center">
         <div
           className="mb-4 overflow-hidden"
@@ -562,8 +573,19 @@ export default function LoginPage() {
         fontFamily: "'Cairo', sans-serif",
       }}
     >
-      {/* Dark overlay */}
-      <div className="absolute inset-0" style={{ background: "rgba(0,0,0,0.55)" }} />
+      {/* Video background; the existing image background remains as a fallback. */}
+      <video
+        className="absolute inset-0 h-full w-full object-cover"
+        src="https://k.top4top.io/m_3884wv3l20.mp4"
+        autoPlay
+        muted
+        loop
+        playsInline
+        preload="auto"
+        aria-hidden="true"
+        onError={(event) => { event.currentTarget.style.display = "none"; }}
+      />
+      <div className="absolute inset-0" style={{ background: "rgba(0,0,0,0.58)" }} />
 
       {/* Content */}
       <div className="relative z-10 w-full flex flex-col items-center justify-center min-h-screen px-6 py-10">
