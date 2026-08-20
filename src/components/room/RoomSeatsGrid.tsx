@@ -7,6 +7,9 @@ import { SeatEmojiItem } from "../../types/room";
 import { AgentSeatIcon } from "../AgentChargeBadge";
 import { AristocracyName } from "../AristocracyBadge";
 
+const ROYAL_OPEN_SEAT_21_22 = "/manus-storage/royal-seat-open-21-22_b29cd006.png";
+const ROYAL_LOCKED_SEAT_21_22 = "/manus-storage/royal-seat-locked-21-22_cc0cafc8.png";
+
 interface RoomSeatsGridProps {
   members: any[];
   myProfile: any;
@@ -249,6 +252,7 @@ const RegularSeat = memo(function RegularSeat({
   const waveColor = getWaveColor(member?.profile, isMe);
   const aristoLv = getAristoLevel(member?.profile);
   const isRoyalOwnerSeat = isOwnerSeat && aristoLv >= 5;
+  const isSpecialRoyalSeat = isRoyalTheme && seatIndex >= 20;
   const isEmpty = !member && !isLocked && !isPK;
 
   const getColors = () => {
@@ -307,11 +311,11 @@ const RegularSeat = memo(function RegularSeat({
               />
             </div>
           ) : isLocked ? (
-            isRoyalTheme ? <img src="/manus-storage/royal-seat-icon_7df7cdad.png" alt="مقعد ملكي مقفل" className="absolute inset-0 h-full w-full rounded-full object-cover opacity-80" /> : <div className="z-10"><LockSVG size={20 * scale} /></div>
+            isRoyalTheme ? <img src={isSpecialRoyalSeat ? ROYAL_LOCKED_SEAT_21_22 : "/manus-storage/royal-seat-icon_7df7cdad.png"} alt="مقعد ملكي مقفل" className="absolute inset-0 h-full w-full rounded-full object-cover opacity-90" /> : <div className="z-10"><LockSVG size={20 * scale} /></div>
           ) : isPK ? (
             <span className="z-10" style={{ fontSize: 16 * scale }}>{pkSide === "room1" ? "🐯" : "🦁"}</span>
           ) : (
-            isRoyalTheme ? <img src="/manus-storage/royal-seat-icon_7df7cdad.png" alt="مقعد ملكي" className="absolute inset-0 h-full w-full rounded-full object-cover opacity-90" /> : <div className="z-10"><EmptyMicSVG size={22 * scale} /></div>
+            isRoyalTheme ? <img src={isSpecialRoyalSeat ? ROYAL_OPEN_SEAT_21_22 : "/manus-storage/royal-seat-icon_7df7cdad.png"} alt="مقعد ملكي" className="absolute inset-0 h-full w-full rounded-full object-cover opacity-90" /> : <div className="z-10"><EmptyMicSVG size={22 * scale} /></div>
           )}
         </GlassBubble>
 
