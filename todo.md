@@ -1518,3 +1518,4 @@
 - [ ] تجاوز طلب OAuth المباشر من WebView بمسار HTTPS متوافق مع Capacitor قبل فتح Chrome.
 - [ ] معالجة استمرار Failed to fetch بمسار OAuth Native أو endpoint خادم وسيط قابل للاختبار على Android.
 - [ ] إصلاح NullPointerException عند استدعاء HTTP Native والتأكد من تسجيل Plugin في Android.
+- [ ] إصلاح IOException عند فتح اتصال HTTPS من HTTP Native وإظهار تفاصيل الشبكة الحقيقية.

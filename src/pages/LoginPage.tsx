@@ -429,10 +429,14 @@ export default function LoginPage() {
         // stateful redirect first, save the verifier, then open Chrome.
         const redirectTo = "saki.chat.co://callback";
         setOauthDiagnostics({ stage: "جاري الاتصال بخادم تسجيل الدخول", message: `سيتم استخدام رابط العودة ${redirectTo}` });
-        const response = await withOAuthTimeout(Http.request({
+        const response = await withOAuthTimeout(Http.post({
           url: `${convexUrl}/api/action`,
-          method: "POST",
-          headers: { "Content-Type": "application/json", "Convex-Client": "saki-android-oauth" },
+          headers: {
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+            "User-Agent": "SakiChat-Android-OAuth",
+            "Convex-Client": "saki-android-oauth",
+          },
           params: {},
           data: {
             path: "auth:signIn",
@@ -441,7 +445,7 @@ export default function LoginPage() {
           },
           connectTimeout: 15000,
           readTimeout: 15000,
-          responseType: "json",
+          responseType: "text",
         }), 18000);
         const payload = typeof response.data === "string" ? JSON.parse(response.data) : response.data;
         if (response.status < 200 || response.status >= 300 || payload?.status !== "success") {
