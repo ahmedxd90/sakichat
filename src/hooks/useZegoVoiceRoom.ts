@@ -74,7 +74,9 @@ export function useZegoVoiceRoom(
   const markSpeaking = useCallback((speakerId: string, level: number) => {
     if (!speakerId) return;
     const numericLevel = Number(level);
-    if (!Number.isFinite(numericLevel) || numericLevel <= 0.5) return;
+    // ZEGOCLOUD reports levels differently across WebView builds (0..1 or 0..100).
+    // A low threshold prevents real speech from being ignored on Android.
+    if (!Number.isFinite(numericLevel) || numericLevel <= 0.08) return;
 
     const raw = String(speakerId);
     const base = raw.replace(/^pub_/, "");
@@ -304,13 +306,24 @@ export function useZegoVoiceRoom(
           }
           return;
         }
+        if (payload instanceof Map) {
+          payload.forEach((rawLevel: any, streamId: any) => markSpeaking(String(streamId).replace(/^pub_/, ""), Number(rawLevel)));
+          return;
+        }
         if (payload && typeof payload === "object") {
+          const nested = payload.soundLevels ?? payload.levels ?? payload.data;
+          if (nested && nested !== payload) {
+            handleRemoteSoundLevels(nested);
+            return;
+          }
           for (const [streamId, rawLevel] of Object.entries(payload)) {
+            if (["soundLevels", "levels", "data"].includes(streamId)) continue;
             markSpeaking(String(streamId).replace(/^pub_/, ""), Number(rawLevel));
           }
         }
       };
       (zego as any).on("remoteSoundLevelUpdate", handleRemoteSoundLevels);
+      (zego as any).on("soundLevelUpdate", handleRemoteSoundLevels);
 
       const handleLocalSoundLevel = (payload: any) => {
         const level = typeof payload === "number"

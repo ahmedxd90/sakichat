@@ -231,7 +231,7 @@ export default function RoomBottomBar({
             className="w-9 h-9 rounded-2xl flex items-center justify-center active:scale-90 transition-all flex-shrink-0"
             style={{ background: "rgba(255,255,255,0.07)", border: "1.5px solid rgba(255,255,255,0.1)" }}
           >
-            <span style={{ fontSize: "18px", lineHeight: 1 }}>😊</span>
+            <Smile size={18} strokeWidth={1.8} className="text-white/75" aria-hidden="true" />
           </button>
 
           {/* ── زر كتابة رسالة (يمتد) ── */}

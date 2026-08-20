@@ -86,6 +86,31 @@ export const getCpHome = query({
   },
 });
 
+export const getRoomCpPairs = query({
+  args: { roomId: v.id("rooms") },
+  handler: async (ctx, args) => {
+    const members = await ctx.db.query("roomMembers")
+      .withIndex("by_room", (q) => q.eq("roomId", args.roomId))
+      .collect();
+    const memberIds = new Set(members.map((member) => String(member.userId)));
+    const pairs: Array<{ user1Id: any; user2Id: any }> = [];
+    const seen = new Set<string>();
+    for (const member of members) {
+      const home = await ctx.db.query("cpHomes")
+        .withIndex("by_userId", (q) => q.eq("userId", member.userId))
+        .unique();
+      const partnerUserId = home?.partnerUserId
+        ?? (home?.user1Id === member.userId ? home?.user2Id : home?.user2Id === member.userId ? home?.user1Id : undefined);
+      if (!partnerUserId || !memberIds.has(String(partnerUserId))) continue;
+      const key = [String(member.userId), String(partnerUserId)].sort().join(":");
+      if (seen.has(key)) continue;
+      seen.add(key);
+      pairs.push({ user1Id: member.userId, user2Id: partnerUserId });
+    }
+    return pairs;
+  },
+});
+
 export const ensureCpHome = mutation({
   args: {},
   handler: async (ctx) => {

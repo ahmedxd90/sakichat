@@ -46,6 +46,16 @@ const RoyalSeatImage = memo(function RoyalSeatImage({ locked = false, size = 60 
   return <img src={src} alt={locked ? "مقعد ملكي مقفل" : "مقعد ملكي"} onError={() => setFailed(true)} className="absolute inset-0 h-full w-full rounded-full object-cover opacity-90" />;
 });
 
+const CpHeartOverlay = memo(function CpHeartOverlay({ direction, delay = 0 }: { direction: "left" | "right"; delay?: number }) {
+  return (
+    <div className="pointer-events-none absolute inset-0 z-40 overflow-visible" aria-hidden="true">
+      <svg className="absolute top-1/2 h-4 w-4" style={{ animation: `cpHeartTravel${direction === "right" ? "Right" : "Left"} 2.4s ease-in-out ${delay}ms infinite` }} viewBox="0 0 24 24" fill="#ff4d8d" stroke="#ffd1e1" strokeWidth="1.2">
+        <path d="M12 21S3.5 15.4 3.5 8.7A4.7 4.7 0 0 1 12 6.2a4.7 4.7 0 0 1 8.5 2.5C20.5 15.4 12 21 12 21Z" />
+      </svg>
+    </div>
+  );
+});
+
 interface RoomSeatsGridProps {
   members: any[];
   myProfile: any;
@@ -72,6 +82,8 @@ interface RoomSeatsGridProps {
   hostSeatCount?: number;
   speakingUsers: Set<string>;
   activeEmojis: SeatEmojiItem[];
+  cpPairs?: Array<{ user1Id: string; user2Id: string }>;
+
   seatPositions: Array<{ x: number; y: number } | null>;
   seatsGridRef: React.RefObject<HTMLDivElement>;
   lockedSeats: number[];
@@ -275,11 +287,11 @@ const GlassBubble = memo(function GlassBubble({
 });
 
 const RegularSeat = memo(function RegularSeat({
-  seatIndex, member, isMe, isMuted: globalMuted, isSpeaking, isLocked, isPK, pkSide, isHostSeat, isRoyalTheme = false, onPress, scale = 1,
+  seatIndex, member, isMe, isMuted: globalMuted, isSpeaking, isLocked, isPK, pkSide, isHostSeat, isRoyalTheme = false, onPress, scale = 1, cpHeartDirection, cpHeartDelay = 0,
 }: {
   seatIndex: number; member: any; isMe: boolean; isMuted: boolean; isSpeaking: boolean;
   isLocked: boolean; isPK: boolean; pkSide: string | null; isHostSeat: boolean; isRoyalTheme?: boolean;
-  onPress: () => void; scale?: number;
+  onPress: () => void; scale?: number; cpHeartDirection?: "left" | "right" | null; cpHeartDelay?: number;
 }) {
   const seatSkinUrl: string | undefined = member?.seatSkinUrl ?? member?.profile?.seatSkinUrl ?? undefined;
   const isOwnerSeat = member?.role === "owner";
@@ -331,6 +343,7 @@ const RegularSeat = memo(function RegularSeat({
         {isActuallySpeaking && (
           <VoiceRings color={waveColor} isMe={isMe} al={aristoLv} size={BUBBLE} />
         )}
+        {cpHeartDirection && <CpHeartOverlay direction={cpHeartDirection} delay={cpHeartDelay} />}
 
         {isHostSeat && (
           <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-30"
@@ -412,7 +425,7 @@ function RoomSeatsGridInner({
   members, myProfile, maxSeats, isCp, isMusic, isAstronomy, isDesert, isRadio = false,
   isFootball = false, isKaraoke = false,
   isPK, pkRoom1Id, pkRoom2Id, roomId,
-  ownerIsVip12, isMuted, isOwner, isAdmin, isSuperAdmin = false, hideRoyalSeats = false,
+  ownerIsVip12, isMuted, isOwner, isAdmin, isSuperAdmin = false, hideRoyalSeats = false, cpPairs = [],
   seatLayoutStyle = "royal_pairs", isRoyalTheme = false, hostSeatCount = 2, speakingUsers, activeEmojis, seatPositions,
   seatsGridRef, lockedSeats, onSeatPress, onViewProfile,
 }: RoomSeatsGridProps) {
@@ -439,6 +452,21 @@ function RoomSeatsGridInner({
   const gapY = seatCount > 10 ? 3 : 5;
   const useRoyalPairs = isRoyalTheme && !isPK;
   const safeHostSeatCount = Math.min(2, Math.max(0, hostSeatCount));
+  const isAdjacentSeatPair = (a: number, b: number) => {
+    if ((a === 0 && b === 1) || (a === 1 && b === 0)) return true;
+    if (a < 2 || b < 2) return false;
+    return Math.floor((a - 2) / 5) === Math.floor((b - 2) / 5) && Math.abs(a - b) === 1;
+  };
+  const getCpHeartData = (seatIndex: number, member: any) => {
+    if (!member || !cpPairs?.length) return { direction: null, delay: 0 };
+    const userId = String(member.profile?.userId ?? member.userId ?? "");
+    const pair = cpPairs.find((candidate) => String(candidate.user1Id) === userId || String(candidate.user2Id) === userId);
+    if (!pair) return { direction: null, delay: 0 };
+    const partnerId = String(pair.user1Id) === userId ? String(pair.user2Id) : String(pair.user1Id);
+    const partner = members?.find((candidate) => String(candidate.profile?.userId ?? candidate.userId ?? "") === partnerId);
+    if (!partner || partner.seatIndex == null || !isAdjacentSeatPair(seatIndex, partner.seatIndex)) return { direction: null, delay: 0 };
+    return { direction: seatIndex < partner.seatIndex ? "right" : "left", delay: seatIndex < partner.seatIndex ? 0 : 1200 } as const;
+  };
   const renderSeat = (i: number, extraScale = scale) => {
     const member = members?.find((m) => m.seatIndex === i);
     const memberSpeakerIds = getMemberSpeakerIds(member);
@@ -447,14 +475,17 @@ function RoomSeatsGridInner({
     const isLocked = lockedSeats.includes(i);
     const pkSide = getPKSide(i);
     const isHostSeat = i <= safeHostSeatCount;
+    const cpHeart = getCpHeartData(i, member);
     return <RegularSeat key={i} seatIndex={i} member={member} isMe={isMe} isMuted={isMuted}
       isSpeaking={isSpeaking} isLocked={isLocked} isPK={isPK} pkSide={pkSide}
-      isHostSeat={isHostSeat} isRoyalTheme={isRoyalTheme} onPress={() => onSeatPress(i)} scale={extraScale} />;
+      isHostSeat={isHostSeat} isRoyalTheme={isRoyalTheme} onPress={() => onSeatPress(i)} scale={extraScale} cpHeartDirection={cpHeart.direction} cpHeartDelay={cpHeart.delay} />;
   };
 
   return (
     <>
       <style>{`
+        @keyframes cpHeartTravelRight { from { left: 34%; transform: translate(-50%, -50%) scale(.7); opacity: 0; } 18% { opacity: 1; } 82% { opacity: 1; } to { left: 118%; transform: translate(-50%, -50%) scale(1.05); opacity: 0; } }
+        @keyframes cpHeartTravelLeft { from { left: 66%; transform: translate(-50%, -50%) scale(.7); opacity: 0; } 18% { opacity: 1; } 82% { opacity: 1; } to { left: -18%; transform: translate(-50%, -50%) scale(1.05); opacity: 0; } }
         @keyframes voiceRing {
           0%   { transform: scale(1);   opacity: 0.85; }
           100% { transform: scale(2.0); opacity: 0;    }

@@ -162,6 +162,7 @@ function RoomPageInner({ roomId, onBack, onBackgroundLeave, onViewProfile, onMes
   // ── QUERIES ──
   const room = useQuery(api.rooms.getRoom, { roomId });
   const members = useQuery(api.roomMembersHelper.getRoomMembersEnhanced, { roomId });
+  const roomCpPairs = useQuery(api.cpHome.getRoomCpPairs, { roomId });
   const [joinedAt] = useState(() => Date.now());
   const adminLockStatus = useQuery(api.adminLock.getRoomAdminLockStatus, { roomId });
 
@@ -1177,6 +1178,7 @@ function RoomPageInner({ roomId, onBack, onBackgroundLeave, onViewProfile, onMes
           ownerIsVip12={ownerIsVip12}
           isMuted={isMuted}
           speakingUsers={speakingUsers}
+          cpPairs={roomCpPairs ?? []}
           activeEmojis={activeEmojis}
           seatPositions={seatPositions}
           seatsGridRef={seatsGridRef}
