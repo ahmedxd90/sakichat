@@ -730,6 +730,35 @@ const gameTables = {
   })
     .index("by_pk", ["pkId"])
     .index("by_pk_user", ["pkId", "userId"]),
+  djSpinRounds: defineTable({
+    roomId: v.id("rooms"),
+    status: v.union(v.literal("betting"), v.literal("spinning"), v.literal("settled"), v.literal("cancelled")),
+    roundNumber: v.number(),
+    bettingEndsAt: v.number(),
+    settledAt: v.optional(v.number()),
+    winningSymbol: v.optional(v.string()),
+    totalPool: v.number(),
+    createdAt: v.number(),
+  }).index("by_room", ["roomId"]).index("by_room_status", ["roomId", "status"]),
+  djSpinBets: defineTable({
+    roundId: v.id("djSpinRounds"),
+    roomId: v.id("rooms"),
+    userId: v.id("users"),
+    amount: v.number(),
+    symbolKey: v.string(),
+    payout: v.optional(v.number()),
+    settled: v.boolean(),
+    createdAt: v.number(),
+  }).index("by_round", ["roundId"]).index("by_round_user", ["roundId", "userId"]),
+  djSpinTransactions: defineTable({
+    roundId: v.id("djSpinRounds"),
+    roomId: v.id("rooms"),
+    userId: v.id("users"),
+    kind: v.union(v.literal("bet"), v.literal("payout"), v.literal("refund")),
+    amount: v.number(),
+    balanceAfter: v.number(),
+    createdAt: v.number(),
+  }).index("by_round", ["roundId"]).index("by_user", ["userId"]),
 };
 
 const messageTables = {

@@ -1,6 +1,7 @@
 // @ts-nocheck
 import { useState } from "react";
 import FruitPartyGame from "../pages/FruitPartyGame";
+import DJSpinGame from "../pages/DJSpinGame";
 
 interface RoomActivitiesSheetProps {
   roomId: string;
@@ -17,6 +18,14 @@ function GIcon({ id, size = 28 }: { id: string; size?: number }) {
       <path d="M8 16h8" stroke="#fff" strokeWidth="1.2" strokeLinecap="round"/>
     </svg>
   );
+  if (id === "dj-spin") return (
+    <svg viewBox="0 0 24 24" fill="none" width={s} height={s}>
+      <circle cx="12" cy="12" r="8.5" fill="#1b0b38" stroke="#67e8f9" strokeWidth="1.2"/>
+      <circle cx="12" cy="12" r="3" fill="#f0abfc" stroke="#fef08a" strokeWidth="1"/>
+      <path d="M12 3.5v4M12 16.5v4M3.5 12h4M16.5 12h4" stroke="#e879f9" strokeWidth="1.4" strokeLinecap="round"/>
+      <path d="M7 7l2.8 2.8M14.2 14.2L17 17M17 7l-2.8 2.8M9.8 14.2L7 17" stroke="#22d3ee" strokeWidth="1" strokeLinecap="round"/>
+    </svg>
+  );
   return null;
 }
 
@@ -28,6 +37,15 @@ const GAMES = [
     glow: "rgba(168,85,247,0.55)",
     border: "rgba(243,212,111,0.65)",
     badge: "رهان",
+    available: true,
+  },
+  {
+    id: "dj-spin",
+    nameAr: "DJ Spin",
+    gradient: "linear-gradient(135deg,#7e22ce,#0e7490)",
+    glow: "rgba(217,70,239,0.55)",
+    border: "rgba(103,232,249,0.7)",
+    badge: "تجريبي",
     available: true,
   },
 ];
@@ -192,6 +210,7 @@ function GamePanel({ gameId, roomId, onClose }: { gameId: string; roomId: string
             style={{ isolation: "isolate" }}
           >
             {gameId === "saki-party" && <FruitPartyGame roomId={roomId as any} onBack={onClose} />}
+            {gameId === "dj-spin" && <DJSpinGame roomId={roomId} onBack={onClose} />}
           </div>
         </div>
       </div>

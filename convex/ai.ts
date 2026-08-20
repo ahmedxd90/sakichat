@@ -3,16 +3,18 @@ import { action } from "./_generated/server";
 import { v } from "convex/values";
 import OpenAI from "openai";
 
-const openai = new OpenAI({
-  baseURL: process.env.CONVEX_OPENAI_BASE_URL,
-  apiKey: process.env.CONVEX_OPENAI_API_KEY,
-});
+function getOpenAI() {
+  const apiKey = process.env.OPENAI_API_KEY || process.env.CONVEX_OPENAI_API_KEY;
+  const baseURL = process.env.OPENAI_API_KEY ? undefined : process.env.CONVEX_OPENAI_BASE_URL;
+  if (!apiKey) throw new Error("خدمة الذكاء الاصطناعي غير مهيأة");
+  return new OpenAI({ baseURL, apiKey });
+}
 
 export const generateRoomDescription = action({
   args: { roomName: v.string(), roomType: v.optional(v.string()) },
   handler: async (ctx, args) => {
     const prompt = `اكتب وصفاً جذاباً وقصيراً (جملتان فقط) لغرفة دردشة صوتية باسم "${args.roomName}"${args.roomType ? ` من نوع "${args.roomType}"` : ""}. الوصف باللغة العربية فقط.`;
-    const resp = await openai.chat.completions.create({
+    const resp = await getOpenAI().chat.completions.create({
       model: "gpt-4.1-nano",
       messages: [{ role: "user", content: prompt }],
     });
@@ -26,7 +28,7 @@ export const generateMomentCaption = action({
     const prompt = args.hint
       ? `اكتب تعليقاً إبداعياً قصيراً لمنشور عن: "${args.hint}". باللغة العربية فقط، جملة أو جملتان.`
       : `اكتب تعليقاً إبداعياً قصيراً لمنشور على وسائل التواصل. باللغة العربية فقط، جملة أو جملتان.`;
-    const resp = await openai.chat.completions.create({
+    const resp = await getOpenAI().chat.completions.create({
       model: "gpt-4.1-nano",
       messages: [{ role: "user", content: prompt }],
     });
@@ -48,7 +50,7 @@ export const chatWithAI = action({
       ...(args.history ?? []),
       { role: "user", content: args.message },
     ];
-    const resp = await openai.chat.completions.create({
+    const resp = await getOpenAI().chat.completions.create({
       model: "gpt-4.1-nano",
       messages,
     });
@@ -83,7 +85,7 @@ export const analyzeImageAndReport = action({
       userContent.unshift({ type: "text", text: "صف هذه الصورة وحللها." });
     }
 
-    const resp = await openai.chat.completions.create({
+    const resp = await getOpenAI().chat.completions.create({
       model: "gpt-4o-mini",
       messages: [
         { role: "system", content: systemPrompt },
@@ -116,7 +118,7 @@ export const generateText = action({
       joke: `اكتب نكتة مضحكة ولطيفة عن: "${args.prompt}". باللغة العربية.`,
       general: args.prompt,
     };
-    const resp = await openai.chat.completions.create({
+    const resp = await getOpenAI().chat.completions.create({
       model: "gpt-4.1-nano",
       messages: [
         { role: "system", content: "أنت مساعد إبداعي. أجب باللغة العربية فقط." },
