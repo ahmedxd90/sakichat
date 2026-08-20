@@ -10,6 +10,7 @@ import { getAristocracyConfig } from "../components/AristocracyBadge";
 type BagTab = "frame" | "entry" | "bubble" | "seat_skin";
 
 const PRIMARY = "#00d4c5";
+const SEAT_PRIMARY = "#8b5cf6";
 const TAB_CONFIG: { id: BagTab; label: string; icon: string }[] = [
   { id: "entry", label: "دخولية", icon: "entry" },
   { id: "frame", label: "إطار", icon: "frame" },

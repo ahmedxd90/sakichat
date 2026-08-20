@@ -14,6 +14,7 @@ interface StorePageProps {
 type StoreTab = "entry" | "frame" | "bubble" | "seat_skin";
 
 const PRIMARY = "#00d4c5";
+const SEAT_PRIMARY = "#8b5cf6";
 const STORE_TABS: { id: StoreTab; label: string }[] = [
   { id: "entry", label: "الدخولية" },
   { id: "frame", label: "الإطارات" },
