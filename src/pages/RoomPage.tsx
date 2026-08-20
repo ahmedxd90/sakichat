@@ -315,6 +315,7 @@ function RoomPageInner({ roomId, onBack, onBackgroundLeave, onViewProfile, onMes
   const isMillionaire = roomTheme === "millionaire";
   const isFootball = roomTheme === "football";
   const isKaraoke = roomTheme === "karaoke";
+  const isRoyal = roomTheme === "royal";
   const isPKTheme = false; // PK theme disabled
   // Karaoke is a fixed vocal layout: one main mic + two rows of five seats.
   const maxSeats = isKaraoke ? 11 : isFootball ? Math.min(room?.maxSeats ?? 10, 5) : (room?.maxSeats ?? 10);
@@ -790,6 +791,7 @@ function RoomPageInner({ roomId, onBack, onBackgroundLeave, onViewProfile, onMes
   const PRESET_BG_STYLES: Record<string, string> = {
     stars_planets: "radial-gradient(ellipse at 20% 50%,#1a0050 0%,#000020 40%,#000510 100%)",
     city_night: "linear-gradient(180deg,#0a0a2e 0%,#1a1a4e 30%,#2a1a3e 60%,#1a0a2e 100%)",
+    royal_room: "linear-gradient(180deg,#190711 0%,#34101e 48%,#12040c 100%)",
     desert_night: "linear-gradient(180deg,#050510 0%,#0a0820 30%,#1a1008 60%,#2d1a05 100%)",
   };
 
@@ -798,6 +800,8 @@ function RoomPageInner({ roomId, onBack, onBackgroundLeave, onViewProfile, onMes
     ? { background: "linear-gradient(180deg,#000820 0%,#050010 40%,#100005 70%,#000820 100%)" }
         : isKaraoke
           ? { background: "linear-gradient(180deg,#16002d 0%,#2a0752 38%,#120021 100%)" }
+          : isRoyal
+            ? { background: "linear-gradient(180deg,#190711 0%,#34101e 48%,#12040c 100%)" }
           : isMillionaire
           ? { background: "linear-gradient(180deg,#000d2e 0%,#000510 100%)" }
           : isCinema
@@ -840,6 +844,11 @@ function RoomPageInner({ roomId, onBack, onBackgroundLeave, onViewProfile, onMes
         <PKRoomBackground active={true} />
       ) : isKaraoke ? (
         <KaraokeBackground />
+      ) : isRoyal ? (
+        <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
+          <img src="/manus-storage/royal-room-theme-background_1556092d.png" alt="" className="h-full w-full object-cover" />
+          <div className="absolute inset-0 bg-[#16060f]/35" />
+        </div>
       ) : isCp ? (
         <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
           <div className="absolute inset-0" style={{ background: "radial-gradient(ellipse at 50% 0%,#3d0020 0%,#1a000d 40%,#0d0008 100%)" }} />
@@ -882,7 +891,7 @@ function RoomPageInner({ roomId, onBack, onBackgroundLeave, onViewProfile, onMes
           <img src={bgImageUrl} alt="" className="w-full h-full object-cover" />
           <div className="absolute inset-0 bg-black/55" />
         </div>
-      ) : bgPresetKey && bgPresetKey.startsWith("https://") ? (
+      ) : bgPresetKey && (bgPresetKey.startsWith("https://") || bgPresetKey.startsWith("/manus-storage/")) ? (
         <div className="absolute inset-0 z-0 pointer-events-none">
           <img src={bgPresetKey} alt="" className="w-full h-full object-cover" />
           <div className="absolute inset-0 bg-black/50" />

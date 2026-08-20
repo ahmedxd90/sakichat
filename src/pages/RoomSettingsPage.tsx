@@ -19,13 +19,17 @@ const CATEGORIES = [
   { id: "acting", label: "تمثيل", icon: "🎭", color: "bg-indigo-50 text-indigo-600" },
 ];
 
+const ROYAL_THEME_BACKGROUND = "/manus-storage/royal-room-theme-background_1556092d.png";
+
 const THEMES = [
   { key: "luxury_white", theme: "", label: "الافتراضي", gradient: "linear-gradient(135deg,#ffffff,#fff7ed)", isLuxury: true },
   { key: "karaoke", theme: "karaoke", label: "ثيم Karaoke", gradient: "linear-gradient(135deg,#12002b 0%,#4c1d95 45%,#c026d3 100%)", isLuxury: false, isKaraoke: true },
   { key: "cinema", theme: "cinema", label: "ثيم السينما", gradient: "linear-gradient(135deg,#1a0000,#3d0000)", isLuxury: false },
+  { key: "royal", theme: "royal", label: "الثيم الملكي", gradient: `url(${ROYAL_THEME_BACKGROUND}) center/cover`, isLuxury: true, isRoyal: true },
 ];
 
 const BG_PRESETS = [
+  { id: "royal_room", label: "خلفية الثيم الملكي", url: ROYAL_THEME_BACKGROUND },
   { id: "luxury_gold", label: "ذهب ملكي", url: "https://images.unsplash.com/photo-1614850523296-d8c1af93d400?q=80&w=1000&auto=format&fit=crop" },
   { id: "clean_white", label: "أبيض نقي", url: "https://images.unsplash.com/photo-1579546929518-9e396f3cc809?q=80&w=1000&auto=format&fit=crop" },
   { id: "night_city", label: "أضواء المدينة", url: "https://images.unsplash.com/photo-1514565131-fce0801e5785?q=80&w=1000&auto=format&fit=crop" },
@@ -145,7 +149,7 @@ export default function RoomSettingsPage({ roomId, onBack }: RoomSettingsPagePro
         <div className="p-5 space-y-4">
           {THEMES.map(t => (
             <div key={t.key} 
-              onClick={() => handleUpdate({ roomTheme: t.theme })}
+              onClick={() => handleUpdate(t.isRoyal ? { roomTheme: t.theme, bgPresetKey: ROYAL_THEME_BACKGROUND, seatLayoutStyle: "royal_pairs", maxSeats: 22, hostSeatCount: 2 } : { roomTheme: t.theme })}
               className={`relative rounded-3xl overflow-hidden h-32 cursor-pointer border-4 transition-all ${room.roomTheme === t.theme ? "border-cyan-400 scale-[1.02]" : "border-transparent"}`}
             >
               <div className="absolute inset-0" style={{ background: t.gradient }} />
@@ -157,7 +161,7 @@ export default function RoomSettingsPage({ roomId, onBack }: RoomSettingsPagePro
                   </svg>
                 ) : null}
                 <span className="text-white font-black text-lg">{t.label}</span>
-                {t.isKaraoke ? <span className="text-white/75 text-[10px] font-bold">مقعد رئيسي + 10 مغنين</span> : null}
+                {t.isKaraoke ? <span className="text-white/75 text-[10px] font-bold">مقعد رئيسي + 10 مغنين</span> : t.isRoyal ? <span className="text-white/80 text-[10px] font-bold">22 مقعدًا ملكيًا بنظام الأزواج</span> : null}
               </div>
             </div>
           ))}
