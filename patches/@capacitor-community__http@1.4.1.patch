@@ -1,0 +1,24 @@
+diff --git a/android/build.gradle b/android/build.gradle
+index 35ab45d5af789cddb5c775f8dff36a49524054ae..53e093267ca5614c1c3da50cb510595d39876d3e 100644
+--- a/android/build.gradle
++++ b/android/build.gradle
+@@ -17,6 +17,8 @@ buildscript {
+ apply plugin: 'com.android.library'
+ 
+ android {
++    namespace "com.getcapacitor.community.http"
++    namespace "com.getcapacitor.community.http"
+     compileSdkVersion project.hasProperty('compileSdkVersion') ? rootProject.ext.compileSdkVersion : 29
+     defaultConfig {
+         minSdkVersion project.hasProperty('minSdkVersion') ? rootProject.ext.minSdkVersion : 21
+diff --git a/android/src/main/AndroidManifest.xml b/android/src/main/AndroidManifest.xml
+index 5b7a8ba794f60603f67ab545b4589c0b039c4e17..ab49f6d4e947163ab0ff839c91328353512e60bd 100644
+--- a/android/src/main/AndroidManifest.xml
++++ b/android/src/main/AndroidManifest.xml
+@@ -1,5 +1,5 @@
+ 
+   <manifest xmlns:android="http://schemas.android.com/apk/res/android"
+-      package="com.getcapacitor.http.http">
++     >
+   </manifest>
+   

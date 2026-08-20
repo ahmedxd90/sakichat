@@ -4,7 +4,7 @@ import { useState, useRef, useEffect, useMemo } from "react";
 import { toast } from "../lib/toast";
 import { useMutation } from "convex/react";
 import { Browser } from "@capacitor/browser";
-import { ConvexHttpClient } from "convex/browser";
+import { Http } from "@capacitor-community/http";
 import { api } from "../../convex/_generated/api";
 import { CONVEX_AUTH_OAUTH_VERIFIER_STORAGE_KEY, convexUrl } from "../lib/convexClient";
 import { ARAB_COUNTRIES } from "../data/countries";
@@ -397,7 +397,6 @@ function withOAuthTimeout<T>(promise: Promise<T>, timeoutMs = 12000) {
 
 export default function LoginPage() {
   const { signIn } = useAuthActions();
-  const convexHttp = useMemo(() => new ConvexHttpClient(convexUrl), []);
   const [showRegister, setShowRegister] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -430,10 +429,24 @@ export default function LoginPage() {
         // stateful redirect first, save the verifier, then open Chrome.
         const redirectTo = "saki.chat.co://callback";
         setOauthDiagnostics({ stage: "جاري الاتصال بخادم تسجيل الدخول", message: `سيتم استخدام رابط العودة ${redirectTo}` });
-        const result = await withOAuthTimeout(convexHttp.action(api.auth.signIn, {
-          provider: "google",
-          params: { redirectTo },
-        }), 15000);
+        const response = await withOAuthTimeout(Http.request({
+          url: `${convexUrl}/api/action`,
+          method: "POST",
+          headers: { "Content-Type": "application/json", "Convex-Client": "saki-android-oauth" },
+          data: {
+            path: "auth:signIn",
+            format: "convex_encoded_json",
+            args: [{ provider: "google", params: { redirectTo } }],
+          },
+          connectTimeout: 15000,
+          readTimeout: 15000,
+          responseType: "json",
+        }), 18000);
+        const payload = typeof response.data === "string" ? JSON.parse(response.data) : response.data;
+        if (response.status < 200 || response.status >= 300 || payload?.status !== "success") {
+          throw new Error(payload?.errorMessage || `Convex OAuth HTTP ${response.status}`);
+        }
+        const result = payload.value;
         if (!result?.redirect || !result.verifier) throw new Error("OAuth redirect was not created");
         localStorage.setItem(CONVEX_AUTH_OAUTH_VERIFIER_STORAGE_KEY, result.verifier);
         setOauthDiagnostics({ stage: "تم إنشاء رابط Google", message: "جاري فتح Chrome لاختيار الحساب." });
