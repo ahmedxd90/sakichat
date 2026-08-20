@@ -14,7 +14,7 @@ const TAB_CONFIG: { id: BagTab; label: string; icon: string }[] = [
   { id: "entry", label: "دخولية", icon: "entry" },
   { id: "frame", label: "إطار", icon: "frame" },
   { id: "bubble", label: "فقاعة", icon: "bubble" },
-  { id: "seat_skin", label: "مقاعد", icon: "seat" },
+  { id: "seat_skin", label: "المقاعد", icon: "seat" },
 ];
 
 function BagTypeIcon({ type, size = 18, color = "#00a99d" }: { type: string; size?: number; color?: string }) {
@@ -123,12 +123,12 @@ export default function MyBagPage({ onBack }: MyBagPageProps) {
         </div>
 
         {/* Tabs */}
-        <div className="flex overflow-x-auto px-3 pb-3 gap-2" style={{ scrollbarWidth: "none" }}>
+        <div className="grid grid-cols-4 px-3 pb-3 gap-1.5" style={{ scrollbarWidth: "none" }}>
           {TAB_CONFIG.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className="flex-shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold transition-all"
+              className="min-w-0 flex items-center justify-center gap-1 px-1.5 py-2 rounded-full text-xs font-semibold transition-all whitespace-nowrap"
               style={activeTab === tab.id
                 ? { background: tab.id === "seat_skin" ? `${SEAT_PRIMARY}20` : "#f0f0f0", color: tab.id === "seat_skin" ? SEAT_PRIMARY : "#222", border: tab.id === "seat_skin" ? `1px solid ${SEAT_PRIMARY}40` : "none" }
                 : { background: "transparent", color: "#888" }

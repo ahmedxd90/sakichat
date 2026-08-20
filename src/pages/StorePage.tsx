@@ -18,7 +18,7 @@ const STORE_TABS: { id: StoreTab; label: string }[] = [
   { id: "entry", label: "الدخولية" },
   { id: "frame", label: "الإطارات" },
   { id: "bubble", label: "فقاعات الدردشة" },
-  { id: "seat_skin", label: "المقاعد الملكية" },
+  { id: "seat_skin", label: "المقاعد" },
 ];
 
 function StoreTypeIcon({ type, size = 24, color = "#00a99d" }: { type: string; size?: number; color?: string }) {
@@ -127,14 +127,14 @@ export default function StorePage({ onBack }: StorePageProps) {
         </div>
 
         {/* Sub tabs */}
-        <div className="flex overflow-x-auto px-3 pb-3 gap-2" style={{ scrollbarWidth: "none" }}>
+        <div className="grid grid-cols-4 px-3 pb-3 gap-1.5" style={{ scrollbarWidth: "none" }}>
           {currentTabs.map((tab) => {
             const isActive = storeTab === tab.id;
             return (
               <button
                 key={tab.id}
                 onClick={() => setStoreTab(tab.id as StoreTab)}
-                className="flex-shrink-0 px-4 py-2 rounded-full text-sm font-semibold transition-all"
+                className="min-w-0 px-1.5 py-2 rounded-full text-xs font-semibold transition-all whitespace-nowrap"
                 style={isActive
                   ? { background: "#f0f0f0", color: "#222" }
                   : { background: "transparent", color: "#888" }

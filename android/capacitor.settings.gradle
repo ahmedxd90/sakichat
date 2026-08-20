@@ -2,6 +2,9 @@
 include ':capacitor-android'
 project(':capacitor-android').projectDir = new File('../node_modules/.pnpm/@capacitor+android@8.5.0_@capacitor+core@8.5.0/node_modules/@capacitor/android/capacitor')
 
+include ':capacitor-community-http'
+project(':capacitor-community-http').projectDir = new File('../node_modules/.pnpm/@capacitor-community+http@1.4.1_patch_hash=062243e99017d605d4754517c770fe2256b2bb0956db334107ee0e13732b6041/node_modules/@capacitor-community/http/android')
+
 include ':capacitor-app'
 project(':capacitor-app').projectDir = new File('../node_modules/.pnpm/@capacitor+app@8.1.1_@capacitor+core@8.5.0/node_modules/@capacitor/app/android')
 
