@@ -846,9 +846,15 @@ function RoomPageInner({ roomId, onBack, onBackgroundLeave, onViewProfile, onMes
       ) : isKaraoke ? (
         <KaraokeBackground />
       ) : isRoyal ? (
-        <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
-          <img src="/manus-storage/royal-room-theme-background_1556092d.png" alt="" className="h-full w-full object-cover" />
-          <div className="absolute inset-0 bg-[#16060f]/35" />
+        <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden" aria-hidden="true">
+          <img
+            src="/manus-storage/royal-room-theme-background_ff35c240.webp"
+            alt=""
+            className="absolute inset-0 h-full w-full object-cover object-center"
+            style={{ display: "block", minHeight: "100%", minWidth: "100%" }}
+            onError={(event) => { event.currentTarget.style.display = "none"; }}
+          />
+          <div className="absolute inset-0 bg-[#16060f]/25" />
         </div>
       ) : isCp ? (
         <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
