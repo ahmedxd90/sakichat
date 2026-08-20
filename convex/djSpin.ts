@@ -103,11 +103,24 @@ async function settleRound(ctx: any, roundId: any) {
     await ctx.db.patch(bet._id, { settled: true, payout });
   }
   await ctx.db.patch(round._id, { status: "settled", settledAt: Date.now() });
+  await ctx.scheduler.runAfter(5000, internal.djSpin.startScheduledRound, { roomId: round.roomId });
 }
 
 export const finishRound = internalMutation({
   args: { roundId: v.id("djSpinRounds") },
   handler: async (ctx, args) => { await settleRound(ctx, args.roundId); },
+});
+
+export const startScheduledRound = internalMutation({
+  args: { roomId: v.id("rooms") },
+  handler: async (ctx, args) => {
+    const active = await ctx.db.query("djSpinRounds").withIndex("by_room_status", (q) => q.eq("roomId", args.roomId).eq("status", "betting")).first();
+    if (active && active.bettingEndsAt > Date.now()) return;
+    const recent = await ctx.db.query("djSpinRounds").withIndex("by_room", (q) => q.eq("roomId", args.roomId)).order("desc").first();
+    const now = Date.now();
+    const roundId = await ctx.db.insert("djSpinRounds", { roomId: args.roomId, status: "betting", roundNumber: (recent?.roundNumber ?? 0) + 1, bettingEndsAt: now + MAX_BETTING_MS, totalPool: 0, createdAt: now });
+    await ctx.scheduler.runAfter(MAX_BETTING_MS, internal.djSpin.finishRound, { roundId });
+  },
 });
 
 export const resolveExpiredRound = mutation({

@@ -48,7 +48,7 @@ export default function DJSpinGame({ onBack }: { roomId?: string; onBack: () => 
   const currentRound = useQuery(api.djSpin.getCurrentRound, roomId ? { roomId: roomId as any } : "skip");
   const startRound = useMutation(api.djSpin.startRound);
   const placeBet = useMutation(api.djSpin.placeBet);
-  const resolveExpiredRound = useMutation(api.djSpin.resolveExpiredRound);
+  const recentRounds = useQuery(api.djSpin.getRecentRounds, roomId ? { roomId: roomId as any } : "skip");
 
   useEffect(() => {
     if (!roomId) return;
@@ -97,8 +97,13 @@ export default function DJSpinGame({ onBack }: { roomId?: string; onBack: () => 
         const first = finalReels[0].key;
         const count = finalReels.slice(0, 5).filter((symbol) => symbol.key === first || symbol.key === "wild").length;
         const payout = count >= 5 ? bet * 45 : count === 4 ? bet * 10 : count === 3 ? bet * 5 : 0;
-        setWin(payout);
-        setMessage(payout > 0 ? `فوز DJ! +${payout.toLocaleString()} تجريبي` : "لا يوجد تطابق هذه المرة");
+        if (currentRound) {
+          setWin(0);
+          setMessage("تم تسجيل الرهان خادميًا؛ ستظهر التسوية والنتيجة من Convex");
+        } else {
+          setWin(payout);
+          setMessage(payout > 0 ? `فوز DJ تجريبي! +${payout.toLocaleString()}` : "لا يوجد تطابق تجريبي هذه المرة");
+        }
         setSeconds(22);
         setRound((value) => value + 1);
         setSpinning(false);
@@ -117,7 +122,7 @@ export default function DJSpinGame({ onBack }: { roomId?: string; onBack: () => 
               <div className="text-[9px] font-black tracking-[.35em] text-cyan-200">SAKI NIGHT STAGE</div>
               <h1 className="text-lg font-black text-fuchsia-100">DJ SPIN</h1>
             </div>
-            <div className="rounded-xl border border-cyan-300/20 bg-cyan-300/10 px-2 py-1 text-center"><div className="text-[9px] text-cyan-200">الرصيد</div><div className="text-xs font-black">تجريبي</div></div>
+            <div className="rounded-xl border border-cyan-300/20 bg-cyan-300/10 px-2 py-1 text-center"><div className="text-[9px] text-cyan-200">الجولة</div><div className="text-xs font-black">{currentRound ? "حقيقية" : "تجريبية"}</div></div>
           </header>
 
           <div className="mb-3 flex gap-2 rounded-2xl border border-white/10 bg-black/35 p-1">
@@ -138,9 +143,9 @@ export default function DJSpinGame({ onBack }: { roomId?: string; onBack: () => 
             </section>
             <div className="mt-3 flex gap-2 overflow-x-auto pb-1">{SYMBOLS.slice(0, 8).map((symbol) => <button key={symbol.key} onClick={() => setSelectedSymbol(symbol.key)} className={`min-w-14 rounded-xl border px-2 py-2 text-[9px] font-black ${selectedSymbol === symbol.key ? "border-cyan-200 bg-cyan-400/20 text-cyan-100" : "border-white/10 bg-black/35 text-white/55"}`} style={{ color: selectedSymbol === symbol.key ? symbol.color : undefined }}>{symbol.art} {symbol.label}</button>)}</div>
             <div className="mt-2 grid grid-cols-4 gap-2">{BETS.map((amount) => <button key={amount} onClick={() => setBet(amount)} className={`rounded-xl border py-2 text-[10px] font-black ${bet === amount ? "border-fuchsia-300 bg-fuchsia-500/30 text-white" : "border-white/10 bg-black/35 text-white/55"}`}>{amount >= 1000 ? `${amount / 1000}K` : amount}</button>)}</div>
-            <button onClick={spin} disabled={spinning || seconds === 0} className="mt-3 w-full rounded-2xl border border-yellow-200/60 bg-gradient-to-r from-fuchsia-600 via-purple-600 to-cyan-500 py-3 text-sm font-black shadow-[0_0_28px_rgba(217,70,239,.4)] active:scale-[.98] disabled:opacity-50">{spinning ? "يتم تدوير الأعمدة..." : `SPIN · ${bet.toLocaleString()} تجريبي`}</button>
+            <button onClick={spin} disabled={spinning || seconds === 0} className="mt-3 w-full rounded-2xl border border-yellow-200/60 bg-gradient-to-r from-fuchsia-600 via-purple-600 to-cyan-500 py-3 text-sm font-black shadow-[0_0_28px_rgba(217,70,239,.4)] active:scale-[.98] disabled:opacity-50">{spinning ? "يتم تدوير الأعمدة..." : currentRound ? `SPIN · ${bet.toLocaleString()} عملة` : `SPIN · ${bet.toLocaleString()} تجريبي`}</button>
             <p className="mt-2 text-center text-[10px] text-white/45">{message}</p>
-          </> : tab === "rules" ? <div className="rounded-2xl border border-white/10 bg-black/45 p-4 text-right text-sm leading-7 text-white/75"><h2 className="mb-2 font-black text-fuchsia-200">قواعد DJ Spin</h2><p>اختر مبلغ الرهان ثم اضغط Spin. تُحسب خطوط الفوز من الرموز المتطابقة، وتُعرض النتيجة في نهاية الدوران. هذه المرحلة تجريبية ولا تخصم عملات حقيقية.</p><p className="mt-3 text-cyan-200">عند تفعيل الربط الخادمي سيحدد Convex النتيجة ويسجل الخصم والربح لكل غرفة وجولة.</p></div> : <div className="rounded-2xl border border-white/10 bg-black/45 p-4 text-center text-sm text-white/60">سيظهر سجل الجولات بعد تفعيل الربط الخادمي.</div>}
+          </> : tab === "rules" ? <div className="rounded-2xl border border-white/10 bg-black/45 p-4 text-right text-sm leading-7 text-white/75"><h2 className="mb-2 font-black text-fuchsia-200">قواعد DJ Spin</h2><p>اختر مبلغ الرهان ثم اضغط Spin. تُحسب خطوط الفوز من الرموز المتطابقة، وتُعرض النتيجة في نهاية الدوران. هذه المرحلة تجريبية ولا تخصم عملات حقيقية.</p><p className="mt-3 text-cyan-200">عند ظهور «حقيقية» يحدد Convex الجولة والرهان والخصم والتسوية لكل غرفة. لا يتم قبول نتيجة من الهاتف.</p></div> : <div className="rounded-2xl border border-white/10 bg-black/45 p-4 text-center text-sm text-white/60">سيظهر سجل الجولات بعد تفعيل الربط الخادمي.</div>}
         </div>
       </div>
     </div>
