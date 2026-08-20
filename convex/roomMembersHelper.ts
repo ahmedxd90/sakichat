@@ -126,7 +126,7 @@ export const getRoomMembersEnhanced = query({
           charismaLevel: profile?.charismaLevel,
           aristocracyLevel: profile?.aristocracyLevel,
           coinsReceivedInRoom: coinsPerReceiver[member.userId as string] ?? 0,
-          profile: profile ? { ...profile, avatarUrl, sakiIdIconUrl, adminTitleIconUrl } : null,
+          profile: profile ? { ...profile, avatarUrl, sakiIdIconUrl, adminTitleIconUrl, seatSkinUrl, seatLockedSkinUrl, seatThumbnailUrl } : null,
           vipConfig,
           activeChatBubbleUrl,
           seatSkinUrl,

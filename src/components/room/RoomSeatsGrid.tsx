@@ -13,6 +13,32 @@ const VOICE_RIPPLE_SRC = "/assets/voice-ripple-purple.svga";
 const ROYAL_OPEN_SEAT_21_22 = "/manus-storage/royal-seat-open-21-22_b29cd006.png";
 const ROYAL_LOCKED_SEAT_21_22 = "/manus-storage/royal-seat-locked-21-22_cc0cafc8.png";
 
+function RoyalSeatArt({ locked = false, size = 56 }: { locked?: boolean; size?: number }) {
+  const id = locked ? "royal-seat-locked" : "royal-seat-open";
+  return (
+    <svg width={size} height={size} viewBox="0 0 100 100" aria-hidden="true" className="absolute inset-0 h-full w-full">
+      <defs>
+        <radialGradient id={`${id}-bg`} cx="50%" cy="35%" r="70%">
+          <stop offset="0%" stopColor={locked ? "#fff1a8" : "#ffe68a"} />
+          <stop offset="45%" stopColor="#d99b22" />
+          <stop offset="100%" stopColor="#5b2c08" />
+        </radialGradient>
+        <linearGradient id={`${id}-gold`} x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor="#fff7c2" /><stop offset=".32" stopColor="#f8c84e" /><stop offset=".68" stopColor="#b56b0b" /><stop offset="1" stopColor="#ffe98a" />
+        </linearGradient>
+        <filter id={`${id}-glow`}><feGaussianBlur stdDeviation="1.8" result="blur" /><feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge></filter>
+      </defs>
+      <circle cx="50" cy="50" r="47" fill={`url(#${id}-bg)`} stroke={`url(#${id}-gold)`} strokeWidth="4" />
+      <path d="M25 68V35c0-7 5-12 12-12h26c7 0 12 5 12 12v33" fill="#6f170f" stroke={`url(#${id}-gold)`} strokeWidth="4" />
+      <path d="M19 76h62M27 69h46M31 76v7M69 76v7M25 84h50" stroke={`url(#${id}-gold)`} strokeWidth="4" strokeLinecap="round" />
+      <path d="M50 9l5 8 9 1-7 6 2 9-9-4-9 4 2-9-7-6 9-1 5-8z" fill="#ffef91" stroke="#9b5a08" strokeWidth="2" filter={`url(#${id}-glow)`} />
+      <rect x="45" y="35" width="10" height="25" rx="5" fill="#fff2a6" stroke="#9b5a08" strokeWidth="2" />
+      <path d="M37 48a13 13 0 0 0 26 0M50 61v8M43 69h14" fill="none" stroke="#fff2a6" strokeWidth="3" strokeLinecap="round" />
+      {locked && <path d="M38 48v-7a12 12 0 0 1 24 0v7" fill="none" stroke="#fff2a6" strokeWidth="4" strokeLinecap="round" />}
+    </svg>
+  );
+}
+
 interface RoomSeatsGridProps {
   members: any[];
   myProfile: any;
@@ -319,11 +345,11 @@ const RegularSeat = memo(function RegularSeat({
               />
             </div>
           ) : isLocked ? (
-            isRoyalTheme ? <img src={isSpecialRoyalSeat ? ROYAL_LOCKED_SEAT_21_22 : "/manus-storage/royal-seat-icon_7df7cdad.png"} alt="مقعد ملكي مقفل" className="absolute inset-0 h-full w-full rounded-full object-cover opacity-90" /> : <div className="z-10"><LockSVG size={20 * scale} /></div>
+            isRoyalTheme ? (isSpecialRoyalSeat ? <img src={ROYAL_LOCKED_SEAT_21_22} alt="مقعد ملكي مقفل" className="absolute inset-0 h-full w-full rounded-full object-cover opacity-90" /> : <RoyalSeatArt locked size={BUBBLE} />) : <div className="z-10"><LockSVG size={20 * scale} /></div>
           ) : isPK ? (
             <span className="z-10" style={{ fontSize: 16 * scale }}>{pkSide === "room1" ? "🐯" : "🦁"}</span>
           ) : (
-            isRoyalTheme ? <img src={isSpecialRoyalSeat ? ROYAL_OPEN_SEAT_21_22 : "/manus-storage/royal-seat-icon_7df7cdad.png"} alt="مقعد ملكي" className="absolute inset-0 h-full w-full rounded-full object-cover opacity-90" /> : <div className="z-10"><EmptyMicSVG size={22 * scale} /></div>
+            isRoyalTheme ? (isSpecialRoyalSeat ? <img src={ROYAL_OPEN_SEAT_21_22} alt="مقعد ملكي" className="absolute inset-0 h-full w-full rounded-full object-cover opacity-90" /> : <RoyalSeatArt size={BUBBLE} />) : <div className="z-10"><EmptyMicSVG size={22 * scale} /></div>
           )}
         </GlassBubble>
 
