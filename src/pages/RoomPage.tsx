@@ -848,11 +848,15 @@ function RoomPageInner({ roomId, onBack, onBackgroundLeave, onViewProfile, onMes
       ) : isRoyal ? (
         <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden" aria-hidden="true">
           <img
-            src="/manus-storage/royal-room-theme-background_ff35c240.webp"
+            src="https://l.top4top.io/p_38848efnl0.png"
             alt=""
             className="absolute inset-0 h-full w-full object-cover object-center"
             style={{ display: "block", minHeight: "100%", minWidth: "100%" }}
-            onError={(event) => { event.currentTarget.style.display = "none"; }}
+            onError={(event) => {
+              const fallback = "/manus-storage/royal-room-theme-background_ff35c240.webp";
+              if (event.currentTarget.src !== `${window.location.origin}${fallback}`) event.currentTarget.src = fallback;
+              else event.currentTarget.style.display = "none";
+            }}
           />
           <div className="absolute inset-0 bg-[#16060f]/25" />
         </div>
