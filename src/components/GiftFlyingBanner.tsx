@@ -255,6 +255,17 @@ export default function GiftFlyingBanner({
                 )}
               </div>
 
+              {/* Receiver avatar only — recipient name is intentionally hidden. */}
+              <div style={{
+                width: 30, height: 30, borderRadius: "50%", overflow: "hidden", flexShrink: 0,
+                border: `1.5px solid ${accent}70`, background: "#0a0a18",
+              }}>
+                {receiverAvatar
+                  ? <img src={receiverAvatar} alt="صورة المستلم" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                  : <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: accent, fontWeight: 900, fontSize: 11 }}>●</div>
+                }
+              </div>
+
               {/* Price pill */}
               <div style={{
                 flexShrink: 0,

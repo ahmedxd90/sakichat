@@ -539,29 +539,32 @@ function RoomPageInner({ roomId, onBack, onBackgroundLeave, onViewProfile, onMes
         }
       }
 
-      const bannerKey = `${ev.senderName}|${ev.receiverName}|${ev.giftName}`;
-      setFlyingBanners((prev) => {
-        const existing = prev.find((b) => b.key === bannerKey);
-        if (existing) {
-          return prev.map((b) => b.key === bannerKey ? { ...b, quantity: (b.quantity ?? 1) + 1 } : b);
-        }
-        return [...prev.slice(-1), {
-          id: latestGiftEvent._id,
-          key: bannerKey,
-          senderName: ev.senderName,
-          receiverName: ev.receiverName,
-          senderAvatar: ev.senderAvatarUrl,
-          receiverAvatar: ev.receiverAvatarUrl,
-          giftName: ev.giftName,
-          giftImageUrl: ev.giftImageUrl,
-          giftEmoji: ev.giftEmoji,
-          quantity: 1,
-          luckMultiplier: ev.luckMultiplier,
-          luckWinAmount: ev.luckMultiplier ? ev.price * ev.luckMultiplier : undefined,
-          price: ev.price,
-          isGlobal: ev.isGlobal,
-        }];
-      });
+      // The wide flying banner is reserved for gifts priced at 100K or more.
+      if (ev.price >= 100000) {
+        const bannerKey = `${ev.senderName}|${ev.receiverId}|${ev.giftName}`;
+        setFlyingBanners((prev) => {
+          const existing = prev.find((b) => b.key === bannerKey);
+          if (existing) {
+            return prev.map((b) => b.key === bannerKey ? { ...b, quantity: (b.quantity ?? 1) + 1 } : b);
+          }
+          return [...prev.slice(-1), {
+            id: latestGiftEvent._id,
+            key: bannerKey,
+            senderName: ev.senderName,
+            receiverName: ev.receiverName,
+            senderAvatar: ev.senderAvatarUrl,
+            receiverAvatar: ev.receiverAvatarUrl,
+            giftName: ev.giftName,
+            giftImageUrl: ev.giftImageUrl,
+            giftEmoji: ev.giftEmoji,
+            quantity: 1,
+            luckMultiplier: ev.luckMultiplier,
+            luckWinAmount: ev.luckMultiplier ? ev.price * ev.luckMultiplier : undefined,
+            price: ev.price,
+            isGlobal: ev.isGlobal,
+          }];
+        });
+      }
     }
   }, [latestGiftEvent?._id]);
 
