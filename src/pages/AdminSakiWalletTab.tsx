@@ -96,7 +96,7 @@ export default function AdminSakiWalletTab() {
         </div>
         <div>
           <h2 className="text-white font-black text-base">محافظ ساكي</h2>
-          <p className="text-xs text-gray-500">ادارة رصيد ساكي للوكلاء</p>
+          <p className="text-xs text-gray-500">شحن، استهلاك، هدايا، ومصادر العملات حسب SAKI_ID</p>
         </div>
       </div>
 
@@ -120,7 +120,7 @@ export default function AdminSakiWalletTab() {
         {[
           { id: "agents", label: "الوكلاء", icon: "⚡" },
           { id: "transactions", label: "المعاملات", icon: "📋" },
-          { id: "recharge", label: "شحن مستخدم", icon: "💳" },
+          { id: "recharge", label: "تقارير المستخدم", icon: "💳" },
         ].map((t) => (
           <button key={t.id} onClick={() => setTab(t.id as any)}
             className="flex-1 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1"
@@ -197,7 +197,7 @@ export default function AdminSakiWalletTab() {
         <div className="space-y-4">
           <div className="rounded-2xl p-4" style={{ background: "rgba(59,130,246,0.08)", border: "1px solid rgba(59,130,246,0.2)" }}>
             <h3 className="text-white font-black text-sm">سجل شحن المستخدم</h3>
-            <p className="text-gray-500 text-[11px] mt-1">ابحث بواسطة SAKI_ID لعرض مصدر الشحن والمعاملة الحقيقية.</p>
+            <p className="text-gray-500 text-[11px] mt-1">ابحث بواسطة SAKI_ID لعرض الشحن من Google Play أو الوكيل، الاستهلاك، الهدايا المرسلة والمستلمة، وأرقام المعاملات الحقيقية.</p>
             <input
               value={rechargeSearch}
               onChange={(e) => setRechargeSearch(e.target.value)}
@@ -224,6 +224,23 @@ export default function AdminSakiWalletTab() {
                   </div>
                 </div>
               </div>
+              {rechargeHistory.summary && (
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { label: "شحن Google Play", value: rechargeHistory.summary.googleCoinsTotal, color: "#60a5fa" },
+                    { label: "شحن وكيل", value: rechargeHistory.summary.agentCoinsTotal, color: "#34d399" },
+                    { label: "استهلاك هدايا", value: rechargeHistory.summary.giftSentTotal, color: "#f472b6" },
+                    { label: "رهان حفلة ساكي", value: rechargeHistory.summary.partyBetTotal, color: "#c084fc" },
+                    { label: "هدايا مستلمة", value: rechargeHistory.summary.giftReceivedTotal, color: "#fbbf24" },
+                    { label: "إجمالي الاستهلاك", value: rechargeHistory.summary.totalSpentCoins, color: "#fb7185" },
+                  ].map((stat) => (
+                    <div key={stat.label} className="rounded-xl p-3" style={{ background: `${stat.color}0d`, border: `1px solid ${stat.color}25` }}>
+                      <p className="text-gray-500 text-[10px]">{stat.label}</p>
+                      <p className="mt-1 font-black text-sm" style={{ color: stat.color }}>{(stat.value ?? 0).toLocaleString()} ذهب</p>
+                    </div>
+                  ))}
+                </div>
+              )}
               {rechargeHistory.transactions.length === 0 ? (
                 <div className="rounded-2xl p-8 text-center text-gray-500 text-sm">لا توجد عمليات شحن مسجلة لهذا المستخدم.</div>
               ) : rechargeHistory.transactions.map((tx: any) => (
@@ -244,6 +261,44 @@ export default function AdminSakiWalletTab() {
                   </div>
                 </div>
               ))}
+              {(rechargeHistory.giftsSent?.length > 0 || rechargeHistory.giftsReceived?.length > 0) && (
+                <div className="grid gap-3 lg:grid-cols-2">
+                  <div className="rounded-2xl p-3" style={{ background: "rgba(244,114,182,0.06)", border: "1px solid rgba(244,114,182,0.18)" }}>
+                    <div className="flex items-center justify-between mb-2">
+                      <h3 className="text-pink-300 font-black text-sm">الهدايا المرسلة</h3>
+                      <span className="text-[10px] text-gray-500">{rechargeHistory.giftsSent?.length ?? 0} سجل</span>
+                    </div>
+                    <div className="space-y-2 max-h-72 overflow-y-auto">
+                      {(rechargeHistory.giftsSent ?? []).slice(0, 50).map((gift: any) => (
+                        <div key={gift.id} className="flex items-center justify-between gap-2 rounded-xl px-3 py-2" style={{ background: "rgba(0,0,0,0.18)" }}>
+                          <div className="min-w-0">
+                            <p className="text-white text-xs font-bold truncate">{gift.giftName} → {gift.receiverName}</p>
+                            <p className="text-gray-500 text-[10px]">{new Date(gift.createdAt).toLocaleString("ar-SA")}</p>
+                          </div>
+                          <span className="text-pink-300 text-xs font-black shrink-0">-{gift.price.toLocaleString()}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="rounded-2xl p-3" style={{ background: "rgba(251,191,36,0.06)", border: "1px solid rgba(251,191,36,0.18)" }}>
+                    <div className="flex items-center justify-between mb-2">
+                      <h3 className="text-amber-300 font-black text-sm">الهدايا المستلمة</h3>
+                      <span className="text-[10px] text-gray-500">{rechargeHistory.giftsReceived?.length ?? 0} سجل</span>
+                    </div>
+                    <div className="space-y-2 max-h-72 overflow-y-auto">
+                      {(rechargeHistory.giftsReceived ?? []).slice(0, 50).map((gift: any) => (
+                        <div key={gift.id} className="flex items-center justify-between gap-2 rounded-xl px-3 py-2" style={{ background: "rgba(0,0,0,0.18)" }}>
+                          <div className="min-w-0">
+                            <p className="text-white text-xs font-bold truncate">{gift.giftName} ← {gift.senderName}</p>
+                            <p className="text-gray-500 text-[10px]">{new Date(gift.createdAt).toLocaleString("ar-SA")}</p>
+                          </div>
+                          <span className="text-amber-300 text-xs font-black shrink-0">+{gift.price.toLocaleString()}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
             </>
           ) : <div className="rounded-2xl p-8 text-center text-gray-500 text-sm">أدخل SAKI_ID لبدء البحث.</div>}
         </div>

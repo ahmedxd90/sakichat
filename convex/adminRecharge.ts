@@ -27,10 +27,14 @@ export const searchRechargeHistory = query({
     }
     if (!profile) return { user: null, transactions: [] };
 
-    const [googlePurchases, sakiTransactions, rechargeCredits] = await Promise.all([
+    const [googlePurchases, sakiTransactions, rechargeCredits, giftsSent, giftsReceived, partyTransactions, membershipPayments] = await Promise.all([
       ctx.db.query("googlePlayPurchases").withIndex("by_user", (q) => q.eq("userId", profile!.userId)).order("desc").collect(),
       ctx.db.query("sakiTransactions").withIndex("by_target", (q) => q.eq("targetUserId", profile!.userId)).order("desc").collect(),
       ctx.db.query("rechargeGiftCredits").withIndex("by_user", (q) => q.eq("userId", profile!.userId)).order("desc").collect(),
+      ctx.db.query("giftEvents").withIndex("by_sender", (q) => q.eq("senderId", profile!.userId)).order("desc").take(200),
+      ctx.db.query("giftEvents").withIndex("by_receiver", (q) => q.eq("receiverId", profile!.userId)).order("desc").take(200),
+      ctx.db.query("sakiPartyTransactions").withIndex("by_user", (q) => q.eq("userId", profile!.userId)).order("desc").take(200),
+      ctx.db.query("roomMembershipPayments").withIndex("by_user", (q) => q.eq("userId", profile!.userId)).order("desc").take(200),
     ]);
 
     const agentIds = Array.from(new Set(sakiTransactions.map((tx) => tx.agentUserId)));
@@ -82,6 +86,20 @@ export const searchRechargeHistory = query({
         })),
     ].sort((a, b) => b.createdAt - a.createdAt);
 
+    const giftSentTotal = giftsSent.reduce((sum, event) => sum + event.price, 0);
+    const giftReceivedTotal = giftsReceived.reduce((sum, event) => sum + event.price, 0);
+    const partyBetTotal = partyTransactions
+      .filter((tx) => tx.kind === "bet")
+      .reduce((sum, tx) => sum + Math.abs(tx.amount), 0);
+    const partyPayoutTotal = partyTransactions
+      .filter((tx) => tx.kind === "payout")
+      .reduce((sum, tx) => sum + tx.amount, 0);
+    const membershipTotal = membershipPayments.reduce((sum, payment) => sum + payment.amount, 0);
+    const googleCoinsTotal = googlePurchases.reduce((sum, purchase) => sum + purchase.coins, 0);
+    const agentCoinsTotal = sakiTransactions
+      .filter((tx) => tx.type === "charge")
+      .reduce((sum, tx) => sum + (tx.coinsAmount ?? 0), 0);
+
     return {
       user: {
         userId: profile.userId,
@@ -93,6 +111,39 @@ export const searchRechargeHistory = query({
         avatarUrl: profile.avatarUrl,
       },
       transactions: rows,
+      summary: {
+        googleCoinsTotal,
+        agentCoinsTotal,
+        totalRechargeCoins: googleCoinsTotal + agentCoinsTotal,
+        giftSentTotal,
+        giftReceivedTotal,
+        partyBetTotal,
+        partyPayoutTotal,
+        membershipTotal,
+        totalSpentCoins: giftSentTotal + partyBetTotal + membershipTotal,
+        profileTotalCoinsSent: profile.totalCoinsSent ?? 0,
+        profileTotalCoinsReceived: profile.totalCoinsReceived ?? 0,
+      },
+      giftsSent: giftsSent.map((event) => ({
+        id: event._id,
+        giftName: event.giftName,
+        price: event.price,
+        quantity: event.quantity ?? 1,
+        receiverId: event.receiverId,
+        receiverName: event.receiverName,
+        createdAt: event.createdAt,
+        roomId: event.roomId,
+      })),
+      giftsReceived: giftsReceived.map((event) => ({
+        id: event._id,
+        giftName: event.giftName,
+        price: event.price,
+        quantity: event.quantity ?? 1,
+        senderId: event.senderId,
+        senderName: event.senderName,
+        createdAt: event.createdAt,
+        roomId: event.roomId,
+      })),
     };
   },
 });

@@ -996,6 +996,7 @@ export default defineSchema({
   })
     .index("by_room", ["roomId"])
     .index("by_global", ["isGlobal"])
+    .index("by_sender", ["senderId"])
     .index("by_receiver", ["receiverId"]),
   families: defineTable({
     name: v.string(),
