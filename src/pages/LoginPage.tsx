@@ -402,29 +402,40 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [policyPage, setPolicyPage] = useState<"privacy" | "terms" | null>(null);
+  const [oauthDiagnostics, setOauthDiagnostics] = useState<{ stage: string; message?: string; code?: string } | null>(null);
 
   useEffect(() => {
     const onOAuthState = (event: Event) => {
-      const status = (event as CustomEvent<{ status?: string }>).detail?.status;
-      if (status === "success" || status === "error") setSubmitting(false);
+      const detail = (event as CustomEvent<{ status?: string; message?: string; stage?: string; code?: string }>).detail;
+      const status = detail?.status;
+      if (status === "success") {
+        setSubmitting(false);
+        setOauthDiagnostics({ stage: "اكتملت العودة إلى التطبيق", message: "تم استلام رد Google بنجاح." });
+      } else if (status === "error") {
+        setSubmitting(false);
+        setOauthDiagnostics({ stage: detail?.stage ?? "فشل إكمال تسجيل الدخول", message: detail?.message ?? "لم يكتمل تسجيل الدخول.", code: detail?.code });
+      }
     };
     window.addEventListener("saki-google-auth-state", onOAuthState);
     return () => window.removeEventListener("saki-google-auth-state", onOAuthState);
   }, []);
 
   const handleGoogleLogin = async () => {
+    setOauthDiagnostics({ stage: "تم الضغط على زر Google" });
     setSubmitting(true);
     try {
       if (Capacitor.getPlatform() === "android") {
         // Android uses the browser OAuth flow. Ask Convex for its signed,
         // stateful redirect first, save the verifier, then open Chrome.
         const redirectTo = "saki.chat.co://callback";
+        setOauthDiagnostics({ stage: "جاري الاتصال بخادم تسجيل الدخول", message: `سيتم استخدام رابط العودة ${redirectTo}` });
         const result = await withOAuthTimeout(convex.action(api.auth.signIn, {
           provider: "google",
           params: { redirectTo },
         }));
         if (!result?.redirect || !result.verifier) throw new Error("OAuth redirect was not created");
         localStorage.setItem(CONVEX_AUTH_OAUTH_VERIFIER_STORAGE_KEY, result.verifier);
+        setOauthDiagnostics({ stage: "تم إنشاء رابط Google", message: "جاري فتح Chrome لاختيار الحساب." });
         await withOAuthTimeout(Browser.open({ url: String(result.redirect) }), 10000);
       } else {
         await signIn("google", { redirectTo: window.location.origin });
@@ -454,6 +465,7 @@ export default function LoginPage() {
         toast.error(`${nativeHint} [${providerCode}]${diagnostic}`);
       }
       setSubmitting(false);
+      setOauthDiagnostics({ stage: "تعذر بدء تسجيل الدخول", message: message || "لم يتم فتح Chrome أو لم يستجب خادم OAuth.", code: errorCode || "UNKNOWN" });
     }
   };
 
@@ -477,6 +489,24 @@ export default function LoginPage() {
 
   if (policyPage) {
     return <PolicyPage type={policyPage} onClose={() => setPolicyPage(null)} />;
+  }
+
+  if (oauthDiagnostics && !submitting && oauthDiagnostics.stage !== "اكتملت العودة إلى التطبيق") {
+    return (
+      <div className="fixed inset-0 z-[1200] flex flex-col bg-slate-950 px-5 py-8 text-right text-white" dir="rtl">
+        <div className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center">
+          <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-red-500/15 text-3xl">!</div>
+          <h1 className="text-2xl font-black">تشخيص تسجيل دخول Google</h1>
+          <p className="mt-2 text-sm leading-6 text-slate-300">لم يحدث انتقال إلى Chrome أو لم يكتمل طلب تسجيل الدخول. هذه تفاصيل المرحلة الأخيرة.</p>
+          <div className="mt-6 space-y-3 rounded-3xl border border-white/10 bg-white/5 p-5">
+            <div><span className="text-xs text-slate-400">المرحلة</span><p className="mt-1 font-black text-amber-300">{oauthDiagnostics.stage}</p></div>
+            <div><span className="text-xs text-slate-400">الرسالة</span><p className="mt-1 break-words text-sm leading-6 text-white">{oauthDiagnostics.message || "لم تصل استجابة حتى الآن."}</p></div>
+            {oauthDiagnostics.code ? <div><span className="text-xs text-slate-400">الكود</span><p className="mt-1 font-mono text-sm text-red-200">{oauthDiagnostics.code}</p></div> : null}
+          </div>
+          <button type="button" onClick={() => setOauthDiagnostics(null)} className="mt-6 rounded-2xl bg-amber-400 px-4 py-3.5 font-black text-slate-950">العودة وتجربة الدخول مرة أخرى</button>
+        </div>
+      </div>
+    );
   }
 
   if (showRegister) {
