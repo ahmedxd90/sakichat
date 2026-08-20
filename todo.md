@@ -1520,3 +1520,4 @@
 - [ ] إصلاح NullPointerException عند استدعاء HTTP Native والتأكد من تسجيل Plugin في Android.
 - [ ] إصلاح IOException عند فتح اتصال HTTPS من HTTP Native وإظهار تفاصيل الشبكة الحقيقية.
 - [ ] عرض السبب الأصلي لاتصال Android داخل صفحة تشخيص Google بدل IOException/UNKNOWN فقط.
+- [ ] إزالة 127.0.0.1:3210 من بناء Android وتثبيت عنوان Convex الإنتاجي الحقيقي.
