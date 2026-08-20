@@ -99,7 +99,11 @@ export const getRoomCpPairs = query({
       const home = await ctx.db.query("cpHomes")
         .withIndex("by_userId", (q) => q.eq("userId", member.userId))
         .unique();
-      const partnerUserId = home?.partnerUserId
+      const cpItems = await ctx.db.query("userStoreItems")
+        .withIndex("by_user_and_type", (q) => q.eq("userId", member.userId).eq("type", "cp"))
+        .collect();
+      const activeCp = cpItems.find((item) => item.cpStatus === "accepted" && item.isActive && (!item.expiresAt || item.expiresAt > Date.now()));
+      const partnerUserId = activeCp?.sentToUserId ?? activeCp?.receivedFromUserId ?? home?.partnerUserId
         ?? (home?.user1Id === member.userId ? home?.user2Id : home?.user2Id === member.userId ? home?.user1Id : undefined);
       if (!partnerUserId || !memberIds.has(String(partnerUserId))) continue;
       const key = [String(member.userId), String(partnerUserId)].sort().join(":");
