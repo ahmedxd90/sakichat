@@ -25,7 +25,7 @@ const THEMES = [
   { key: "luxury_white", theme: "", label: "الافتراضي", gradient: "linear-gradient(135deg,#ffffff,#fff7ed)", isLuxury: true },
   { key: "karaoke", theme: "karaoke", label: "ثيم Karaoke", gradient: "linear-gradient(135deg,#12002b 0%,#4c1d95 45%,#c026d3 100%)", isLuxury: false, isKaraoke: true },
   { key: "cinema", theme: "cinema", label: "ثيم السينما", gradient: "linear-gradient(135deg,#1a0000,#3d0000)", isLuxury: false },
-  { key: "royal", theme: "royal", label: "الثيم الملكي", gradient: `url(${ROYAL_THEME_BACKGROUND}) center/cover`, isLuxury: true, isRoyal: true },
+  { key: "royal", theme: "royal", label: "الثيم الملكي", gradient: `url(${ROYAL_THEME_BACKGROUND}) center/cover`, isLuxury: true, isRoyal: true, seatSummary: "مقعدان علويان + 20 مقعدًا سفليًا" },
 ];
 
 const BG_PRESETS = [
@@ -43,7 +43,7 @@ const MIC_PERMISSIONS = [
   { value: "admins", label: "المشرفون فقط" },
 ];
 
-const SEAT_OPTIONS = [5, 10, 15, 20, 22];
+const SEAT_OPTIONS = [5, 10, 15, 20];
 
 type SubPage = null | "name" | "notice" | "category" | "theme" | "backgrounds" | "reward" | "admins" | "banned" | "logs" | "lock" | "seats";
 
@@ -149,7 +149,7 @@ export default function RoomSettingsPage({ roomId, onBack }: RoomSettingsPagePro
         <div className="p-5 space-y-4">
           {THEMES.map(t => (
             <div key={t.key} 
-              onClick={() => handleUpdate(t.isRoyal ? { roomTheme: t.theme, bgPresetKey: ROYAL_THEME_BACKGROUND, seatLayoutStyle: "royal_pairs", maxSeats: 22, hostSeatCount: 2 } : { roomTheme: t.theme })}
+              onClick={() => handleUpdate(t.isRoyal ? { roomTheme: t.theme, bgPresetKey: ROYAL_THEME_BACKGROUND, maxSeats: 20, hostSeatCount: 1 } : { roomTheme: t.theme })}
               className={`relative rounded-3xl overflow-hidden h-32 cursor-pointer border-4 transition-all ${room.roomTheme === t.theme ? "border-cyan-400 scale-[1.02]" : "border-transparent"}`}
             >
               <div className="absolute inset-0" style={{ background: t.gradient }} />
@@ -161,7 +161,7 @@ export default function RoomSettingsPage({ roomId, onBack }: RoomSettingsPagePro
                   </svg>
                 ) : null}
                 <span className="text-white font-black text-lg">{t.label}</span>
-                {t.isKaraoke ? <span className="text-white/75 text-[10px] font-bold">مقعد رئيسي + 10 مغنين</span> : t.isRoyal ? <span className="text-white/80 text-[10px] font-bold">22 مقعدًا ملكيًا بنظام الأزواج</span> : null}
+                {t.isKaraoke ? <span className="text-white/75 text-[10px] font-bold">مقعد رئيسي + 10 مغنين</span> : t.isRoyal ? <span className="text-white/80 text-[10px] font-bold">{t.seatSummary}</span> : null}
               </div>
             </div>
           ))}
@@ -244,15 +244,12 @@ export default function RoomSettingsPage({ roomId, onBack }: RoomSettingsPagePro
           <div className="mb-5 rounded-3xl border border-amber-200 bg-gradient-to-br from-[#28121f] to-[#120c1c] p-5 text-white shadow-lg">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <p className="text-sm font-black text-amber-200">التخطيط الملكي</p>
-                <p className="mt-1 text-xs leading-5 text-white/70">مقعد المالك في الأعلى، ومقاعد المضيفين ثم أزواج متجاورة.</p>
+                <p className="text-sm font-black text-amber-200">تخطيط الثيم الملكي</p>
+                <p className="mt-1 text-xs leading-5 text-white/70">مقعدان علويان متجاوران، وأسفلهما 20 مقعدًا في 4 صفوف أفقية، كل صف 5 مقاعد.</p>
               </div>
               <span className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-2xl border border-amber-300/60 bg-amber-200/10"><img src="/manus-storage/royal-seat-icon_7df7cdad.png" alt="مقعد ملكي" className="h-10 w-10 object-contain" /></span>
             </div>
-            <div className="mt-4 grid grid-cols-2 gap-2">
-              <button onClick={() => handleUpdate({ seatLayoutStyle: "royal_pairs" })} className={`rounded-2xl border px-3 py-3 text-xs font-black ${room.seatLayoutStyle !== "legacy" ? "border-amber-300 bg-amber-300/20 text-amber-100" : "border-white/15 bg-white/5 text-white/60"}`}>أزواج ملكية</button>
-              <button onClick={() => handleUpdate({ seatLayoutStyle: "legacy" })} className={`rounded-2xl border px-3 py-3 text-xs font-black ${room.seatLayoutStyle === "legacy" ? "border-white/60 bg-white/15 text-white" : "border-white/15 bg-white/5 text-white/60"}`}>التخطيط القديم</button>
-            </div>
+            <div className="mt-4 rounded-2xl border border-amber-300/20 bg-white/5 px-3 py-3 text-[11px] leading-6 text-white/75">عند اختيار الثيم الملكي يطبّق هذا التخطيط تلقائيًا، ولا يوجد خيار تخطيط منفصل.</div>
             <div className="mt-4 flex items-center justify-between rounded-2xl bg-white/5 px-3 py-3">
               <span className="text-xs font-bold text-white/75">مقاعد المضيفين</span>
               <div className="flex gap-2">

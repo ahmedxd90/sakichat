@@ -18,7 +18,8 @@ export const sendSeatInvite = mutation({
 
     const room = await ctx.db.get(args.roomId);
     if (!room) throw new Error("الغرفة غير موجودة");
-    if (room.maxSeats !== undefined && args.seatIndex >= room.maxSeats) throw new Error("المقعد غير موجود في هذه الغرفة");
+    const effectiveSeatLimit = (room as any).roomTheme === "royal" ? 22 : room.maxSeats;
+    if (effectiveSeatLimit !== undefined && args.seatIndex >= effectiveSeatLimit) throw new Error("المقعد غير موجود في هذه الغرفة");
 
     const members = await getRoomMembers(ctx, args.roomId);
     const senderMember = members.find((member: any) => member.userId === userId);

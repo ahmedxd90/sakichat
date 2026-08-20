@@ -1169,6 +1169,7 @@ function RoomPageInner({ roomId, onBack, onBackgroundLeave, onViewProfile, onMes
           isRadio={isPKActive ? false : isRadio}
           isFootball={false}
           isKaraoke={isKaraoke && !isPKActive}
+          isRoyalTheme={isRoyal && !isPKActive}
           isPK={isPKActive}
           pkRoom1Id={pkRoom1Id}
           pkRoom2Id={pkRoom2Id}

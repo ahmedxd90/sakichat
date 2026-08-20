@@ -496,7 +496,8 @@ export const takeSeat = mutation({
     if (args.seatIndex < 0 && !isOwner && !isAdmin) {
       throw new Error("هذا المقعد مخصص للمالك والمشرفين");
     }
-    if (args.seatIndex >= 0 && room.maxSeats !== undefined && args.seatIndex >= room.maxSeats) {
+    const effectiveSeatLimit = (room as any).roomTheme === "royal" ? 22 : room.maxSeats;
+    if (args.seatIndex >= 0 && effectiveSeatLimit !== undefined && args.seatIndex >= effectiveSeatLimit) {
       throw new Error("المقعد غير موجود في هذه الغرفة");
     }
     if (((room as any).lockedSeats ?? []).includes(args.seatIndex) && !isOwner && !isAdmin) {

@@ -29,6 +29,7 @@ interface RoomSeatsGridProps {
   isSuperAdmin?: boolean;
   hideRoyalSeats?: boolean;
   seatLayoutStyle?: string;
+  isRoyalTheme?: boolean;
   hostSeatCount?: number;
   speakingUsers: Set<string>;
   activeEmojis: SeatEmojiItem[];
@@ -230,10 +231,10 @@ const GlassBubble = memo(function GlassBubble({
 });
 
 const RegularSeat = memo(function RegularSeat({
-  seatIndex, member, isMe, isMuted: globalMuted, isSpeaking, isLocked, isPK, pkSide, isHostSeat, onPress, scale = 1,
+  seatIndex, member, isMe, isMuted: globalMuted, isSpeaking, isLocked, isPK, pkSide, isHostSeat, isRoyalTheme = false, onPress, scale = 1,
 }: {
   seatIndex: number; member: any; isMe: boolean; isMuted: boolean; isSpeaking: boolean;
-  isLocked: boolean; isPK: boolean; pkSide: string | null; isHostSeat: boolean;
+  isLocked: boolean; isPK: boolean; pkSide: string | null; isHostSeat: boolean; isRoyalTheme?: boolean;
   onPress: () => void; scale?: number;
 }) {
   const seatSkinUrl: string | undefined = member?.seatSkinUrl ?? undefined;
@@ -306,11 +307,11 @@ const RegularSeat = memo(function RegularSeat({
               />
             </div>
           ) : isLocked ? (
-            <div className="z-10"><LockSVG size={20 * scale} /></div>
+            isRoyalTheme ? <img src="/manus-storage/royal-seat-icon_7df7cdad.png" alt="مقعد ملكي مقفل" className="absolute inset-0 h-full w-full rounded-full object-cover opacity-80" /> : <div className="z-10"><LockSVG size={20 * scale} /></div>
           ) : isPK ? (
             <span className="z-10" style={{ fontSize: 16 * scale }}>{pkSide === "room1" ? "🐯" : "🦁"}</span>
           ) : (
-            <div className="z-10"><EmptyMicSVG size={22 * scale} /></div>
+            isRoyalTheme ? <img src="/manus-storage/royal-seat-icon_7df7cdad.png" alt="مقعد ملكي" className="absolute inset-0 h-full w-full rounded-full object-cover opacity-90" /> : <div className="z-10"><EmptyMicSVG size={22 * scale} /></div>
           )}
         </GlassBubble>
 
@@ -367,11 +368,12 @@ function RoomSeatsGridInner({
   isFootball = false, isKaraoke = false,
   isPK, pkRoom1Id, pkRoom2Id, roomId,
   ownerIsVip12, isMuted, isOwner, isAdmin, isSuperAdmin = false, hideRoyalSeats = false,
-  seatLayoutStyle = "royal_pairs", hostSeatCount = 2, speakingUsers, activeEmojis, seatPositions,
+  seatLayoutStyle = "royal_pairs", isRoyalTheme = false, hostSeatCount = 2, speakingUsers, activeEmojis, seatPositions,
   seatsGridRef, lockedSeats, onSeatPress, onViewProfile,
 }: RoomSeatsGridProps) {
 
-  const halfSeats = Math.ceil(maxSeats / 2);
+  const seatCount = isRoyalTheme && !isPK ? 22 : maxSeats;
+  const halfSeats = Math.ceil(seatCount / 2);
   const getPKSide = (seatIndex: number) => {
     if (!isPK) return null;
     const isRoom1 = roomId === pkRoom1Id;
@@ -388,9 +390,9 @@ function RoomSeatsGridInner({
   };
 
   // تصغير المقاعد تلقائياً للأعداد الكبيرة، مع إبقاء الزوجين متجاورين.
-  const scale = maxSeats > 10 ? 0.75 : 1;
-  const gapY = maxSeats > 10 ? 3 : 5;
-  const useRoyalPairs = seatLayoutStyle !== "legacy" && !isPK;
+  const scale = seatCount > 10 ? 0.75 : 1;
+  const gapY = seatCount > 10 ? 3 : 5;
+  const useRoyalPairs = isRoyalTheme && !isPK;
   const safeHostSeatCount = Math.min(2, Math.max(0, hostSeatCount));
   const renderSeat = (i: number, extraScale = scale) => {
     const member = members?.find((m) => m.seatIndex === i);
@@ -402,7 +404,7 @@ function RoomSeatsGridInner({
     const isHostSeat = i <= safeHostSeatCount;
     return <RegularSeat key={i} seatIndex={i} member={member} isMe={isMe} isMuted={isMuted}
       isSpeaking={isSpeaking} isLocked={isLocked} isPK={isPK} pkSide={pkSide}
-      isHostSeat={isHostSeat} onPress={() => onSeatPress(i)} scale={extraScale} />;
+      isHostSeat={isHostSeat} isRoyalTheme={isRoyalTheme} onPress={() => onSeatPress(i)} scale={extraScale} />;
   };
 
   return (
@@ -417,6 +419,10 @@ function RoomSeatsGridInner({
           30% { transform: scale(1.4); filter: drop-shadow(0 0 7px #60a5fa) drop-shadow(0 0 12px #3b82f6); }
           60% { transform: scale(0.95); filter: drop-shadow(0 0 4px #3b82f6); }
         }
+        .royal-wave-line { width: 3px; height: 26px; margin: 0 2px; border-radius: 999px; background: linear-gradient(180deg,#fde68a,#f59e0b,#ef4444); box-shadow: 0 0 8px rgba(251,191,36,.85); animation: royalWave 900ms ease-in-out infinite alternate; }
+        .royal-wave-line-delay { height: 38px; animation-delay: 180ms; }
+        .royal-wave-line-short { height: 18px; animation-delay: 320ms; }
+        @keyframes royalWave { from { transform: scaleY(.45); opacity: .55; } to { transform: scaleY(1); opacity: 1; } }
       `}</style>
 
       <div className="flex-shrink-0 px-2 pt-3 pb-3 relative" ref={seatsGridRef}
@@ -479,19 +485,15 @@ function RoomSeatsGridInner({
           </div>
         ) : useRoyalPairs ? (
           <div className="flex flex-col items-center gap-3 px-1">
-            <div className="flex items-end justify-center gap-4 rounded-[2rem] border border-amber-300/30 bg-gradient-to-b from-amber-200/10 to-transparent px-6 py-3">
+            <div className="relative flex items-end justify-center gap-4 rounded-[2rem] border border-amber-300/30 bg-gradient-to-b from-amber-200/10 to-transparent px-6 py-3">
               {renderSeat(0, Math.min(1.08, scale + 0.12))}
-            </div>
-            {safeHostSeatCount > 0 && (
-              <div className="flex items-end justify-center gap-4 rounded-[1.7rem] border border-violet-300/25 bg-violet-200/5 px-5 py-2">
-                {Array.from({ length: safeHostSeatCount }, (_, offset) => renderSeat(offset + 1, scale))}
+              <div className="flex h-12 w-8 items-center justify-center" aria-label="ذبذبات صوتية بين المقعدين">
+                <span className="royal-wave-line" /><span className="royal-wave-line royal-wave-line-delay" /><span className="royal-wave-line royal-wave-line-short" />
               </div>
-            )}
-            <div className="flex w-full flex-col items-center gap-3">
-              {Array.from({ length: Math.ceil((maxSeats - 1 - safeHostSeatCount) / 2) }, (_, row) => {
-                const start = 1 + safeHostSeatCount + row * 2;
-                return <div key={start} className="flex items-end justify-center gap-3 sm:gap-5">{renderSeat(start)}{start + 1 < maxSeats && renderSeat(start + 1)}</div>;
-              })}
+              {renderSeat(1, Math.min(1.08, scale + 0.12))}
+            </div>
+            <div className="grid w-full grid-cols-5 gap-x-1 gap-y-3">
+              {Array.from({ length: 20 }, (_, offset) => renderSeat(offset + 2, scale))}
             </div>
           </div>
         ) : (
