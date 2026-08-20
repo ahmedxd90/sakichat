@@ -99,8 +99,9 @@ export default function StorePage({ onBack }: StorePageProps) {
           </button>
 
           {/* Main tabs */}
-          <div className="flex gap-3 text-sm">
+          <div className="flex items-center gap-2 text-sm">
             <span className="text-base font-black relative pb-1 text-[#222]">المتجر<span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-5 h-0.5 rounded-full" style={{ background: PRIMARY }} /></span>
+            <button onClick={() => setStoreTab("seat_skin")} className="px-2.5 py-1 rounded-full text-[11px] font-bold" style={{ background: `${SEAT_PRIMARY}18`, color: SEAT_PRIMARY, border: `1px solid ${SEAT_PRIMARY}40` }}>المقاعد</button>
           </div>
 
           {/* Bag button */}
@@ -127,7 +128,7 @@ export default function StorePage({ onBack }: StorePageProps) {
         </div>
 
         {/* Sub tabs */}
-        <div className="grid grid-cols-4 px-3 pb-3 gap-1.5" style={{ scrollbarWidth: "none" }}>
+        <div className="px-3 pb-3 gap-1.5" style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", scrollbarWidth: "none" }}>
           {currentTabs.map((tab) => {
             const isActive = storeTab === tab.id;
             return (

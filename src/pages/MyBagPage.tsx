@@ -120,10 +120,11 @@ export default function MyBagPage({ onBack }: MyBagPageProps) {
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#333" strokeWidth="2.5"><path d="M9 18l6-6-6-6" /></svg>
           </button>
           <BagTypeIcon type="bag" size={20} color={PRIMARY} /><h2 className="font-black text-lg" style={{ color: "#222" }}>حقيبة المتجر</h2>
+          <button onClick={() => setActiveTab("seat_skin")} className="mr-auto px-2.5 py-1 rounded-full text-[11px] font-bold" style={{ background: `${SEAT_PRIMARY}18`, color: SEAT_PRIMARY, border: `1px solid ${SEAT_PRIMARY}40` }}>المقاعد</button>
         </div>
 
         {/* Tabs */}
-        <div className="grid grid-cols-4 px-3 pb-3 gap-1.5" style={{ scrollbarWidth: "none" }}>
+        <div className="px-3 pb-3 gap-1.5" style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", scrollbarWidth: "none" }}>
           {TAB_CONFIG.map((tab) => (
             <button
               key={tab.id}
