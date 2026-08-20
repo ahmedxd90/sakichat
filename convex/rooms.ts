@@ -678,7 +678,8 @@ export const sendCustomGift = mutation({
       giftType: "custom", giftName: gift.name, giftEmoji: "🎁",
       price: total, customGiftId: resolvedId, createdAt: Date.now(),
     });
-    const isGlobal = total >= 500000 || (isLuckGift && (luckMultiplier ?? 0) >= 250);
+    // Only high-value gifts create a global flying banner. Local gift delivery remains unchanged.
+    const isGlobal = total >= 100000;
     const giftEmoji = isLuckGift ? "🍀" : "🎁";
     await ctx.db.insert("giftEvents", {
       roomId: args.roomId, senderId: userId, receiverId: args.receiverId,
