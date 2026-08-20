@@ -30,7 +30,7 @@ const TYPE_CONFIG: { id: ItemType; label: string; icon: string; accept: string; 
   { id: "frame", label: "إطار", icon: "frame", accept: "image/gif,image/png,image/webp,.svga", hint: "صورة GIF أو PNG أو SVGA" },
   { id: "bubble", label: "فقاعة دردشة", icon: "bubble", accept: "image/gif,image/png,image/webp", hint: "صورة GIF أو PNG" },
   { id: "cp", label: "خاتم CP", icon: "cp", accept: "image/gif,image/png,image/webp,.svga", hint: "صورة GIF أو PNG أو SVGA" },
-  { id: "seat_skin", label: "ستايل مقعد", icon: "seat", accept: "image/webp,image/png,image/gif", hint: "صورة WebP أو PNG (شكل المقعد)", isSeat: true },
+  { id: "seat_skin", label: "مقعد ملكي", icon: "seat", accept: "image/png,image/gif,image/webp,.svga", hint: "مفتوح/مقفول: PNG أو GIF أو SVGA", isSeat: true },
 ];
 
 const DEFAULT_SCALE = 1.3;
@@ -106,6 +106,10 @@ export default function UploadStoreItemPage({ onBack }: UploadStoreItemPageProps
   const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(null);
   const [frameThumbnailFile, setFrameThumbnailFile] = useState<File | null>(null);
   const [frameThumbnailPreview, setFrameThumbnailPreview] = useState<string | null>(null);
+  const [seatLockedFile, setSeatLockedFile] = useState<File | null>(null);
+  const [seatLockedPreview, setSeatLockedPreview] = useState<string | null>(null);
+  const [seatThumbnailFile, setSeatThumbnailFile] = useState<File | null>(null);
+  const [seatThumbnailPreview, setSeatThumbnailPreview] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [frameScale, setFrameScale] = useState(DEFAULT_SCALE);
   const [frameAccessType, setFrameAccessType] = useState<FrameAccessType>("normal");
@@ -115,9 +119,12 @@ export default function UploadStoreItemPage({ onBack }: UploadStoreItemPageProps
   // seat skin specific
   const [seatSkinVipMinLevel, setSeatSkinVipMinLevel] = useState("8");
   const [seatSkinIsVip, setSeatSkinIsVip] = useState(true);
+  const [seatRequiredRank, setSeatRequiredRank] = useState("normal");
   const fileRef = useRef<HTMLInputElement>(null);
   const thumbnailRef = useRef<HTMLInputElement>(null);
   const frameThumbnailRef = useRef<HTMLInputElement>(null);
+  const seatLockedRef = useRef<HTMLInputElement>(null);
+  const seatThumbnailRef = useRef<HTMLInputElement>(null);
 
   const myProfile = useQuery(api.profiles.getMyProfile);
   const generateUploadUrl = useMutation(api.store.generateUploadUrl);
@@ -128,6 +135,9 @@ export default function UploadStoreItemPage({ onBack }: UploadStoreItemPageProps
     setFile(null); setPreview(null);
     setThumbnailFile(null); setThumbnailPreview(null);
     setFrameThumbnailFile(null); setFrameThumbnailPreview(null);
+    setSeatLockedFile(null); setSeatLockedPreview(null);
+    setSeatThumbnailFile(null); setSeatThumbnailPreview(null);
+    setSeatRequiredRank("normal");
     setFrameScale(DEFAULT_SCALE);
     setFrameAccessType("normal");
     setEntryAccessType("normal");
@@ -138,6 +148,8 @@ export default function UploadStoreItemPage({ onBack }: UploadStoreItemPageProps
     if (fileRef.current) fileRef.current.value = "";
     if (thumbnailRef.current) thumbnailRef.current.value = "";
     if (frameThumbnailRef.current) frameThumbnailRef.current.value = "";
+    if (seatLockedRef.current) seatLockedRef.current.value = "";
+    if (seatThumbnailRef.current) seatThumbnailRef.current.value = "";
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -161,6 +173,20 @@ export default function UploadStoreItemPage({ onBack }: UploadStoreItemPageProps
     setFrameThumbnailPreview(URL.createObjectURL(f));
   };
 
+  const handleSeatLockedChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    setSeatLockedFile(f);
+    setSeatLockedPreview(URL.createObjectURL(f));
+  };
+
+  const handleSeatThumbnailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    setSeatThumbnailFile(f);
+    setSeatThumbnailPreview(URL.createObjectURL(f));
+  };
+
   const isFrameType = selectedType === "frame";
   const isEntryType = selectedType === "entry";
   const isCpType = selectedType === "cp";
@@ -178,11 +204,15 @@ export default function UploadStoreItemPage({ onBack }: UploadStoreItemPageProps
 
   const currentIsFree = (isFrameType && frameAccessType !== "normal") ||
     (isEntryType && entryAccessType !== "normal") ||
-    (isSeatSkinType && seatSkinIsVip);
+    (isSeatSkinType && (seatSkinIsVip || seatRequiredRank !== "normal"));
 
   const handleUpload = async () => {
     if (!selectedType || !name.trim() || !file) {
-      toast.error("يرجى ملء جميع الحقول واختيار ملف");
+      toast.error("يرجى ملء جميع الحقول واختيار الملف المفتوح");
+      return;
+    }
+    if (isSeatSkinType && (!seatLockedFile || !seatThumbnailFile)) {
+      toast.error("يرجى رفع صورة المقعد المفتوح والمقفول والصورة المصغرة");
       return;
     }
     if (!currentIsFree && !price) {
@@ -218,8 +248,17 @@ export default function UploadStoreItemPage({ onBack }: UploadStoreItemPageProps
       const isFrameTypeLocal = selectedType === "frame";
       const isEntryTypeLocal = selectedType === "entry";
 
+      let lockedStorageId: string | undefined;
+      if (isSeatSkinType && seatLockedFile) {
+        const lockedUrl = await generateUploadUrl();
+        const lockedResult = await fetch(lockedUrl, { method: "POST", headers: { "Content-Type": seatLockedFile.type || "application/octet-stream" }, body: seatLockedFile });
+        const lockedJson = await lockedResult.json();
+        if (!lockedResult.ok || !lockedJson.storageId) throw new Error("فشل رفع صورة المقعد المقفول");
+        lockedStorageId = lockedJson.storageId;
+      }
+
       let thumbnailStorageId: string | undefined;
-      const thumbFileToUpload = isEntryTypeLocal ? thumbnailFile : ((isFrameTypeLocal || selectedType === "cp") ? frameThumbnailFile : (isSeatSkinType ? frameThumbnailFile : null));
+      const thumbFileToUpload = isEntryTypeLocal ? thumbnailFile : ((isFrameTypeLocal || selectedType === "cp") ? frameThumbnailFile : (isSeatSkinType ? seatThumbnailFile : null));
       if (thumbFileToUpload) {
         const thumbUrl = await generateUploadUrl();
         const thumbResult = await fetch(thumbUrl, { method: "POST", headers: { "Content-Type": thumbFileToUpload.type }, body: thumbFileToUpload });
@@ -233,7 +272,7 @@ export default function UploadStoreItemPage({ onBack }: UploadStoreItemPageProps
       } else if (isFrameTypeLocal || selectedType === "cp") {
         mediaType = isSvgaFile ? "svga" : file.type === "image/gif" ? "gif" : "png";
       } else if (isSeatSkinType) {
-        mediaType = "image";
+        mediaType = isSvgaFile ? "svga" : file.type === "image/gif" ? "gif" : "png";
       }
 
       const extraArgs: any = {};
@@ -270,6 +309,10 @@ export default function UploadStoreItemPage({ onBack }: UploadStoreItemPageProps
         extraArgs.isVipSeatSkin = true;
         extraArgs.vipSeatSkinMinLevel = parseInt(seatSkinVipMinLevel) || 8;
       }
+      if (isSeatSkinType) {
+        extraArgs.seatRequiredRank = seatSkinIsVip ? "normal" : seatRequiredRank;
+        extraArgs.seatAssetFormat = isSvgaFile ? "svga" : file.type === "image/gif" ? "gif" : "png";
+      }
 
       await createStoreItem({
         type: storeType as any,
@@ -278,6 +321,10 @@ export default function UploadStoreItemPage({ onBack }: UploadStoreItemPageProps
         durationDays: durationDays ? parseInt(durationDays) : undefined,
         mediaStorageId: json.storageId,
         thumbnailStorageId: thumbnailStorageId as any,
+        seatOpenStorageId: isSeatSkinType ? json.storageId : undefined,
+        seatLockedStorageId: isSeatSkinType ? lockedStorageId as any : undefined,
+        seatRequiredRank: extraArgs.seatRequiredRank,
+        seatAssetFormat: extraArgs.seatAssetFormat,
         frameScale: isFrameTypeLocal ? frameScale : undefined,
         mediaType,
         isVipFrame: extraArgs.isVipFrame,
@@ -473,53 +520,20 @@ export default function UploadStoreItemPage({ onBack }: UploadStoreItemPageProps
             {/* ── شرط الوصول لستايل المقعد ── */}
             {isSeatSkinType && (
               <div className="rounded-2xl p-4 space-y-3" style={{ background: "white", border: "1px solid #e8eef5" }}>
-                <p className="font-bold text-sm" style={{ color: "#222" }}>🔒 شرط الوصول لستايل المقعد</p>
-                <div className="grid grid-cols-2 gap-2">
-                  <button onClick={() => setSeatSkinIsVip(true)}
-                    className="flex items-center gap-2 p-3 rounded-2xl border transition-all"
-                    style={seatSkinIsVip
-                      ? { background: "#a855f715", border: "1.5px solid #a855f760", color: "#222" }
-                      : { background: "#f2f7fc", border: "1.5px solid #e8eef5", color: "#888" }
-                    }>
-                    <span className="text-xl">👑</span>
-                    <div className="text-right">
-                      <p className="font-bold text-xs">VIP حصري</p>
-                      <p className="text-[9px] opacity-70">يُضاف تلقائياً</p>
-                    </div>
-                  </button>
-                  <button onClick={() => setSeatSkinIsVip(false)}
-                    className="flex items-center gap-2 p-3 rounded-2xl border transition-all"
-                    style={!seatSkinIsVip
-                      ? { background: `${SEAT_PRIMARY}15`, border: `1.5px solid ${SEAT_PRIMARY}60`, color: "#222" }
-                      : { background: "#f2f7fc", border: "1.5px solid #e8eef5", color: "#888" }
-                    }>
-                    <span className="text-xl">🛍️</span>
-                    <div className="text-right">
-                      <p className="font-bold text-xs">عام للشراء</p>
-                      <p className="text-[9px] opacity-70">يُباع للجميع</p>
-                    </div>
-                  </button>
+                <p className="font-bold text-sm" style={{ color: "#222" }}>🔒 من يستطيع شراء المقعد؟</p>
+                <div className="grid grid-cols-3 gap-2">
+                  {[{ id: "normal", label: "عادي", icon: "🛍️" }, { id: "marquis", label: "الماركيز", icon: "💠" }, { id: "sultan", label: "السلطان", icon: "🪽" }, { id: "king", label: "الملك", icon: "👑" }, { id: "emperor", label: "الإمبراطور", icon: "🦁" }].map((opt) => {
+                    const selected = !seatSkinIsVip && seatRequiredRank === opt.id;
+                    return <button key={opt.id} onClick={() => { setSeatSkinIsVip(false); setSeatRequiredRank(opt.id); }}
+                      className="flex flex-col items-center gap-1 p-2 rounded-xl border transition-all"
+                      style={selected ? { background: `${SEAT_PRIMARY}15`, border: `1.5px solid ${SEAT_PRIMARY}60`, color: "#222" } : { background: "#f2f7fc", border: "1.5px solid #e8eef5", color: "#888" }}>
+                      <span className="text-lg">{opt.icon}</span><span className="font-bold text-[10px]">{opt.label}</span>
+                    </button>;
+                  })}
                 </div>
-                {seatSkinIsVip && (
-                  <div>
-                    <p className="text-xs font-bold mb-1.5" style={{ color: "#555" }}>الحد الأدنى لمستوى VIP</p>
-                    <div className="flex gap-1.5 flex-wrap">
-                      {VIP_LEVELS.map((lvl) => (
-                        <button key={lvl} onClick={() => setSeatSkinVipMinLevel(String(lvl))}
-                          className="px-3 py-1.5 rounded-full text-xs font-bold transition-all"
-                          style={seatSkinVipMinLevel === String(lvl)
-                            ? { background: "#a855f7", color: "white" }
-                            : { background: "white", color: "#555", border: "1px solid #e8eef5" }
-                          }>
-                          VIP {lvl}
-                        </button>
-                      ))}
-                    </div>
-                    <p className="text-[10px] mt-1.5" style={{ color: "#a855f7" }}>
-                      👑 يظهر تلقائياً في الحقيبة لكل مستخدم VIP {seatSkinVipMinLevel}+
-                    </p>
-                  </div>
-                )}
+                <button onClick={() => setSeatSkinIsVip(true)} className="w-full py-2 rounded-xl text-xs font-bold border" style={seatSkinIsVip ? { background: "#a855f715", borderColor: "#a855f760", color: "#7c3aed" } : { background: "#f2f7fc", borderColor: "#e8eef5", color: "#888" }}>👑 VIP تلقائي (اختر المستوى)</button>
+                {seatSkinIsVip && <div className="flex gap-1.5 flex-wrap">{VIP_LEVELS.map((lvl) => <button key={lvl} onClick={() => setSeatSkinVipMinLevel(String(lvl))} className="px-3 py-1.5 rounded-full text-xs font-bold" style={seatSkinVipMinLevel === String(lvl) ? { background: "#a855f7", color: "white" } : { background: "white", color: "#555", border: "1px solid #e8eef5" }}>VIP {lvl}</button>)}</div>}
+                <p className="text-[10px]" style={{ color: "#888" }}>{seatSkinIsVip ? "يُضاف تلقائيًا للمستخدمين المؤهلين" : seatRequiredRank === "normal" ? "يظهر في المتجر ويُشترى بالسعر المحدد" : `متاح لرتبة ${seatRequiredRank} أو أعلى`}</p>
               </div>
             )}
 
@@ -642,14 +656,37 @@ export default function UploadStoreItemPage({ onBack }: UploadStoreItemPageProps
               {file && <p className="text-xs mt-1 text-center" style={{ color: "#10b981" }}>✅ {file.name}</p>}
             </div>
 
+            {isSeatSkinType && (
+              <>
+                <div className="rounded-2xl p-4 space-y-2" style={{ background: "white", border: "1px solid #e8eef5" }}>
+                  <p className="font-bold text-sm" style={{ color: "#222" }}>🔒 صورة المقعد المقفول</p>
+                  <p className="text-[10px]" style={{ color: "#888" }}>PNG أو GIF أو SVGA — تظهر عند قفل المقعد</p>
+                  <input ref={seatLockedRef} type="file" accept="image/png,image/gif,image/webp,.svga" onChange={handleSeatLockedChange} className="hidden" />
+                  <button onClick={() => seatLockedRef.current?.click()} className="w-full border-2 border-dashed rounded-xl p-4 flex flex-col items-center gap-2" style={{ borderColor: seatLockedPreview ? SEAT_PRIMARY : "#d1d5db", background: "#f9fafb" }}>
+                    {seatLockedPreview ? <img src={seatLockedPreview} alt="" className="w-28 h-28 object-contain rounded-xl" /> : <><span className="text-3xl">🔒</span><span className="text-xs" style={{ color: "#888" }}>اضغط لاختيار صورة المقعد المقفول</span></>}
+                  </button>
+                  {seatLockedFile && <p className="text-xs text-center" style={{ color: "#10b981" }}>✅ {seatLockedFile.name}</p>}
+                </div>
+                <div className="rounded-2xl p-4 space-y-2" style={{ background: "white", border: "1px solid #e8eef5" }}>
+                  <p className="font-bold text-sm" style={{ color: "#222" }}>🖼️ الصورة المصغرة للمتجر والحقيبة</p>
+                  <p className="text-[10px]" style={{ color: "#888" }}>PNG أو GIF أو JPG — هذه الصورة تظهر في البطاقات فقط</p>
+                  <input ref={seatThumbnailRef} type="file" accept="image/png,image/jpeg,image/webp,image/gif" onChange={handleSeatThumbnailChange} className="hidden" />
+                  <button onClick={() => seatThumbnailRef.current?.click()} className="w-full border-2 border-dashed rounded-xl p-4 flex flex-col items-center gap-2" style={{ borderColor: seatThumbnailPreview ? SEAT_PRIMARY : "#d1d5db", background: "#f9fafb" }}>
+                    {seatThumbnailPreview ? <img src={seatThumbnailPreview} alt="" className="w-28 h-28 object-contain rounded-xl" /> : <><span className="text-3xl">🖼️</span><span className="text-xs" style={{ color: "#888" }}>اضغط لاختيار صورة مصغرة</span></>}
+                  </button>
+                  {seatThumbnailFile && <p className="text-xs text-center" style={{ color: "#10b981" }}>✅ {seatThumbnailFile.name}</p>}
+                </div>
+              </>
+            )}
+
             {/* Thumbnail للإطار */}
-            {(isFrameType || isSeatSkinType) && (
+            {isFrameType && (
               <div className="rounded-2xl p-4 space-y-2" style={{ background: "white", border: "1px solid #e8eef5" }}>
                 <div className="flex items-center gap-2">
                   <span className="text-base">🖼️</span>
                   <div>
                     <p className="font-bold text-sm" style={{ color: "#222" }}>
-                      صورة مصغرة {isSeatSkinType ? "للمتجر" : "للإطار"}
+                      صورة مصغرة للإطار
                       <span className="font-normal text-xs opacity-60 mr-1">(اختياري)</span>
                     </p>
                     <p className="text-[10px]" style={{ color: "#aaa" }}>تظهر في المتجر والحقيبة — PNG أو JPG</p>

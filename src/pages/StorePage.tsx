@@ -11,13 +11,14 @@ interface StorePageProps {
   onBack: () => void;
 }
 
-type StoreTab = "entry" | "frame" | "bubble";
+type StoreTab = "entry" | "frame" | "bubble" | "seat_skin";
 
 const PRIMARY = "#00d4c5";
 const STORE_TABS: { id: StoreTab; label: string }[] = [
   { id: "entry", label: "الدخولية" },
   { id: "frame", label: "الإطارات" },
   { id: "bubble", label: "فقاعات الدردشة" },
+  { id: "seat_skin", label: "المقاعد الملكية" },
 ];
 
 function StoreTypeIcon({ type, size = 24, color = "#00a99d" }: { type: string; size?: number; color?: string }) {
@@ -217,8 +218,9 @@ function StoreItemCard({
   const isVideo = item.mediaUrl && (item.mediaUrl.includes(".mp4") || item.mediaUrl.includes("video") || item.mediaType === "mp4");
   const isEntry = item.type === "entry";
   const isFrame = item.type === "frame";
-  // للدخولية والإطار: استخدم الصورة المصغرة إن وجدت
-  const displayUrl = item.thumbnailUrl ? item.thumbnailUrl : item.mediaUrl;
+  const isSeat = item.type === "seat_skin";
+  // للمقاعد والإطارات والدخولية: استخدم الصورة المصغرة إن وجدت
+  const displayUrl = item.thumbnailUrl ? item.thumbnailUrl : (isSeat ? (item.seatOpenUrl ?? item.mediaUrl) : item.mediaUrl);
   const displayIsImage = item.thumbnailUrl ? true : !isVideo;
 
   return (
@@ -275,6 +277,8 @@ function StoreItemCard({
       {/* Name */}
       <div className="px-3 pt-2 pb-1">
         <p className="font-bold text-sm truncate" style={{ color: "#222" }}>{item.name}</p>
+        {isSeat && item.seatRequiredRank && item.seatRequiredRank !== "normal" && <p className="text-[10px] mt-1" style={{ color: "#8b5cf6" }}>👑 حصري لـ {item.seatRequiredRank}</p>}
+        {isSeat && (!item.seatRequiredRank || item.seatRequiredRank === "normal") && <p className="text-[10px] mt-1" style={{ color: "#10b981" }}>🛍️ متاح للشراء للجميع</p>}
       </div>
 
       {/* Price */}

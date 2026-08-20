@@ -13,6 +13,10 @@ export const createStoreItem = mutation({
     thumbnailStorageId: v.optional(v.id("_storage")),
     frameScale: v.optional(v.number()),
     mediaType: v.optional(v.string()),
+    seatOpenStorageId: v.optional(v.id("_storage")),
+    seatLockedStorageId: v.optional(v.id("_storage")),
+    seatRequiredRank: v.optional(v.string()),
+    seatAssetFormat: v.optional(v.string()),
     isVipFrame: v.optional(v.boolean()),
     vipFrameMinLevel: v.optional(v.number()),
     isSuperAdminFrame: v.optional(v.boolean()),
@@ -31,6 +35,8 @@ export const createStoreItem = mutation({
     const profile = await ctx.db.query("profiles").withIndex("by_userId", (q) => q.eq("userId", userId)).unique();
     if (!profile?.isSuperAdmin) throw new Error("هذه الميزة للمدير فقط");
     const mediaUrl = await ctx.storage.getUrl(args.mediaStorageId);
+    const seatOpenUrl = args.seatOpenStorageId ? (await ctx.storage.getUrl(args.seatOpenStorageId)) ?? undefined : undefined;
+    const seatLockedUrl = args.seatLockedStorageId ? (await ctx.storage.getUrl(args.seatLockedStorageId)) ?? undefined : undefined;
     const thumbnailUrl = args.thumbnailStorageId
       ? (await ctx.storage.getUrl(args.thumbnailStorageId)) ?? undefined
       : undefined;
@@ -41,6 +47,12 @@ export const createStoreItem = mutation({
       durationDays: args.durationDays,
       mediaStorageId: args.mediaStorageId,
       mediaUrl: mediaUrl ?? undefined,
+      seatOpenStorageId: args.seatOpenStorageId,
+      seatOpenUrl,
+      seatLockedStorageId: args.seatLockedStorageId,
+      seatLockedUrl,
+      seatRequiredRank: args.seatRequiredRank,
+      seatAssetFormat: args.seatAssetFormat,
       thumbnailStorageId: args.thumbnailStorageId,
       thumbnailUrl,
       isActive: true,
@@ -160,6 +172,12 @@ export const purchaseStoreItem = mutation({
       const minLevel = (item as any).vipSeatSkinMinLevel ?? 8;
       if (!profile.isVip || (profile.vipLevel ?? 0) < minLevel) throw new Error(`ستايل المقعد هذا حصري لـ VIP ${minLevel}+ ويُضاف تلقائياً`);
     }
+    const requiredRank = (item as any).seatRequiredRank ?? "normal";
+    const requiredLevel: Record<string, number> = { normal: 0, marquis: 3, "الماركيز": 3, sultan: 4, "السلطان": 4, king: 5, "الملك": 5, emperor: 6, "الإمبراطور": 6 };
+    const rankLevel = requiredLevel[requiredRank] ?? 0;
+    const profileLevel = profile.aristocracyLevel ?? 0;
+    const aristocracyActive = profileLevel > 0 && (!profile.aristocracyExpiresAt || profile.aristocracyExpiresAt > Date.now());
+    if (rankLevel > 0 && (!aristocracyActive || profileLevel < rankLevel)) throw new Error(`هذا المقعد متاح لرتبة ${requiredRank} أو أعلى فقط`);
     const coins = profile.goldCoins ?? 0;
     if (coins < item.price) throw new Error(`رصيدك غير كافٍ. تحتاج ${item.price.toLocaleString()} عملة`);
     await ctx.db.patch(profile._id, { goldCoins: coins - item.price });

@@ -7,13 +7,14 @@ import { toast } from "../lib/toast";
 import SVGAPlayer, { isSvgaUrl } from "../components/SVGAPlayer";
 import { getAristocracyConfig } from "../components/AristocracyBadge";
 
-type BagTab = "frame" | "entry" | "bubble";
+type BagTab = "frame" | "entry" | "bubble" | "seat_skin";
 
 const PRIMARY = "#00d4c5";
 const TAB_CONFIG: { id: BagTab; label: string; icon: string }[] = [
   { id: "entry", label: "دخولية", icon: "entry" },
   { id: "frame", label: "إطار", icon: "frame" },
   { id: "bubble", label: "فقاعة", icon: "bubble" },
+  { id: "seat_skin", label: "مقاعد", icon: "seat" },
 ];
 
 function BagTypeIcon({ type, size = 18, color = "#00a99d" }: { type: string; size?: number; color?: string }) {
@@ -21,6 +22,7 @@ function BagTypeIcon({ type, size = 18, color = "#00a99d" }: { type: string; siz
   if (type === "entry") return <svg {...p}><path d="M7 3h8l3 3v15H7z" /><path d="M15 3v4h4M10 11h5M10 15h5" /></svg>;
   if (type === "frame") return <svg {...p}><rect x="4" y="4" width="16" height="16" rx="3" /><circle cx="12" cy="12" r="4" /><path d="M8 4v3M16 4v3M4 8h3M17 8h3M4 16h3M17 16h3M8 20v-3M16 20v-3" /></svg>;
   if (type === "bag") return <svg {...p}><path d="M5 8h14l1 12H4z" /><path d="M8 8V6a4 4 0 0 1 8 0v2" /><path d="M9 12h6" /></svg>;
+  if (type === "seat") return <svg {...p}><path d="M5 5h14v8H5z" /><path d="M7 13v5M17 13v5M4 18h16" /></svg>;
   return <svg {...p}><path d="M4 6h16M4 12h11M4 18h7" /><circle cx="18" cy="17" r="3" /><path d="M18 15.5v1.7l1.2.8" /></svg>;
 }
 

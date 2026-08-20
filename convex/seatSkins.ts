@@ -31,6 +31,8 @@ export const getMySeatSkins = query({
         (s.mediaStorageId
           ? (await ctx.storage.getUrl(s.mediaStorageId)) ?? undefined
           : undefined);
+      const openUrl = (s as any).seatOpenUrl ?? mUrl;
+      const lockedUrl = (s as any).seatLockedUrl ?? ((s as any).seatLockedStorageId ? (await ctx.storage.getUrl((s as any).seatLockedStorageId)) ?? undefined : undefined);
       const tUrl =
         s.thumbnailUrl ??
         (s.thumbnailStorageId
@@ -38,7 +40,7 @@ export const getMySeatSkins = query({
           : undefined);
       result.push({
         ...ui,
-        storeItem: { ...s, mediaUrl: mUrl, thumbnailUrl: tUrl },
+        storeItem: { ...s, mediaUrl: openUrl, seatOpenUrl: openUrl, seatLockedUrl: lockedUrl, thumbnailUrl: tUrl },
         isExpired: ui.expiresAt ? ui.expiresAt < now : false,
         isActive: profile.activeSeatSkinId === ui.storeItemId,
       });
@@ -62,6 +64,8 @@ export const getMySeatSkins = query({
           (s.mediaStorageId
             ? (await ctx.storage.getUrl(s.mediaStorageId)) ?? undefined
             : undefined);
+        const openUrl = (s as any).seatOpenUrl ?? mUrl;
+        const lockedUrl = (s as any).seatLockedUrl ?? ((s as any).seatLockedStorageId ? (await ctx.storage.getUrl((s as any).seatLockedStorageId)) ?? undefined : undefined);
         const tUrl =
           s.thumbnailUrl ??
           (s.thumbnailStorageId
@@ -77,7 +81,7 @@ export const getMySeatSkins = query({
           purchasedAt: 0,
           isExpired: false,
           isVipAutoAdded: true,
-          storeItem: { ...s, mediaUrl: mUrl, thumbnailUrl: tUrl },
+          storeItem: { ...s, mediaUrl: openUrl, seatOpenUrl: openUrl, seatLockedUrl: lockedUrl, thumbnailUrl: tUrl },
         });
       }
     }
@@ -108,6 +112,12 @@ export const setActiveSeatSkin = mutation({
           throw new Error(`ستايل المقعد حصري لـ VIP ${minLevel}+`);
         }
       }
+      const requiredRank = (item as any)?.seatRequiredRank ?? "normal";
+      const requiredLevel: Record<string, number> = { normal: 0, marquis: 3, "الماركيز": 3, sultan: 4, "السلطان": 4, king: 5, "الملك": 5, emperor: 6, "الإمبراطور": 6 };
+      const rankLevel = requiredLevel[requiredRank] ?? 0;
+      const profileLevel = profile.aristocracyLevel ?? 0;
+      const aristocracyActive = profileLevel > 0 && (!profile.aristocracyExpiresAt || profile.aristocracyExpiresAt > Date.now());
+      if (rankLevel > 0 && (!aristocracyActive || profileLevel < rankLevel)) throw new Error(`هذا المقعد متاح لرتبة ${requiredRank} أو أعلى فقط`);
       await ctx.db.patch(profile._id, { activeSeatSkinId: args.storeItemId });
     } else {
       await ctx.db.patch(profile._id, { activeSeatSkinId: undefined });

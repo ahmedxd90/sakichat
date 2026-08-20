@@ -99,11 +99,15 @@ export const getRoomMembersEnhanced = query({
 
         // ── ستايل المقعد النشط ──
         let seatSkinUrl: string | undefined;
+        let seatLockedSkinUrl: string | undefined;
+        let seatThumbnailUrl: string | undefined;
         if (profile?.activeSeatSkinId) {
           try {
             const sk = await ctx.db.get(profile.activeSeatSkinId as any);
             if (sk) {
-              seatSkinUrl = await resolveUrl(ctx, sk.mediaUrl, sk.mediaStorageId) ?? undefined;
+              seatSkinUrl = await resolveUrl(ctx, (sk as any).seatOpenUrl ?? sk.mediaUrl, (sk as any).seatOpenStorageId ?? sk.mediaStorageId) ?? undefined;
+              seatLockedSkinUrl = await resolveUrl(ctx, (sk as any).seatLockedUrl, (sk as any).seatLockedStorageId) ?? undefined;
+              seatThumbnailUrl = await resolveUrl(ctx, sk.thumbnailUrl, sk.thumbnailStorageId) ?? undefined;
             }
           } catch (_) {}
         }
@@ -126,6 +130,8 @@ export const getRoomMembersEnhanced = query({
           vipConfig,
           activeChatBubbleUrl,
           seatSkinUrl,
+          seatLockedSkinUrl,
+          seatThumbnailUrl,
         };
       })
     );
