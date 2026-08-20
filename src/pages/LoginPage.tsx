@@ -385,6 +385,15 @@ function AndroidOnlyLogin({
 }
 
 // ── Main Login Page ──
+function withOAuthTimeout<T>(promise: Promise<T>, timeoutMs = 12000) {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) => {
+      window.setTimeout(() => reject(new Error("لم يستجب خادم تسجيل الدخول خلال المهلة المحددة")), timeoutMs);
+    }),
+  ]);
+}
+
 export default function LoginPage() {
   const { signIn } = useAuthActions();
   const convex = useConvex();
@@ -410,13 +419,13 @@ export default function LoginPage() {
         // Android uses the browser OAuth flow. Ask Convex for its signed,
         // stateful redirect first, save the verifier, then open Chrome.
         const redirectTo = "saki.chat.co://callback";
-        const result = await convex.action(api.auth.signIn, {
+        const result = await withOAuthTimeout(convex.action(api.auth.signIn, {
           provider: "google",
           params: { redirectTo },
-        });
+        }));
         if (!result?.redirect || !result.verifier) throw new Error("OAuth redirect was not created");
         localStorage.setItem(CONVEX_AUTH_OAUTH_VERIFIER_STORAGE_KEY, result.verifier);
-        await Browser.open({ url: String(result.redirect) });
+        await withOAuthTimeout(Browser.open({ url: String(result.redirect) }), 10000);
       } else {
         await signIn("google", { redirectTo: window.location.origin });
       }
