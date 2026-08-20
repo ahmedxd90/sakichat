@@ -1,5 +1,5 @@
-import { useEffect, useRef } from "react";
 import { App } from "@capacitor/app";
+import { useEffect, useRef } from "react";
 import { Browser } from "@capacitor/browser";
 import { Capacitor } from "@capacitor/core";
 import { useAuthActions } from "@convex-dev/auth/react";
