@@ -223,13 +223,22 @@ export default function FruitPartyGame({ onBack, roomId }: Props) {
     return () => window.clearTimeout(timer);
   }, [phase, roomId, timeLeft]);
 
-  // Auto-start and recover the game if a scheduled server task was delayed.
+  // Bootstrap the round immediately on mount, then keep a small recovery loop.
+  // The first version waited for a null query and silently swallowed server errors,
+  // which left Android stuck on "لا توجد جولة betting فعالة".
   useEffect(() => {
-    // Convex returns undefined while loading; only recover after the query settles to null.
-    if (currentRound === undefined) return;
+    if (!roomId) return;
     let cancelled = false;
     const recover = () => {
-      if (!cancelled)         ensureRoomRound().catch(() => {});
+      if (cancelled) return;
+      ensureRoomRound().catch((error: any) => {
+        if (!cancelled) {
+          setDiagnostic({
+            title: "تعذر إنشاء الجولة من الخادم",
+            details: `roomId=${String(roomId)} • ${error?.message ?? String(error)}`,
+          });
+        }
+      });
     };
     recover();
     const timer = window.setInterval(recover, 2000);
@@ -237,7 +246,7 @@ export default function FruitPartyGame({ onBack, roomId }: Props) {
       cancelled = true;
       window.clearInterval(timer);
     };
-  }, [currentRound, ensureRoomRound]);
+  }, [roomId, ensureRoomRound]);
 
   const handleBet = async (fruitKey: string) => {
     if (!currentRound || phase !== "betting" || timeLeft === 0 || placing) return;
