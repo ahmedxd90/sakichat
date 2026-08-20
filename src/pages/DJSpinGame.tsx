@@ -34,7 +34,7 @@ function makeReels(round: number) {
   return Array.from({ length: 15 }, (_, index) => pickSymbol(round * 17 + index * 31 + 11));
 }
 
-export default function DJSpinGame({ onBack }: { roomId?: string; onBack: () => void }) {
+export default function DJSpinGame({ roomId, onBack }: { roomId?: string; onBack: () => void }) {
   const [bet, setBet] = useState(500);
   const [selectedSymbol, setSelectedSymbol] = useState<SymbolKey>("headphones");
   const [reels, setReels] = useState(() => makeReels(1));
