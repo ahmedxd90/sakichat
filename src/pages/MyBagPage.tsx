@@ -56,6 +56,7 @@ export default function MyBagPage({ onBack }: MyBagPageProps) {
   const [sendingGift, setSendingGift] = useState<any>(null);
 
   const myProfile = useQuery(api.profiles.getMyProfile);
+  const isVip8Plus = Boolean(myProfile?.isSuperAdmin || (myProfile?.isVip && (myProfile?.vipLevel ?? 0) >= 8));
 
   const handleToggle = async (ui: any) => {
     const isSpecial = ui.isVipAutoAdded || ui.isSuperAdminAutoAdded;

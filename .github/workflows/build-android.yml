@@ -52,7 +52,7 @@ jobs:
       - name: Upload APK and AAB artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: saki-chat-android-debug-1.0.133
+          name: saki-chat-android-debug-1.0.134
           path: |
             android/app/build/outputs/apk/debug/app-debug.apk
             android/app/build/outputs/bundle/debug/app-debug.aab
@@ -63,8 +63,8 @@ jobs:
         if: github.event_name == 'workflow_dispatch'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: saki-chat-1.0.133-seat-skins-fix
-          name: Saki Chat 1.0.133 — Seat Skins Fix APK
+          tag_name: saki-chat-1.0.134-vip8-fix
+          name: Saki Chat 1.0.134 — VIP8 Fix APK
           prerelease: true
           generate_release_notes: false
           files: android/app/build/outputs/apk/debug/app-debug.apk
