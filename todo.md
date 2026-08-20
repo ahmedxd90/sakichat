@@ -1514,3 +1514,4 @@
 - [ ] تشخيص توقف زر Google على «جاري الفتح» قبل فتح المتصفح وإضافة fallback آمن.
 - [ ] إضافة صفحة تشخيص أخطاء Google تعرض مرحلة الفشل والرسالة والكود دون أسرار.
 - [ ] إصلاح مهلة Convex auth:signIn التي تمنع إنشاء رابط Google قبل فتح Chrome.
+- [ ] إصلاح خطأ Failed to fetch الظاهر في Android WebView أثناء بدء Google OAuth.

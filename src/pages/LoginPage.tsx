@@ -2,11 +2,11 @@ import { useAuthActions } from "@convex-dev/auth/react";
 import { Capacitor } from "@capacitor/core";
 import { useState, useRef, useEffect, useMemo } from "react";
 import { toast } from "../lib/toast";
-import { useConvex, useMutation } from "convex/react";
+import { useMutation } from "convex/react";
 import { Browser } from "@capacitor/browser";
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "../../convex/_generated/api";
-import { CONVEX_AUTH_OAUTH_VERIFIER_STORAGE_KEY } from "../lib/convexClient";
+import { CONVEX_AUTH_OAUTH_VERIFIER_STORAGE_KEY, convexUrl } from "../lib/convexClient";
 import { ARAB_COUNTRIES } from "../data/countries";
 import { useDeviceFingerprint } from "../hooks/useDeviceFingerprint";
 
@@ -397,8 +397,7 @@ function withOAuthTimeout<T>(promise: Promise<T>, timeoutMs = 12000) {
 
 export default function LoginPage() {
   const { signIn } = useAuthActions();
-  const convex = useConvex();
-  const convexHttp = useMemo(() => new ConvexHttpClient((convex as any).url), [convex]);
+  const convexHttp = useMemo(() => new ConvexHttpClient(convexUrl), []);
   const [showRegister, setShowRegister] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
