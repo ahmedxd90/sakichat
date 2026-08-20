@@ -386,6 +386,18 @@ function AndroidOnlyLogin({
 }
 
 // ── Main Login Page ──
+function describeOAuthError(error: any) {
+  const values = [
+    error?.message,
+    error?.cause?.message,
+    error?.error,
+    error?.data?.message,
+    error?.data?.error,
+    error?.stack,
+  ].filter(Boolean).map((value) => String(value).replace(/https?:\/\/[^\s]+/g, "[url hidden]"));
+  return Array.from(new Set(values)).join(" | ").slice(0, 700);
+}
+
 function withOAuthTimeout<T>(promise: Promise<T>, timeoutMs = 12000) {
   return Promise.race([
     promise,
@@ -460,7 +472,8 @@ export default function LoginPage() {
         await signIn("google", { redirectTo: window.location.origin });
       }
     } catch (err: any) {
-      const message = String(err?.message ?? "");
+      const rawDetails = describeOAuthError(err);
+      const message = rawDetails || String(err?.message ?? "");
       const errorCode = String(err?.code ?? err?.errorCode ?? "").trim();
       const lowerMessage = message.toLowerCase();
       const cancelled = lowerMessage.includes("cancel") || errorCode === "SIGN_IN_CANCELED";
@@ -484,7 +497,8 @@ export default function LoginPage() {
         toast.error(`${nativeHint} [${providerCode}]${diagnostic}`);
       }
       setSubmitting(false);
-      setOauthDiagnostics({ stage: "تعذر بدء تسجيل الدخول", message: message || "لم يتم فتح Chrome أو لم يستجب خادم OAuth.", code: errorCode || "UNKNOWN" });
+      const networkDetails = `المنصة: ${Capacitor.getPlatform()} | الاتصال: ${navigator.onLine ? "متصل" : "غير متصل"} | Convex: ${convexUrl}`;
+      setOauthDiagnostics({ stage: "تعذر بدء تسجيل الدخول", message: `${message || "لم يتم فتح Chrome أو لم يستجب خادم OAuth."} | ${networkDetails}`, code: errorCode || (message.includes("IOException") ? "ANDROID_NETWORK_IO" : "UNKNOWN") });
     }
   };
 

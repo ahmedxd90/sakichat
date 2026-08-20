@@ -1519,3 +1519,4 @@
 - [ ] معالجة استمرار Failed to fetch بمسار OAuth Native أو endpoint خادم وسيط قابل للاختبار على Android.
 - [ ] إصلاح NullPointerException عند استدعاء HTTP Native والتأكد من تسجيل Plugin في Android.
 - [ ] إصلاح IOException عند فتح اتصال HTTPS من HTTP Native وإظهار تفاصيل الشبكة الحقيقية.
+- [ ] عرض السبب الأصلي لاتصال Android داخل صفحة تشخيص Google بدل IOException/UNKNOWN فقط.
