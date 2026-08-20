@@ -539,8 +539,8 @@ function RoomPageInner({ roomId, onBack, onBackgroundLeave, onViewProfile, onMes
         }
       }
 
-      // The wide flying banner is reserved for gifts priced at 100K or more.
-      if (ev.price >= 100000) {
+      // Only luck results x1000+ get the wide/global banner; all other gift banners stay hidden.
+      if (isLuckGift && Number(ev.luckMultiplier ?? 0) >= 1000) {
         const bannerKey = `${ev.senderName}|${ev.receiverId}|${ev.giftName}`;
         setFlyingBanners((prev) => {
           const existing = prev.find((b) => b.key === bannerKey);
