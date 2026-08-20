@@ -8,9 +8,9 @@ export default function GlobalLiveEventBanner() {
   const lastRef = useRef<string | null>(null);
 
   useEffect(() => {
-    const gift = events?.gifts?.[0];
+    // Gift flyout banners are intentionally disabled. Keep join notifications only.
     const join = events?.joins?.[0];
-    const next = gift && (!join || gift.createdAt >= join.joinedAt) ? { ...gift, kind: "gift" } : join ? { ...join, kind: "join" } : null;
+    const next = join ? { ...join, kind: "join" } : null;
     if (!next) return;
     const key = `${next.kind}:${next._id}`;
     if (lastRef.current === null) { lastRef.current = key; return; }
@@ -19,7 +19,7 @@ export default function GlobalLiveEventBanner() {
     setItem(next);
     const timer = window.setTimeout(() => setItem(null), next.kind === "gift" ? 5200 : 3600);
     return () => window.clearTimeout(timer);
-  }, [events?.gifts?.[0]?._id, events?.joins?.[0]?._id]);
+  }, [events?.joins?.[0]?._id]);
 
   if (!item) return null;
   const isGift = item.kind === "gift";
