@@ -6,6 +6,9 @@ import SeatEmojiOverlay from "../SeatEmojiOverlay";
 import { SeatEmojiItem } from "../../types/room";
 import { AgentSeatIcon } from "../AgentChargeBadge";
 import { AristocracyName } from "../AristocracyBadge";
+import SVGAPlayer from "../SVGAPlayer";
+
+const VOICE_RIPPLE_SRC = "/assets/voice-ripple-purple.svga";
 
 const ROYAL_OPEN_SEAT_21_22 = "/manus-storage/royal-seat-open-21-22_b29cd006.png";
 const ROYAL_LOCKED_SEAT_21_22 = "/manus-storage/royal-seat-locked-21-22_cc0cafc8.png";
@@ -219,6 +222,11 @@ const GlassBubble = memo(function GlassBubble({
       {seatSkinUrl && (
         <div className="absolute inset-0 rounded-full pointer-events-none" style={{ overflow: "hidden", zIndex: 0 }}>
           <img src={seatSkinUrl} alt="" className="w-full h-full object-cover" />
+        </div>
+      )}
+      {isSpeaking && !isEmpty && (
+        <div className="absolute pointer-events-none" style={{ inset: -14, zIndex: 2, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <SVGAPlayer src={VOICE_RIPPLE_SRC} width={size + 28} height={size + 28} loop className="pointer-events-none" />
         </div>
       )}
       {!isEmpty && (
@@ -524,6 +532,11 @@ function KaraokeSeat({ seatIndex, member, myProfile, isMuted, isSpeaking, isLock
     <div className="flex min-w-0 flex-col items-center gap-1.5">
       <button data-seat={seatIndex} type="button" onClick={onPress} className="relative flex items-center justify-center rounded-full outline-none transition-transform active:scale-95" style={{ width: size, height: size }} aria-label={isEmpty ? `فتح المقعد ${seatIndex}` : `مقعد ${displayName}`}>
         {isActuallySpeaking && <VoiceRings color={waveColor} isMe={isMe} al={aristoLevel} size={size} />}
+        {isActuallySpeaking && (
+          <div className="absolute pointer-events-none" style={{ inset: -14, zIndex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <SVGAPlayer src={VOICE_RIPPLE_SRC} width={size + 28} height={size + 28} loop className="pointer-events-none" />
+          </div>
+        )}
         <div className="relative z-10 flex h-full w-full items-center justify-center rounded-full border-2" style={{ borderColor: isActuallySpeaking ? waveColor : isMain ? "#f0abfc" : "rgba(232,121,249,.6)", background: isEmpty ? "linear-gradient(145deg,rgba(255,255,255,.2),rgba(168,85,247,.18))" : "rgba(24,5,45,.2)", boxShadow: isActuallySpeaking ? `0 0 0 3px ${waveColor}66,0 0 24px ${waveColor}cc` : aristoLevel >= 7 ? "0 0 18px rgba(255,215,0,.42)" : `0 0 16px rgba(217,70,239,.28)` }}>
           {isEmpty ? <svg width={isMain ? 34 : 24} height={isMain ? 34 : 24} viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.9)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="2" width="6" height="12" rx="3" /><path d="M5 10a7 7 0 0 0 14 0M12 17v4M8 21h8" /></svg> : <UserAvatar userId={profile?.userId} avatarUrl={profile?.avatarUrl} name={profile?.name} size={size - 8} showFrame={!profile?.isPrivateProfile} isVip={Boolean(profile?.isVip)} vipLevel={profile?.vipLevel} isSuperAdmin={Boolean(profile?.isSuperAdmin)} />}
         </div>
