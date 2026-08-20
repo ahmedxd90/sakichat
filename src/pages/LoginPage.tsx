@@ -1,9 +1,10 @@
 import { useAuthActions } from "@convex-dev/auth/react";
 import { Capacitor } from "@capacitor/core";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { toast } from "../lib/toast";
 import { useConvex, useMutation } from "convex/react";
 import { Browser } from "@capacitor/browser";
+import { ConvexHttpClient } from "convex/browser";
 import { api } from "../../convex/_generated/api";
 import { CONVEX_AUTH_OAUTH_VERIFIER_STORAGE_KEY } from "../lib/convexClient";
 import { ARAB_COUNTRIES } from "../data/countries";
@@ -397,6 +398,7 @@ function withOAuthTimeout<T>(promise: Promise<T>, timeoutMs = 12000) {
 export default function LoginPage() {
   const { signIn } = useAuthActions();
   const convex = useConvex();
+  const convexHttp = useMemo(() => new ConvexHttpClient((convex as any).url), [convex]);
   const [showRegister, setShowRegister] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -429,10 +431,10 @@ export default function LoginPage() {
         // stateful redirect first, save the verifier, then open Chrome.
         const redirectTo = "saki.chat.co://callback";
         setOauthDiagnostics({ stage: "جاري الاتصال بخادم تسجيل الدخول", message: `سيتم استخدام رابط العودة ${redirectTo}` });
-        const result = await withOAuthTimeout(convex.action(api.auth.signIn, {
+        const result = await withOAuthTimeout(convexHttp.action(api.auth.signIn, {
           provider: "google",
           params: { redirectTo },
-        }));
+        }), 15000);
         if (!result?.redirect || !result.verifier) throw new Error("OAuth redirect was not created");
         localStorage.setItem(CONVEX_AUTH_OAUTH_VERIFIER_STORAGE_KEY, result.verifier);
         setOauthDiagnostics({ stage: "تم إنشاء رابط Google", message: "جاري فتح Chrome لاختيار الحساب." });
