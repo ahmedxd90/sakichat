@@ -31,7 +31,7 @@ interface MyBagPageProps {
 }
 
 export default function MyBagPage({ onBack }: MyBagPageProps) {
-  const [activeTab, setActiveTab] = useState<BagTab>("entry");
+  const [activeTab, setActiveTab] = useState<BagTab>("seat_skin");
   const inventory = useQuery(
     api.store.getMyInventory,
     activeTab !== "gifts" && activeTab !== "seat_skin" ? { type: activeTab as any } : "skip"

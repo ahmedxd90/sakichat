@@ -32,7 +32,7 @@ function StoreTypeIcon({ type, size = 24, color = "#00a99d" }: { type: string; s
 export default function StorePage({ onBack }: StorePageProps) {
   const [showUpload, setShowUpload] = useState(false);
   const [showBag, setShowBag] = useState(false);
-  const [storeTab, setStoreTab] = useState<StoreTab>("entry");
+  const [storeTab, setStoreTab] = useState<StoreTab>("seat_skin");
   const [buying, setBuying] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
 
