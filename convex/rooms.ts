@@ -1228,7 +1228,11 @@ export const getRoomMembers = query({
         try {
           const skinItem = await ctx.db.get(profile.activeSeatSkinId as any);
           if (skinItem) {
-            seatSkinUrl = await resolveUrl(ctx, skinItem.mediaUrl, skinItem.mediaStorageId);
+            seatSkinUrl = await resolveUrl(
+              ctx,
+              (skinItem as any).seatOpenUrl ?? skinItem.mediaUrl,
+              (skinItem as any).seatOpenStorageId ?? skinItem.mediaStorageId,
+            ) ?? await resolveUrl(ctx, (skinItem as any).thumbnailUrl, (skinItem as any).thumbnailStorageId);
           }
         } catch (_) {}
       }

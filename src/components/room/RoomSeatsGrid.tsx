@@ -240,7 +240,7 @@ const RegularSeat = memo(function RegularSeat({
   isLocked: boolean; isPK: boolean; pkSide: string | null; isHostSeat: boolean; isRoyalTheme?: boolean;
   onPress: () => void; scale?: number;
 }) {
-  const seatSkinUrl: string | undefined = member?.seatSkinUrl ?? undefined;
+  const seatSkinUrl: string | undefined = member?.seatSkinUrl ?? member?.profile?.seatSkinUrl ?? undefined;
   const isOwnerSeat = member?.role === "owner";
   const isAdminSeat = member?.role === "admin";
   // Voice mute is local-only; member.isMuted is an obsolete administrative field.
