@@ -45,7 +45,7 @@ const MIC_PERMISSIONS = [
 
 const SEAT_OPTIONS = [5, 10, 15, 20];
 
-type SubPage = null | "name" | "notice" | "category" | "theme" | "backgrounds" | "reward" | "admins" | "banned" | "logs" | "lock" | "seats";
+type SubPage = null | "name" | "notice" | "category" | "theme" | "backgrounds" | "reward" | "admins" | "banned" | "logs" | "lock" | "seats" | "seatPermission";
 
 export default function RoomSettingsPage({ roomId, onBack }: RoomSettingsPageProps) {
   const room = useQuery(api.rooms.getRoom, { roomId });
@@ -231,6 +231,42 @@ export default function RoomSettingsPage({ roomId, onBack }: RoomSettingsPagePro
               <span className={`text-sm font-bold ${room.roomCategory === cat.id ? "text-cyan-600" : "text-gray-600"}`}>{cat.label}</span>
             </button>
           ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (subPage === "seatPermission") {
+    const permission = room.seatPermission ?? "all";
+    return (
+      <div className="flex flex-col h-screen bg-[#f7f7f9] text-right" dir="rtl">
+        {renderHeader("من يستخدم المقاعد؟")}
+        <div className="flex-1 overflow-y-auto p-5">
+          <div className="mb-5 rounded-3xl bg-white p-5 shadow-sm border border-gray-100">
+            <h2 className="text-base font-black text-gray-800">صلاحية استخدام المقاعد</h2>
+            <p className="mt-2 text-xs leading-6 text-gray-500">اختر من يستطيع الصعود إلى مقاعد الغرفة. يتم تطبيق الاختيار من الخادم أيضًا لحماية الصلاحية.</p>
+          </div>
+          <div className="space-y-3">
+            {[
+              { value: "all", title: "جميع الأعضاء", description: "يمكن لكل عضو في الغرفة استخدام المقاعد المتاحة.", icon: "👥" },
+              { value: "admins", title: "المالك والمشرفون فقط", description: "يُسمح بالجلوس للمالك والمشرفين فقط، ويُمنع باقي الأعضاء.", icon: "👑" },
+            ].map((option) => {
+              const selected = permission === option.value;
+              return (
+                <button key={option.value} type="button" onClick={() => handleUpdate({ seatPermission: option.value })}
+                  className={`w-full rounded-3xl border-2 p-4 text-right transition-all active:scale-[0.98] ${selected ? "border-cyan-400 bg-cyan-50" : "border-gray-100 bg-white"}`}>
+                  <div className="flex items-center gap-3">
+                    <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gray-50 text-2xl">{option.icon}</span>
+                    <span className="flex-1">
+                      <span className={`block text-sm font-black ${selected ? "text-cyan-700" : "text-gray-800"}`}>{option.title}</span>
+                      <span className="mt-1 block text-xs leading-5 text-gray-500">{option.description}</span>
+                    </span>
+                    <span className={`flex h-6 w-6 items-center justify-center rounded-full border-2 ${selected ? "border-cyan-500 bg-cyan-500 text-white" : "border-gray-300 text-transparent"}`}>✓</span>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
         </div>
       </div>
     );
@@ -536,12 +572,20 @@ export default function RoomSettingsPage({ roomId, onBack }: RoomSettingsPagePro
             <span className="text-sm font-medium text-gray-800">المكافأة</span>
           </div>
           
-          <div onClick={() => setSubPage("seats")} className="flex items-center justify-between px-4 py-3.5 active:bg-gray-50 cursor-pointer">
+          <div onClick={() => setSubPage("seats")} className="flex items-center justify-between px-4 py-3.5 border-b border-gray-100 active:bg-gray-50 cursor-pointer">
             <div className="flex items-center space-x-2 space-x-reverse">
               <span className="text-gray-300 text-xs">◀</span>
               <span className="text-sm text-gray-500 font-medium">{room.maxSeats || 8} مقاعد</span>
             </div>
             <span className="text-sm font-medium text-gray-800">عدد المقاعد</span>
+          </div>
+
+          <div onClick={() => setSubPage("seatPermission")} className="flex items-center justify-between px-4 py-3.5 active:bg-gray-50 cursor-pointer">
+            <div className="flex items-center space-x-2 space-x-reverse">
+              <span className="text-gray-300 text-xs">◀</span>
+              <span className="text-sm text-gray-500 font-medium">{(room.seatPermission ?? "all") === "admins" ? "المالك والمشرفون فقط" : "جميع الأعضاء"}</span>
+            </div>
+            <span className="text-sm font-medium text-gray-800">من يستخدم المقاعد؟</span>
           </div>
         </div>
 
