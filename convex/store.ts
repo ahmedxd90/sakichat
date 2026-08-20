@@ -170,7 +170,7 @@ export const purchaseStoreItem = mutation({
     if ((item as any).isAristocracyEntry) throw new Error("هذه الدخولية حصرية لمستخدمي الأرستقراطية وتُضاف تلقائياً");
     if ((item as any).isVipSeatSkin) {
       const minLevel = (item as any).vipSeatSkinMinLevel ?? 8;
-      if (!profile.isVip || (profile.vipLevel ?? 0) < minLevel) throw new Error(`ستايل المقعد هذا حصري لـ VIP ${minLevel}+ ويُضاف تلقائياً`);
+      if (!profile.isVip || (profile.vipLevel ?? 0) < minLevel) throw new Error(`ستايل المقعد هذا حصري لـ PRO ${minLevel}+ ويُضاف تلقائياً`);
     }
     const requiredRank = (item as any).seatRequiredRank ?? "normal";
     const requiredLevel: Record<string, number> = { normal: 0, marquis: 3, "الماركيز": 3, sultan: 4, "السلطان": 4, king: 5, "الملك": 5, emperor: 6, "الإمبراطور": 6 };

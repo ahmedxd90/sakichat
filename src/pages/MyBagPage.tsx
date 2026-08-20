@@ -56,7 +56,8 @@ export default function MyBagPage({ onBack }: MyBagPageProps) {
   const [sendingGift, setSendingGift] = useState<any>(null);
 
   const myProfile = useQuery(api.profiles.getMyProfile);
-  const isVip8Plus = Boolean(myProfile?.isSuperAdmin || (myProfile?.isVip && (myProfile?.vipLevel ?? 0) >= 8));
+  const proLevel = Number(myProfile?.vipLevel ?? 0);
+  const isPro1To5 = Boolean(myProfile?.isSuperAdmin || (myProfile?.isVip && proLevel >= 1 && proLevel <= 5));
 
   const handleToggle = async (ui: any) => {
     const isSpecial = ui.isVipAutoAdded || ui.isSuperAdminAutoAdded;
@@ -148,12 +149,12 @@ export default function MyBagPage({ onBack }: MyBagPageProps) {
         {/* Seat Skin Tab */}
         {activeTab === "seat_skin" && (
           <>
-            {!isVip8Plus && (
+            {!isPro1To5 && (
               <div className="mx-4 mt-4 p-4 rounded-2xl flex items-center gap-3" style={{ background: "linear-gradient(135deg,#a855f715,#8b5cf615)", border: "1px solid #a855f730" }}>
                 <span className="text-2xl">👑</span>
                 <div>
-                  <p className="font-bold text-sm" style={{ color: "#7c3aed" }}>حصري لـ VIP 8+</p>
-                  <p className="text-xs" style={{ color: "#9ca3af" }}>ستايلات المقاعد متاحة فقط لمستخدمي VIP المستوى 8 وأعلى</p>
+                  <p className="font-bold text-sm" style={{ color: "#7c3aed" }}>حصري لـ PRO 1–5</p>
+                  <p className="text-xs" style={{ color: "#9ca3af" }}>ستايلات المقاعد متاحة لمستخدمي PRO من المستوى 1 إلى 5</p>
                 </div>
               </div>
             )}
@@ -166,7 +167,7 @@ export default function MyBagPage({ onBack }: MyBagPageProps) {
                 <span className="text-5xl opacity-30">🪑</span>
                 <p className="font-bold text-base" style={{ color: "#888" }}>لا توجد ستايلات مقاعد</p>
                 <p className="text-sm text-center px-8" style={{ color: "#bbb" }}>
-                  {isVip8Plus ? "لم يتم إضافة ستايلات مقاعد بعد" : "احصل على VIP 8+ للوصول لستايلات المقاعد"}
+                  {isPro1To5 ? "لم يتم إضافة ستايلات مقاعد بعد" : "احصل على PRO من المستوى 1 إلى 5 للوصول لستايلات المقاعد"}
                 </p>
               </div>
             ) : (

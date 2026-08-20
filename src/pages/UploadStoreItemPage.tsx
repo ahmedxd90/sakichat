@@ -38,6 +38,7 @@ const MIN_SCALE = 1.0;
 const MAX_SCALE = 2.5;
 
 const VIP_LEVELS = [1, 2, 3, 4, 5, 6, 7, 8];
+const PRO_LEVELS = [1, 2, 3, 4, 5];
 const ARISTO_LEVELS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 
 function FramePreview({ avatarSize, avatarUrl, avatarName, frameUrl, scale, label, isSvga }: {
@@ -531,8 +532,8 @@ export default function UploadStoreItemPage({ onBack }: UploadStoreItemPageProps
                     </button>;
                   })}
                 </div>
-                <button onClick={() => setSeatSkinIsVip(true)} className="w-full py-2 rounded-xl text-xs font-bold border" style={seatSkinIsVip ? { background: "#a855f715", borderColor: "#a855f760", color: "#7c3aed" } : { background: "#f2f7fc", borderColor: "#e8eef5", color: "#888" }}>👑 VIP تلقائي (اختر المستوى)</button>
-                {seatSkinIsVip && <div className="flex gap-1.5 flex-wrap">{VIP_LEVELS.map((lvl) => <button key={lvl} onClick={() => setSeatSkinVipMinLevel(String(lvl))} className="px-3 py-1.5 rounded-full text-xs font-bold" style={seatSkinVipMinLevel === String(lvl) ? { background: "#a855f7", color: "white" } : { background: "white", color: "#555", border: "1px solid #e8eef5" }}>VIP {lvl}</button>)}</div>}
+                <button onClick={() => setSeatSkinIsVip(true)} className="w-full py-2 rounded-xl text-xs font-bold border" style={seatSkinIsVip ? { background: "#a855f715", borderColor: "#a855f760", color: "#7c3aed" } : { background: "#f2f7fc", borderColor: "#e8eef5", color: "#888" }}>👑 PRO تلقائي (اختر المستوى)</button>
+                {seatSkinIsVip && <div className="flex gap-1.5 flex-wrap">{PRO_LEVELS.map((lvl) => <button key={lvl} onClick={() => setSeatSkinVipMinLevel(String(lvl))} className="px-3 py-1.5 rounded-full text-xs font-bold" style={seatSkinVipMinLevel === String(lvl) ? { background: "#a855f7", color: "white" } : { background: "white", color: "#555", border: "1px solid #e8eef5" }}>PRO {lvl}</button>)}</div>}
                 <p className="text-[10px]" style={{ color: "#888" }}>{seatSkinIsVip ? "يُضاف تلقائيًا للمستخدمين المؤهلين" : seatRequiredRank === "normal" ? "يظهر في المتجر ويُشترى بالسعر المحدد" : `متاح لرتبة ${seatRequiredRank} أو أعلى`}</p>
               </div>
             )}

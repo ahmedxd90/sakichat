@@ -46,8 +46,8 @@ export const getMySeatSkins = query({
       });
     }
 
-    // VIP auto-added skins (VIP 8+)
-    if (profile.isVip && (profile.vipLevel ?? 0) >= 8) {
+    // PRO auto-added skins (PRO 1-5)
+    if (profile.isVip && (profile.vipLevel ?? 0) >= 1 && (profile.vipLevel ?? 0) <= 5) {
       const skins = await ctx.db
         .query("storeItems")
         .withIndex("by_type", (q) => q.eq("type", "seat_skin"))
@@ -56,7 +56,7 @@ export const getMySeatSkins = query({
         (s: any) =>
           s.isVipSeatSkin &&
           s.isActive &&
-          (s.vipSeatSkinMinLevel ?? 8) <= (profile.vipLevel ?? 0)
+          (s.vipSeatSkinMinLevel ?? 1) <= (profile.vipLevel ?? 0)
       )) {
         if (result.some((r: any) => r.storeItemId === s._id)) continue;
         const mUrl =
@@ -107,9 +107,9 @@ export const setActiveSeatSkin = mutation({
     if (args.active && args.storeItemId) {
       const item = await ctx.db.get(args.storeItemId);
       if (item?.isVipSeatSkin) {
-        const minLevel = (item as any).vipSeatSkinMinLevel ?? 8;
+        const minLevel = (item as any).vipSeatSkinMinLevel ?? 1;
         if (!profile.isVip || (profile.vipLevel ?? 0) < minLevel) {
-          throw new Error(`ستايل المقعد حصري لـ VIP ${minLevel}+`);
+          throw new Error(`ستايل المقعد حصري لـ PRO ${minLevel}+`);
         }
       }
       const requiredRank = (item as any)?.seatRequiredRank ?? "normal";
