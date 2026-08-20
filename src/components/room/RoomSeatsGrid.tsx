@@ -28,6 +28,8 @@ interface RoomSeatsGridProps {
   isAdmin: boolean;
   isSuperAdmin?: boolean;
   hideRoyalSeats?: boolean;
+  seatLayoutStyle?: string;
+  hostSeatCount?: number;
   speakingUsers: Set<string>;
   activeEmojis: SeatEmojiItem[];
   seatPositions: Array<{ x: number; y: number } | null>;
@@ -365,7 +367,7 @@ function RoomSeatsGridInner({
   isFootball = false, isKaraoke = false,
   isPK, pkRoom1Id, pkRoom2Id, roomId,
   ownerIsVip12, isMuted, isOwner, isAdmin, isSuperAdmin = false, hideRoyalSeats = false,
-  speakingUsers, activeEmojis, seatPositions,
+  seatLayoutStyle = "royal_pairs", hostSeatCount = 2, speakingUsers, activeEmojis, seatPositions,
   seatsGridRef, lockedSeats, onSeatPress, onViewProfile,
 }: RoomSeatsGridProps) {
 
@@ -385,9 +387,23 @@ function RoomSeatsGridInner({
     return [raw, hash, `pub_${raw}`, `pub_${hash}`];
   };
 
-  // تصغير المقاعد تلقائياً للأعداد الكبيرة
+  // تصغير المقاعد تلقائياً للأعداد الكبيرة، مع إبقاء الزوجين متجاورين.
   const scale = maxSeats > 10 ? 0.75 : 1;
   const gapY = maxSeats > 10 ? 3 : 5;
+  const useRoyalPairs = seatLayoutStyle !== "legacy" && !isPK;
+  const safeHostSeatCount = Math.min(2, Math.max(0, hostSeatCount));
+  const renderSeat = (i: number, extraScale = scale) => {
+    const member = members?.find((m) => m.seatIndex === i);
+    const memberSpeakerIds = getMemberSpeakerIds(member);
+    const isSpeaking = memberSpeakerIds.some((speakerId) => speakingUsers.has(speakerId));
+    const isMe = member?.profile?.userId === myProfile?.userId;
+    const isLocked = lockedSeats.includes(i);
+    const pkSide = getPKSide(i);
+    const isHostSeat = i <= safeHostSeatCount;
+    return <RegularSeat key={i} seatIndex={i} member={member} isMe={isMe} isMuted={isMuted}
+      isSpeaking={isSpeaking} isLocked={isLocked} isPK={isPK} pkSide={pkSide}
+      isHostSeat={isHostSeat} onPress={() => onSeatPress(i)} scale={extraScale} />;
+  };
 
   return (
     <>
@@ -461,22 +477,26 @@ function RoomSeatsGridInner({
               })}
             </div>
           </div>
+        ) : useRoyalPairs ? (
+          <div className="flex flex-col items-center gap-3 px-1">
+            <div className="flex items-end justify-center gap-4 rounded-[2rem] border border-amber-300/30 bg-gradient-to-b from-amber-200/10 to-transparent px-6 py-3">
+              {renderSeat(0, Math.min(1.08, scale + 0.12))}
+            </div>
+            {safeHostSeatCount > 0 && (
+              <div className="flex items-end justify-center gap-4 rounded-[1.7rem] border border-violet-300/25 bg-violet-200/5 px-5 py-2">
+                {Array.from({ length: safeHostSeatCount }, (_, offset) => renderSeat(offset + 1, scale))}
+              </div>
+            )}
+            <div className="flex w-full flex-col items-center gap-3">
+              {Array.from({ length: Math.ceil((maxSeats - 1 - safeHostSeatCount) / 2) }, (_, row) => {
+                const start = 1 + safeHostSeatCount + row * 2;
+                return <div key={start} className="flex items-end justify-center gap-3 sm:gap-5">{renderSeat(start)}{start + 1 < maxSeats && renderSeat(start + 1)}</div>;
+              })}
+            </div>
+          </div>
         ) : (
           <div className={`grid grid-cols-5 gap-x-1`} style={{ rowGap: `${gapY * 4}px` }}>
-            {Array.from({ length: maxSeats }, (_, i) => {
-              const member = members?.find((m) => m.seatIndex === i);
-              const memberSpeakerIds = getMemberSpeakerIds(member);
-              const isSpeaking = memberSpeakerIds.some((speakerId) => speakingUsers.has(speakerId));
-              const isMe = member?.profile?.userId === myProfile?.userId;
-              const isLocked = lockedSeats.includes(i);
-              const pkSide = getPKSide(i);
-              const isHostSeat = i === 0;
-              return (
-                <RegularSeat key={i} seatIndex={i} member={member} isMe={isMe} isMuted={isMuted}
-                  isSpeaking={isSpeaking} isLocked={isLocked} isPK={isPK} pkSide={pkSide}
-                  isHostSeat={isHostSeat} onPress={() => onSeatPress(i)} scale={scale} />
-              );
-            })}
+            {Array.from({ length: maxSeats }, (_, i) => renderSeat(i))}
           </div>
         )}
       </div>

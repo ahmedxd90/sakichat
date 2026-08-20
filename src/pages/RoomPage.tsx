@@ -1172,6 +1172,8 @@ function RoomPageInner({ roomId, onBack, onBackgroundLeave, onViewProfile, onMes
           seatsGridRef={seatsGridRef}
           lockedSeats={(room as any)?.lockedSeats ?? []}
           hideRoyalSeats={(room as any)?.hideRoyalSeats ?? false}
+          seatLayoutStyle={(room as any)?.seatLayoutStyle ?? "royal_pairs"}
+          hostSeatCount={Number((room as any)?.hostSeatCount ?? 2)}
           isOwner={isOwner}
           isAdmin={isAdmin}
           isSuperAdmin={isSuperAdmin}

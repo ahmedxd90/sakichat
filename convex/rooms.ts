@@ -194,6 +194,8 @@ export const updateRoom = mutation({
     seatPermission: v.optional(v.string()),
     membershipPrice: v.optional(v.number()),
     roomDecorationStyle: v.optional(v.string()),
+    seatLayoutStyle: v.optional(v.string()),
+    hostSeatCount: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
@@ -219,7 +221,10 @@ export const updateRoom = mutation({
     if (args.removeBg) {
       patch.bgStorageId = undefined; patch.bgImageUrl = undefined; patch.bgColor = undefined; patch.bgPresetKey = undefined;
     }
-    if (args.maxSeats !== undefined) patch.maxSeats = args.maxSeats;
+    if (args.maxSeats !== undefined) {
+      if (!Number.isInteger(args.maxSeats) || args.maxSeats < 2 || args.maxSeats > 22) throw new Error("عدد المقاعد يجب أن يكون بين 2 و22");
+      patch.maxSeats = args.maxSeats;
+    }
     if (args.roomTheme !== undefined) patch.roomTheme = args.roomTheme === "" ? undefined : args.roomTheme;
     if (args.hideRoyalSeats !== undefined) patch.hideRoyalSeats = args.hideRoyalSeats;
     if (args.footballStreamUrl !== undefined) patch.footballStreamUrl = args.footballStreamUrl || undefined;
@@ -230,6 +235,15 @@ export const updateRoom = mutation({
     }
     if (args.membershipPrice !== undefined) patch.membershipPrice = args.membershipPrice;
     if (args.roomDecorationStyle !== undefined) patch.roomDecorationStyle = args.roomDecorationStyle;
+    if (args.seatLayoutStyle !== undefined) {
+      if (!["royal_pairs", "legacy"].includes(args.seatLayoutStyle)) throw new Error("نمط المقاعد غير صحيح");
+      patch.seatLayoutStyle = args.seatLayoutStyle;
+    }
+    if (args.hostSeatCount !== undefined) {
+      if (!Number.isInteger(args.hostSeatCount) || args.hostSeatCount < 0 || args.hostSeatCount > 2) throw new Error("عدد مقاعد المضيفين يجب أن يكون بين 0 و2");
+      if ((args.maxSeats ?? room.maxSeats ?? 8) < args.hostSeatCount + 1) throw new Error("عدد المقاعد لا يكفي لمقعد المالك والمضيفين");
+      patch.hostSeatCount = args.hostSeatCount;
+    }
     await ctx.db.patch(args.roomId, patch);
     await ctx.scheduler.runAfter(0, internal.roomLogs.createLog, {
       roomId: args.roomId, userId, action: "update_room", details: "تحديث إعدادات الغرفة"

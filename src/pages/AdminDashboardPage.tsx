@@ -1078,7 +1078,7 @@ function RoomEditModal({ room, onClose, onSave }: { room: any; onClose: () => vo
         ))}
         <div>
           <label className="text-gray-400 text-xs font-bold mb-1 block">عدد المقاعد</label>
-          <input value={maxSeats} onChange={(e) => setMaxSeats(e.target.value)} type="number" min="2" max="20"
+          <input value={maxSeats} onChange={(e) => setMaxSeats(e.target.value)} type="number" min="2" max="22"
             className="w-full px-3 py-2 rounded-xl text-white text-sm outline-none"
             style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)" }} dir="ltr" />
         </div>

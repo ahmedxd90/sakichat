@@ -39,7 +39,7 @@ const MIC_PERMISSIONS = [
   { value: "admins", label: "المشرفون فقط" },
 ];
 
-const SEAT_OPTIONS = [5, 10, 15, 20];
+const SEAT_OPTIONS = [5, 10, 15, 20, 22];
 
 type SubPage = null | "name" | "notice" | "category" | "theme" | "backgrounds" | "reward" | "admins" | "banned" | "logs" | "lock" | "seats";
 
@@ -237,6 +237,25 @@ export default function RoomSettingsPage({ roomId, onBack }: RoomSettingsPagePro
       <div className="flex flex-col h-screen bg-white text-right" dir="rtl">
         {renderHeader("عدد المقاعد")}
         <div className="p-6">
+          <div className="mb-5 rounded-3xl border border-amber-200 bg-gradient-to-br from-[#28121f] to-[#120c1c] p-5 text-white shadow-lg">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-black text-amber-200">التخطيط الملكي</p>
+                <p className="mt-1 text-xs leading-5 text-white/70">مقعد المالك في الأعلى، ومقاعد المضيفين ثم أزواج متجاورة.</p>
+              </div>
+              <span className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-2xl border border-amber-300/60 bg-amber-200/10"><img src="/manus-storage/royal-seat-icon_7df7cdad.png" alt="مقعد ملكي" className="h-10 w-10 object-contain" /></span>
+            </div>
+            <div className="mt-4 grid grid-cols-2 gap-2">
+              <button onClick={() => handleUpdate({ seatLayoutStyle: "royal_pairs" })} className={`rounded-2xl border px-3 py-3 text-xs font-black ${room.seatLayoutStyle !== "legacy" ? "border-amber-300 bg-amber-300/20 text-amber-100" : "border-white/15 bg-white/5 text-white/60"}`}>أزواج ملكية</button>
+              <button onClick={() => handleUpdate({ seatLayoutStyle: "legacy" })} className={`rounded-2xl border px-3 py-3 text-xs font-black ${room.seatLayoutStyle === "legacy" ? "border-white/60 bg-white/15 text-white" : "border-white/15 bg-white/5 text-white/60"}`}>التخطيط القديم</button>
+            </div>
+            <div className="mt-4 flex items-center justify-between rounded-2xl bg-white/5 px-3 py-3">
+              <span className="text-xs font-bold text-white/75">مقاعد المضيفين</span>
+              <div className="flex gap-2">
+                {[0, 1, 2].map(count => <button key={count} onClick={() => handleUpdate({ hostSeatCount: count })} className={`h-8 min-w-8 rounded-xl text-xs font-black ${Number(room.hostSeatCount ?? 2) === count ? "bg-amber-300 text-[#291522]" : "bg-white/10 text-white/70"}`}>{count}</button>)}
+              </div>
+            </div>
+          </div>
           <div className="grid grid-cols-2 gap-4">
             {SEAT_OPTIONS.map(num => (
               <button key={num} onClick={() => handleUpdate({ maxSeats: num })} className={`py-8 rounded-3xl border-2 flex flex-col items-center justify-center transition-all ${room.maxSeats === num ? "border-cyan-400 bg-cyan-50" : "border-gray-100 bg-gray-50"}`}>

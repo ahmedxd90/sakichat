@@ -220,6 +220,8 @@ const roomTables = {
     seatPermission: v.optional(v.string()), // "all", "members", "admins"
     membershipPrice: v.optional(v.number()), // Gold coins required to join room membership
     roomDecorationStyle: v.optional(v.string()), // Decoration theme style key
+    seatLayoutStyle: v.optional(v.string()), // "royal_pairs" or legacy layout
+    hostSeatCount: v.optional(v.number()), // Number of host seats after the owner seat
     roomCategory: v.optional(v.string()), // Room category (music, games, etc.)
     createdAt: v.number(),
   })
