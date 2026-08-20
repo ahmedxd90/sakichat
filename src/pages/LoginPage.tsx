@@ -433,6 +433,7 @@ export default function LoginPage() {
           url: `${convexUrl}/api/action`,
           method: "POST",
           headers: { "Content-Type": "application/json", "Convex-Client": "saki-android-oauth" },
+          params: {},
           data: {
             path: "auth:signIn",
             format: "convex_encoded_json",

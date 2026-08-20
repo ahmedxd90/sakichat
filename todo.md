@@ -1517,3 +1517,4 @@
 - [ ] إصلاح خطأ Failed to fetch الظاهر في Android WebView أثناء بدء Google OAuth.
 - [ ] تجاوز طلب OAuth المباشر من WebView بمسار HTTPS متوافق مع Capacitor قبل فتح Chrome.
 - [ ] معالجة استمرار Failed to fetch بمسار OAuth Native أو endpoint خادم وسيط قابل للاختبار على Android.
+- [ ] إصلاح NullPointerException عند استدعاء HTTP Native والتأكد من تسجيل Plugin في Android.
