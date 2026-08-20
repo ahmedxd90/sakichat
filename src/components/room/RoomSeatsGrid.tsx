@@ -1,5 +1,5 @@
 // @ts-nocheck
-import React, { memo } from "react";
+import React, { memo, useState } from "react";
 import { Id } from "../../../convex/_generated/dataModel";
 import UserAvatar from "../UserAvatar";
 import SeatEmojiOverlay from "../SeatEmojiOverlay";
@@ -38,6 +38,13 @@ function RoyalSeatArt({ locked = false, size = 56 }: { locked?: boolean; size?: 
     </svg>
   );
 }
+
+const RoyalSeatImage = memo(function RoyalSeatImage({ locked = false, size = 60 }: { locked?: boolean; size?: number }) {
+  const [failed, setFailed] = useState(false);
+  const src = locked ? ROYAL_LOCKED_SEAT_21_22 : ROYAL_OPEN_SEAT_21_22;
+  if (failed) return <RoyalSeatArt locked={locked} size={size} />;
+  return <img src={src} alt={locked ? "مقعد ملكي مقفل" : "مقعد ملكي"} onError={() => setFailed(true)} className="absolute inset-0 h-full w-full rounded-full object-cover opacity-90" />;
+});
 
 interface RoomSeatsGridProps {
   members: any[];
@@ -345,11 +352,11 @@ const RegularSeat = memo(function RegularSeat({
               />
             </div>
           ) : isLocked ? (
-            isRoyalTheme ? (isSpecialRoyalSeat ? <img src={ROYAL_LOCKED_SEAT_21_22} alt="مقعد ملكي مقفل" className="absolute inset-0 h-full w-full rounded-full object-cover opacity-90" /> : <RoyalSeatArt locked size={BUBBLE} />) : <div className="z-10"><LockSVG size={20 * scale} /></div>
+            isRoyalTheme ? (isSpecialRoyalSeat ? <RoyalSeatImage locked size={BUBBLE} /> : <RoyalSeatArt locked size={BUBBLE} />) : <div className="z-10"><LockSVG size={20 * scale} /></div>
           ) : isPK ? (
             <span className="z-10" style={{ fontSize: 16 * scale }}>{pkSide === "room1" ? "🐯" : "🦁"}</span>
           ) : (
-            isRoyalTheme ? (isSpecialRoyalSeat ? <img src={ROYAL_OPEN_SEAT_21_22} alt="مقعد ملكي" className="absolute inset-0 h-full w-full rounded-full object-cover opacity-90" /> : <RoyalSeatArt size={BUBBLE} />) : <div className="z-10"><EmptyMicSVG size={22 * scale} /></div>
+            isRoyalTheme ? (isSpecialRoyalSeat ? <RoyalSeatImage size={BUBBLE} /> : <RoyalSeatArt size={BUBBLE} />) : <div className="z-10"><EmptyMicSVG size={22 * scale} /></div>
           )}
         </GlassBubble>
 
