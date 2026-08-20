@@ -47,8 +47,9 @@ export default function FruitPartyGame({ onBack, roomId }: Props) {
     resultRoundId ? { roundId: resultRoundId as any } : "skip"
   );
 
-  const placeBetMut   = useMutation(api.fruitParty.placeBet);
-  const startNewRound = useMutation(api.fruitParty.startNewRound);
+  const placeBetMut       = useMutation(api.fruitParty.placeBet);
+  const startNewRound     = useMutation(api.fruitParty.startNewRound);
+  const resolveExpiredRound = useMutation(api.fruitParty.resolveExpiredRound);
   const ensureRoomRound = useCallback(() => roomId ? startNewRound({ roomId }) : Promise.resolve(null), [roomId, startNewRound]);
 
   const [selectedAmount, setSelectedAmount] = useState(1000);
@@ -130,11 +131,16 @@ export default function FruitPartyGame({ onBack, roomId }: Props) {
     startSpinAnimation();
     if (recoveryRoundRef.current !== roundId) {
       recoveryRoundRef.current = roundId;
-      ensureRoomRound().catch(() => {
-        recoveryRoundRef.current = null;
-      });
+      // Do not rely only on the scheduled Convex job. Android/Web clients
+      // explicitly resolve the expired round, then request the next one.
+      resolveExpiredRound({ roundId: expiredRound._id })
+        .catch(() => null)
+        .then(() => ensureRoomRound())
+        .catch(() => {
+          recoveryRoundRef.current = null;
+        });
     }
-  }, [timeLeft, currentRound?._id, ensureRoomRound]);
+  }, [timeLeft, currentRound?._id, ensureRoomRound, resolveExpiredRound]);
 
   const startSpinAnimation = useCallback(() => {
     if (spinTimerRef.current) clearTimeout(spinTimerRef.current);

@@ -251,7 +251,7 @@ async function settleRound(ctx: any, roundId: any) {
   }
   await ctx.db.patch(roundId, { status: "finished", winnerFruit, totalPool });
   if (round.roomId) {
-    await ctx.scheduler.runAfter(10000, internal.fruitParty.autoStartRound, { roomId: round.roomId });
+    await ctx.scheduler.runAfter(5000, internal.fruitParty.autoStartRound, { roomId: round.roomId });
   }
 }
 
@@ -276,7 +276,7 @@ export const startNewRound = mutation({
       .filter((q) => q.eq(q.field("status"), "finished"))
       .order("desc")
       .first();
-    if (recentFinished && Date.now() < recentFinished.endsAt + 10000) return null;
+    if (recentFinished && Date.now() < recentFinished.endsAt + 5000) return null;
     const existing = await ctx.db
       .query("fruitPartyRounds")
       .withIndex("by_room", (q) => q.eq("roomId", args.roomId))
@@ -303,6 +303,7 @@ export const startNewRound = mutation({
       startedAt: now,
       endsAt: now + 20000,
       roundNumber,
+      createdAt: now,
     });
 
     await ctx.scheduler.runAfter(20000, internal.fruitParty.finishRound, { roundId });
@@ -345,6 +346,7 @@ export const autoStartRound = internalMutation({
       startedAt: now,
       endsAt: now + 20000,
       roundNumber,
+      createdAt: now,
     });
 
     await ctx.scheduler.runAfter(20000, internal.fruitParty.finishRound, { roundId });
