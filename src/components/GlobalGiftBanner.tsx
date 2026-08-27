@@ -8,11 +8,12 @@ export default function GlobalGiftBanner() {
   const [phase, setPhase] = useState<"enter" | "show" | "exit">("enter");
   const lastIdRef = useRef<string | null>(null);
   const timerRef = useRef<number[]>([]);
+  const channelNameRef = useRef(`global_gifts_${Math.random().toString(36).slice(2, 10)}`);
 
   useEffect(() => {
     const channel = supabase
-      .channel('global_gifts')
-      .on('postgres_changes', { event: 'INSERT', table: 'gift_logs', filter: 'price=gte.100000' }, (payload) => {
+      .channel(channelNameRef.current)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'gift_logs', filter: 'price=gte.100000' }, (payload) => {
         setLatestGlobal(payload.new);
       })
       .subscribe();

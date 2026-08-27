@@ -495,7 +495,6 @@ function AuthenticatedApp() {
     return (
       <Suspense fallback={<PageLoader />}>
         <>
-          <GlobalGiftBanner />
           <UserProfilePage
             userId={selectedUserId}
             onBack={() => { setCurrentPage("home"); setSelectedUserId(null); setChatUserId(null); }}
@@ -521,7 +520,6 @@ function AuthenticatedApp() {
       {activeRoomId && (
         <div className="fixed inset-0 z-[100]" style={{ display: (currentPage === "room" || (currentPage === "user-profile" && !!activeRoomId)) ? "flex" : "none", flexDirection: "column" }}>
           <Suspense fallback={null}>
-            <GlobalGiftBanner />
             <RoomPage
               roomId={activeRoomId} onBack={handleRoomBack}
               onBackgroundLeave={() => handleBackgroundLeave(activeRoomId)}
@@ -552,7 +550,6 @@ function AuthenticatedApp() {
 
       <Suspense fallback={null}>
         <GlobalChatNotification />
-        <GlobalGiftBanner />
         <GlobalLiveEventBanner />
         <GlobalLuckyBagBanner onGoToRoom={(roomId) => { setBgRoomId(null); setBgRoom(null); setReturnToRoom(null); setSelectedRoomId(roomId as string); setCurrentPage("room"); }} />
       </Suspense>
