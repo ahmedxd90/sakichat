@@ -354,9 +354,9 @@ function RoomPageInner({ roomId, onBack, onBackgroundLeave, onViewProfile, onMes
   const selectedUserCpPartner = null;
 
   // ── AGORA VOICE ──
-  const zegoChannel = `r${roomId}`.replace(/[^a-zA-Z0-9_-]/g, "").substring(0, 64);
-  const zegoUserId = (myProfile?.user_id ?? userId ?? "").replace(/[^a-zA-Z0-9_-]/g, "").substring(0, 64);
-  const zegoUserName = myProfile?.name ?? "user";
+  const agoraChannel = `r${roomId}`.replace(/[^a-zA-Z0-9_-]/g, "").substring(0, 64);
+  const agoraUserId = (myProfile?.user_id ?? userId ?? "").replace(/[^a-zA-Z0-9_-]/g, "").substring(0, 64);
+  const agoraUserName = myProfile?.name ?? "user";
 
   // ── BACKGROUND ROOM ──
   const { setBgRoom } = useBackgroundRoom();
@@ -369,16 +369,16 @@ function RoomPageInner({ roomId, onBack, onBackgroundLeave, onViewProfile, onMes
         roomId,
         roomName: room.name,
         coverUrl: room.coverUrl,
-        channelName: zegoChannel,
-        userId: zegoUserId,
-        userName: zegoUserName,
+        channelName: agoraChannel,
+        userId: agoraUserId,
+        userName: agoraUserName,
       });
     }
     // تمرير رقم الغرفة إلى App ضروري حتى تُحفظ الفقاعة في الغرفة الصحيحة.
     onBackgroundLeave?.(roomId);
   };
 
-  const voiceState = useAgoraVoiceRoom(zegoChannel, zegoUserId, zegoUserName, !!myProfile && !!userId, isOnSeat, null);
+  const voiceState = useAgoraVoiceRoom(agoraChannel, agoraUserId, agoraUserName, !!myProfile && !!userId, isOnSeat, null);
   const {
     isConnected,
     isConnecting,
@@ -1101,22 +1101,12 @@ function RoomPageInner({ roomId, onBack, onBackgroundLeave, onViewProfile, onMes
           />
         )}
 
-        {/* Zego status is intentionally hidden in the production Android UI; errors remain visible below. */}
-        {zegoTestEnabled && !Capacitor.isNativePlatform() && (
-          <div className="mx-3 mt-2 rounded-xl border border-emerald-400/25 bg-emerald-950/35 px-3 py-1.5 text-[11px] text-emerald-200">
-            ZEGOCLOUD: {isConnected ? "متصل" : isConnecting ? "جارٍ الاتصال" : "غير متصل"}
-            {isOnSeat ? ` · ${isPublishing ? "الميكروفون منشور" : "الميكروفون غير منشور"}` : " · اجلس على مقعد للتحدث"}
-            {` · مسارات الآخرين: ${remoteAudioCount}`}
-          </div>
-        )}
-
-        {/* Zego Error */}
-        {zegoError && (
-          <div className="flex-shrink-0 mx-3 mt-2 bg-red-500/10 border border-red-500/30 rounded-xl px-3 py-2 flex items-center gap-2">
+        {agoraError && (
+          <div className="flex-shrink-0 mx-3 mt-2 rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 flex items-center gap-2">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2">
               <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
             </svg>
-            <span className="text-red-400 text-xs">{zegoError}</span>
+            <span className="text-red-400 text-xs">{agoraError}</span>
           </div>
         )}
 

@@ -55,20 +55,20 @@
 - [x] إصدار APK جديد v1.1.3 وإرسال رابط مباشر للمستخدم.
 
 ## المرحلة 6: الإزالة الكاملة لـ Convex والاعتماد على Supabase
-- [ ] جرد كافة مراجع `convex/react` و `api.*` في ملفات المشروع.
-- [ ] تحليل خطأ `signIn` undefined في ملف `pasted_content_2.txt` (يرجح أنه استدعاء لـ `useAuthActions` من Convex خارج مزوده أو بعد إزالته).
-- [ ] تحويل كافة استدعاءات `useQuery` و `useMutation` في `App.tsx` و `LoginPage` و `RegisterPage` و `RoomPage` إلى Supabase.
-- [ ] إزالة `ConvexProvider` نهائياً من `main.tsx`.
-- [ ] حذف ملفات `convex/` و `src/lib/convexClient.ts`.
-- [ ] تحديث `package.json` وإزالة حزم Convex.
-- [ ] بناء Android v1.1.4 وتسليم النسخة النهائية.
+- [x] جرد كافة مراجع `convex/react` و `api.*` في ملفات المشروع.
+- [x] تحليل خطأ `signIn` undefined في ملف `pasted_content_2.txt` ومعالجة مسار Auth بعد إزالة Convex.
+- [x] تحويل كافة استدعاءات `useQuery` و `useMutation` في `App.tsx` و `LoginPage` و `RegisterPage` و `RoomPage` إلى Supabase.
+- [x] إزالة `ConvexProvider` نهائياً من `main.tsx`.
+- [x] حذف ملفات `convex/` و `src/lib/convexClient.ts`.
+- [x] تحديث `package.json` وإزالة حزم Convex وZEGOCLOUD، وحذف workflow نشر Convex.
+- [x] بناء Android v1.1.4 وتسليم النسخة النهائية.
 
 ## إصلاح طارئ ثالث: إعادة توجيه Google OAuth إلى localhost
 - [x] فحص قيمة redirectTo ومسارات OAuth في Supabase وCapacitor.
 - [x] تحديد سبب إعادة التوجيه إلى localhost وإصلاحه للويب وأندرويد.
 - [x] اختبار العودة من Google ومعالجة deep link داخل التطبيق.
 - [x] تشغيل TypeScript/build وبناء APK/AAB بعد الإصلاح.
-- [ ] حفظ checkpoint وتسليم الإصدار النهائي.
+- [x] حفظ checkpoint وتسليم الإصدار النهائي.
 
 السياق: يظهر بعد اختيار حساب Google الخطأ ERR_CONNECTION_REFUSED لأن المتصفح يحاول فتح localhost.
 

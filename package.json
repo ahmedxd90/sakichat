@@ -20,7 +20,6 @@
     "@capawesome/capacitor-app-update": "^8.0.3",
     "@capawesome/capacitor-google-sign-in": "^0.1.2",
     "@capgo/native-purchases": "^8.6.5",
-
     "@fingerprintjs/fingerprintjs": "^5.1.0",
     "@supabase/supabase-js": "^2.112.4",
     "@types/canvas-confetti": "^1.9.0",
@@ -29,7 +28,6 @@
     "agora-token": "^2.0.5",
     "canvas-confetti": "^1.9.4",
     "clsx": "^2.1.1",
-
     "firebase-admin": "^14.2.0",
     "googleapis": "^144.0.0",
     "hls.js": "^1.6.16",
@@ -43,8 +41,7 @@
     "tailwind-merge": "^3.1.0",
     "vite-plugin-pwa": "^1.2.0",
     "web-push": "^3.6.7",
-    "workbox-window": "^7.4.0",
-    "zego-express-engine-webrtc": "^3.12.0"
+    "workbox-window": "^7.4.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.21.0",

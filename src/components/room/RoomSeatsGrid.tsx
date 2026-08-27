@@ -441,7 +441,7 @@ function RoomSeatsGridInner({
   const getMemberSpeakerIds = (member: any): string[] => {
     const raw = member?.profile?.userId != null ? String(member.profile.userId) : "";
     if (!raw) return [];
-    // Agora historically used a numeric hash; ZEGOCLOUD uses the raw userId in pub_<userId>.
+    // Agora may expose the raw UID or a numeric UID depending on the SDK bridge.
     const hash = String(Math.abs(raw.split("").reduce((acc: number, c: string) => acc * 31 + c.charCodeAt(0), 0) % 100000000));
     return [raw, hash, `pub_${raw}`, `pub_${hash}`];
   };

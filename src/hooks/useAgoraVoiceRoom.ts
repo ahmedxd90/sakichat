@@ -124,7 +124,7 @@ export function useAgoraVoiceRoom(
     await setSquirrelVoiceEnabled(enabled);
   }, []);
   const setChildVoice = useCallback(async (_enabled: boolean) => {
-    // The Android production path uses ZEGOCLOUD. Keep the Agora fallback safe and unchanged.
+    // The current Agora wrapper does not expose the optional child-voice effect.
   }, []);
 
   const globalState = getAgoraGlobalState();

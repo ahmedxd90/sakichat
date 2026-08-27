@@ -51,7 +51,6 @@ export default defineConfig(({ mode }) => ({
         manualChunks: {
           react: ["react", "react-dom"],
 
-          zego: ["zego-express-engine-webrtc"],
           svga: ["svga.lite"],
         },
       },
