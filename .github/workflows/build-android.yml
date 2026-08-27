@@ -11,6 +11,11 @@ permissions:
 
 env:
   GRADLE_OPTS: -Dorg.gradle.daemon=false -Dorg.gradle.jvmargs=-Xmx2g
+  # Public frontend configuration required by the Vite bundle used inside Android.
+  # Never put a Supabase service-role key or any server secret here.
+  VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+  VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+  VITE_AGORA_APP_ID: ${{ secrets.VITE_AGORA_APP_ID }}
 
 jobs:
   build-android:
@@ -53,7 +58,7 @@ jobs:
       - name: Upload APK and AAB artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: saki-chat-android-release-1.1.0
+          name: saki-chat-android-release-${{ github.ref_name }}
           path: |
             android/app/build/outputs/apk/release/app-release.apk
             android/app/build/outputs/bundle/release/app-release.aab

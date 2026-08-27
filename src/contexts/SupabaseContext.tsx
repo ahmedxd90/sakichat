@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { supabase } from '../lib/supabaseClient';
+import { isSupabaseConfigured, supabase } from '../lib/supabaseClient';
 import { User, Session } from '@supabase/supabase-js';
 
 interface SupabaseContextType {
@@ -20,22 +20,39 @@ export const SupabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Check active session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
+    let subscription: { unsubscribe: () => void } | null = null;
+
+    // A missing build-time configuration must not leave the app in an
+    // infinite loading state or prevent the Android WebView from rendering.
+    if (!isSupabaseConfigured) {
       setIsLoading(false);
-    });
+      return;
+    }
+
+    // Check active session and always release the loading state on failure.
+    supabase.auth
+      .getSession()
+      .then(({ data: { session } }) => {
+        setSession(session);
+        setUser(session?.user ?? null);
+      })
+      .catch((error) => {
+        console.error('Supabase session initialization failed:', error);
+      })
+      .finally(() => {
+        setIsLoading(false);
+      });
 
     // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const authState = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
       setUser(session?.user ?? null);
       setIsLoading(false);
     });
+    subscription = authState.data.subscription;
 
     return () => {
-      subscription.unsubscribe();
+      subscription?.unsubscribe();
     };
   }, []);
 
