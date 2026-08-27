@@ -85,6 +85,16 @@
 
 السبب المؤكد: bucket التخزين `avatars` لم يكن موجوداً في Supabase، وكان رفع الصورة يفشل برسالة `Bucket not found` التي تُترجم للمستخدم إلى «العنصر غير موجود». تم إنشاء bucket عام للقراءة مع حد رفع 5MB وسياسات رفع/تحديث للمستخدمين المسجلين، كما أصبح حفظ الملف يستخدم `upsert` على `user_id` ثم يحدّث ProfileProvider.
 
+## إصلاح رفض RLS عند إنشاء profiles
+- [x] فحص سياسات RLS الحالية على جدول `profiles`.
+- [x] إضافة سياسات SELECT وINSERT وUPDATE مرتبطة بـ`auth.uid()`.
+- [x] توثيق migration في المستودع وتطبيقها على Supabase.
+- [ ] إعادة فحص TypeScript وبناء Android وتسليم النسخة الجديدة.
+
+السياق: تظهر الرسالة `new row violates row-level security policy for table "profiles"` عند حفظ معلومات الحساب بعد Google OAuth.
+
+النتيجة: أضيفت سياسة INSERT بشرط `user_id = auth.uid()::text`، وسياسة UPDATE بنفس الشرط، وسياسة SELECT للمستخدمين المسجلين.
+
 السياق: يظهر بعد اختيار حساب Google الخطأ ERR_CONNECTION_REFUSED لأن المتصفح يحاول فتح localhost.
 
 المبدأ: عدم تخزين أو عرض أسرار OAuth أو مفاتيح خاصة في الكود أو السجل.
