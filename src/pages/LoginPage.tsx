@@ -4,6 +4,7 @@ import { useState, useRef, useEffect, useMemo } from "react";
 import { toast } from "../lib/toast";
 import { Browser } from "@capacitor/browser";
 import { supabase } from "../lib/supabaseClient";
+import { getSakiOAuthRedirectTo, isSakiNativeRuntime } from "../lib/oauthRedirect";
 import { ARAB_COUNTRIES } from "../data/countries";
 import { useDeviceFingerprint } from "../hooks/useDeviceFingerprint";
 
@@ -453,9 +454,8 @@ export default function LoginPage() {
     setOauthDiagnostics({ stage: "تم الضغط على زر Google" });
     setSubmitting(true);
     try {
-      const redirectTo = Capacitor.getPlatform() === "android" 
-        ? "saki.chat.co://callback" 
-        : window.location.origin;
+      const redirectTo = getSakiOAuthRedirectTo();
+      const nativeRuntime = isSakiNativeRuntime();
 
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
@@ -468,8 +468,15 @@ export default function LoginPage() {
       });
 
       if (error) throw error;
-      if (data?.url) {
+      if (!data?.url) throw new Error("لم يتم إنشاء رابط Google من Supabase");
+      setOauthDiagnostics({
+        stage: nativeRuntime ? "تم إنشاء رابط Google" : "تم إنشاء رابط Google للويب",
+        message: nativeRuntime ? "سيتم فتح Chrome ثم العودة إلى تطبيق Saki." : "سيتم العودة إلى صفحة Saki بعد اختيار الحساب.",
+      });
+      if (nativeRuntime) {
         await withOAuthTimeout(Browser.open({ url: data.url }), 10000);
+      } else {
+        window.location.assign(data.url);
       }
     } catch (err: any) {
       const rawDetails = describeOAuthError(err);
@@ -489,7 +496,7 @@ export default function LoginPage() {
           : message.includes("ID token")
           ? "لم يُرجع Google Play رمز هوية صالحًا."
           : message.includes("ID token verification") || message.includes("server client ID")
-            ? "تعذر التحقق من رمز Google على خادم Convex."
+            ? "تعذر التحقق من رمز Google على خادم Supabase."
             : message.includes("not ready")
               ? "لم تكتمل تهيئة Google Play Services."
               : "تعذّر تسجيل الدخول عبر Google.";

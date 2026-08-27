@@ -18,19 +18,27 @@ export default function GoogleAuthDeepLinkHandler() {
     const completeFromUrl = async (url?: string | null) => {
       if (!url || processingRef.current) return;
       
-      // Supabase uses hash for access_token or query params for code
-      const hasAuthData = url.includes("access_token=") || url.includes("code=");
+      // Supabase may return tokens in the hash, a PKCE code in the query, or an OAuth error.
+      const hasAuthData = /(?:access_token|refresh_token|code|error)=/i.test(url);
       if (!hasAuthData) return;
 
       processingRef.current = true;
       try {
         await Browser.close().catch(() => {});
-        
-        // Extract params from the URL (could be in hash or query)
-        const urlObj = new URL(url.replace("#", "?"));
-        const refreshToken = urlObj.searchParams.get("refresh_token");
-        const accessToken = urlObj.searchParams.get("access_token");
 
+        // URL() keeps the custom scheme intact. Merge query and hash so both
+        // implicit and PKCE callbacks work after Android resumes the app.
+        const urlObj = new URL(url);
+        const hashParams = new URLSearchParams(urlObj.hash.startsWith("#") ? urlObj.hash.slice(1) : urlObj.hash);
+        const getParam = (name: string) => urlObj.searchParams.get(name) ?? hashParams.get(name);
+        const oauthError = getParam("error");
+        if (oauthError) {
+          const description = getParam("error_description") ?? oauthError;
+          throw new Error(decodeURIComponent(description.replace(/\\+/g, " ")));
+        }
+
+        const refreshToken = getParam("refresh_token");
+        const accessToken = getParam("access_token");
         if (accessToken && refreshToken) {
           const { error } = await supabase.auth.setSession({
             access_token: accessToken,
@@ -38,12 +46,10 @@ export default function GoogleAuthDeepLinkHandler() {
           });
           if (error) throw error;
         } else {
-          // If it's a PKCE flow with code
-          const code = urlObj.searchParams.get("code");
-          if (code) {
-            const { error } = await supabase.auth.exchangeCodeForSession(code);
-            if (error) throw error;
-          }
+          const code = getParam("code");
+          if (!code) throw new Error("لم تصل بيانات جلسة Google إلى التطبيق");
+          const { error } = await supabase.auth.exchangeCodeForSession(code);
+          if (error) throw error;
         }
 
         window.dispatchEvent(new CustomEvent("saki-google-auth-state", { detail: { status: "success" } }));

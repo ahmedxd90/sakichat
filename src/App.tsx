@@ -19,7 +19,7 @@ import ForceUpdateScreen from "./components/ForceUpdateScreen";
 import { supabase } from "./lib/supabaseClient";
 import "./vip-animations.css";
 
-const CURRENT_APP_VERSION = "1.1.3";
+const CURRENT_APP_VERSION = "1.1.4";
 
 // ── Lazy imports ──────────────────────────────────────────────────────────
 const LoginPage = lazy(() => import("./pages/LoginPage"));

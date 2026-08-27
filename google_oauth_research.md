@@ -26,3 +26,9 @@
 - `convex/auth.ts` now imports Google from `@auth/core/providers/google` and includes `[Password, Anonymous, Google]`.
 - `@auth/core` and `@capawesome/capacitor-google-sign-in` were installed.
 - The remaining work is wiring `LoginPage.tsx`, native deep-link handling, Convex environment/deployment verification, and final web/Android builds.
+
+## Supabase OAuth verification (2026-08-27)
+- Supabase PKCE documentation: https://supabase.com/docs/guides/auth/sessions/pkce-flow
+- Verified guidance: `signInWithOAuth` supports PKCE; the callback returns a short-lived `code` that must be exchanged with `exchangeCodeForSession(code)` using the same device/browser storage where the verifier was created.
+- Project verified through the connected Supabase integration: project ref `wcnocnornerbiigcckzh`, status healthy. The authorize endpoint returned HTTP 302 with the requested `saki.chat.co://callback` target when tested with the project public key.
+- The Android WebView origin is `https://localhost`; it must not be used as the native OAuth callback. Native callback is `saki.chat.co://callback`, while web uses the current HTTPS origin.

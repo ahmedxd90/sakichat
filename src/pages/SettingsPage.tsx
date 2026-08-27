@@ -12,7 +12,7 @@ interface SettingsPageProps {
 
 type UpdateStatus = "idle" | "checking" | "found" | "notfound" | "updating";
 
-const APP_VERSION = "1.1.3";
+const APP_VERSION = "1.1.4";
 
 function ArrowIcon({ direction = "left" }: { direction?: "left" | "right" }) {
   return (

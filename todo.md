@@ -62,3 +62,14 @@
 - [ ] حذف ملفات `convex/` و `src/lib/convexClient.ts`.
 - [ ] تحديث `package.json` وإزالة حزم Convex.
 - [ ] بناء Android v1.1.4 وتسليم النسخة النهائية.
+
+## إصلاح طارئ ثالث: إعادة توجيه Google OAuth إلى localhost
+- [x] فحص قيمة redirectTo ومسارات OAuth في Supabase وCapacitor.
+- [x] تحديد سبب إعادة التوجيه إلى localhost وإصلاحه للويب وأندرويد.
+- [x] اختبار العودة من Google ومعالجة deep link داخل التطبيق.
+- [x] تشغيل TypeScript/build وبناء APK/AAB بعد الإصلاح.
+- [ ] حفظ checkpoint وتسليم الإصدار النهائي.
+
+السياق: يظهر بعد اختيار حساب Google الخطأ ERR_CONNECTION_REFUSED لأن المتصفح يحاول فتح localhost.
+
+المبدأ: عدم تخزين أو عرض أسرار OAuth أو مفاتيح خاصة في الكود أو السجل.

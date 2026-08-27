@@ -22,4 +22,13 @@ if (!isSupabaseConfigured) {
   );
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    // PKCE returns a short-lived code to the native deep link instead of
+    // putting long-lived session tokens directly in the callback URL.
+    flowType: "pkce",
+    detectSessionInUrl: true,
+    persistSession: true,
+    autoRefreshToken: true,
+  },
+});
