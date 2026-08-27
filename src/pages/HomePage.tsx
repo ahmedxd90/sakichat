@@ -202,7 +202,7 @@ export default function HomePage({ onRoomSelect, setCurrentPage, onUserSelect, o
   if (subPage === "weekly-star") return <WeeklyStarPage onBack={backToHome} />;
 
   const listRooms = rooms ?? [];
-  const fallbackBannerUrl = "/manus-storage/saki-recharge-royal-banner_228d5f43.png";
+  const fallbackBannerUrl = "https://l.top4top.io/p_38848efnl0.png";
   const activeBanners = banners && banners.length > 0 ? banners : [
     { imageUrl: fallbackBannerUrl },
     { imageUrl: "/manus-storage/weekly-star-title_79761d37.png" },

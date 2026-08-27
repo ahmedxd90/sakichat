@@ -3,7 +3,7 @@ import { supabase } from "../lib/supabaseClient";
 
 interface RechargeGiftPageProps { onBack: () => void; }
 
-const DEFAULT_BANNER = "/manus-storage/saki-recharge-royal-banner_228d5f43.png";
+const DEFAULT_BANNER = "https://l.top4top.io/p_38848efnl0.png";
 
 function RewardIcon({ type, label, duration }: { type: "frame" | "entry" | "rank"; label: string; duration: string }) {
   return (

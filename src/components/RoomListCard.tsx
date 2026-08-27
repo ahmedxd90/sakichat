@@ -4,7 +4,7 @@ import { ARAB_COUNTRIES } from "../data/countries";
 export default function RoomListCard({ room, onSelect, rank }: { room: any; onSelect: () => void; rank: number }) {
   const country = ARAB_COUNTRIES.find((c) => c.code === room.country);
   const isOfficial = room.isOfficial || room.isOfficialRoom;
-  const onlineCount = room.memberCount ?? 0;
+  const onlineCount = room.memberCount ?? room.member_count ?? 0;
   const description = room.description || (isOfficial ? "مرحباً بكم في الغرفة الرسمية، استمتعوا بالهدايا والأنشطة اليومية." : "حياكم الله في غرفتنا، دردشة ووناسة طوال اليوم!");
   
   // Ranking logic
@@ -39,7 +39,7 @@ export default function RoomListCard({ room, onSelect, rank }: { room: any; onSe
         {/* Left Thumbnail */}
         <div className="relative flex-shrink-0">
           <img
-            src={room.coverUrl || "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=300&q=80"}
+            src={room.coverUrl || room.cover_url || "https://images.unsplash.com/photo-1557683316-973673baf926?w=300&h=300&fit=crop"}
             alt=""
             className="w-20 h-20 rounded-xl object-cover shadow-sm border border-slate-200"
           />

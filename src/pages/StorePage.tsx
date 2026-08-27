@@ -166,7 +166,7 @@ export default function StorePage({ onBack }: StorePageProps) {
           </div>
         ) : items.length === 0 ? (
           <div className="flex flex-col items-center gap-3 py-24">
-            <StoreTypeIcon type={activeType} size={52} color="#9aa8b5" />
+            <StoreTypeIcon type={storeTab} size={52} color="#9aa8b5" />
             <p className="font-bold text-base" style={{ color: "#888" }}>لا توجد عناصر بعد</p>
             <p className="text-sm" style={{ color: "#bbb" }}>قريباً سيتم إضافة عناصر جديدة</p>
           </div>

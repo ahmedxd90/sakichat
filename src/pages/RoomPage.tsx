@@ -258,6 +258,8 @@ function RoomPageInner({ roomId, onBack, onBackgroundLeave, onViewProfile, onMes
   const [showRoulette, setShowRoulette] = useState(false);
   const [showFootballStream, setShowFootballStream] = useState(false);
   const [showPKResults, setShowPKResults] = useState(false);
+  const [lastFinishedPK, setLastFinishedPK] = useState<any>(null);
+  const [lastFinishedInRoomPK, setLastFinishedInRoomPK] = useState<any>(null);
   const [showRoomMessages, setShowRoomMessages] = useState(false);
   const [roomChatUserId, setRoomChatUserId] = useState<string | null>(null);
   const [unreadMessagesCount, setUnreadMessagesCount] = useState(0);
