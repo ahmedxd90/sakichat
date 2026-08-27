@@ -100,6 +100,7 @@ import { useProfile } from "../components/ProfileManager";
 export default function HomePage({ onRoomSelect, setCurrentPage, onUserSelect, onSubPageChange }: HomePageProps) {
   const [rooms, setRooms] = useState<any[]>([]);
   const [banners, setBanners] = useState<any[]>([]);
+  const [rechargeGiftSettings, setRechargeGiftSettings] = useState<any>(null);
   const { profile } = useProfile();
   const [myRoom, setMyRoom] = useState<any>(null);
   const [myRooms, setMyRooms] = useState<any>({ recent: [], followed: [], managed: [] });
@@ -161,6 +162,19 @@ export default function HomePage({ onRoomSelect, setCurrentPage, onUserSelect, o
 
   useEffect(() => { seedBanners(); }, []);
 
+  useEffect(() => {
+    let mounted = true;
+    const loadRechargeSettings = async () => {
+      const { data } = await supabase
+        .from("recharge_settings")
+        .select("banner_url")
+        .maybeSingle();
+      if (mounted) setRechargeGiftSettings(data ?? null);
+    };
+    void loadRechargeSettings();
+    return () => { mounted = false; };
+  }, []);
+
   // Change banner every 3 seconds as requested
   useEffect(() => {
     if (!banners || banners.length === 0) return;
@@ -188,11 +202,13 @@ export default function HomePage({ onRoomSelect, setCurrentPage, onUserSelect, o
   if (subPage === "weekly-star") return <WeeklyStarPage onBack={backToHome} />;
 
   const listRooms = rooms ?? [];
+  const fallbackBannerUrl = "/manus-storage/saki-recharge-royal-banner_228d5f43.png";
   const activeBanners = banners && banners.length > 0 ? banners : [
-    { imageUrl: "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=800&h=400&fit=crop" },
-    { imageUrl: "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=800&h=400&fit=crop" },
-    { imageUrl: "https://images.unsplash.com/photo-1493225457124-a1a2a5f56468?w=800&h=400&fit=crop" }
+    { imageUrl: fallbackBannerUrl },
+    { imageUrl: "/manus-storage/weekly-star-title_79761d37.png" },
+    { imageUrl: fallbackBannerUrl }
   ];
+  const rechargeBannerUrl = rechargeGiftSettings?.banner_url ?? rechargeGiftSettings?.bannerUrl ?? fallbackBannerUrl;
   const countriesWithRooms = Array.from(new Set(listRooms.map((r: any) => r.country).filter(Boolean))) as string[];
 
   const filteredRooms = listRooms.filter((r: any) => {
@@ -328,7 +344,7 @@ export default function HomePage({ onRoomSelect, setCurrentPage, onUserSelect, o
           {activeBanners.map((b: any, index: number) => (
             <div key={index} className="absolute inset-0 transition-opacity duration-700"
               style={{ opacity: currentBanner === index ? 1 : 0, pointerEvents: currentBanner === index ? "auto" : "none" }}>
-              <img src={b.imageUrl} alt="" className="w-full h-full object-cover" />
+              <img src={b.imageUrl || fallbackBannerUrl} alt="" className="w-full h-full object-cover" onError={(event) => { const image = event.currentTarget; image.onerror = null; image.src = fallbackBannerUrl; }} />
               <div className="absolute inset-0" style={{ background: "linear-gradient(0deg, rgba(22,5,13,.8) 0%, transparent 60%)" }} />
               <div className="absolute bottom-3 right-4 left-4 flex items-center justify-between">
                 <span className="text-xs font-black px-2.5 py-1 rounded-full text-white" style={{ background: AHLEEN_PALETTE.ruby, border: `1px solid ${AHLEEN_PALETTE.gold}66` }}>
@@ -387,7 +403,7 @@ export default function HomePage({ onRoomSelect, setCurrentPage, onUserSelect, o
                 <RoomListCard room={room} onSelect={() => onRoomSelect(room._id)} rank={idx + 1} />
                 {idx === 0 && (
                   <button type="button" onClick={() => goToSubPage(rechargeBanner === 0 ? "recharge" : "weekly-star")} className="group relative mt-0.5 overflow-hidden rounded-2xl border border-amber-300/60 bg-[#3b0712] shadow-[0_8px_24px_rgba(87,11,24,.18)] active:scale-[.99]">
-                    {rechargeBanner === 0 ? <><img src={rechargeGiftSettings?.bannerUrl ?? "/manus-storage/saki-recharge-royal-banner_228d5f43.png"} alt="هدية إعادة الشحن" className="h-[124px] w-full object-cover transition duration-500 group-hover:scale-[1.02]" /><span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-[#26040c]/90 to-transparent px-3 pb-2 pt-7 text-right text-[11px] font-black text-amber-100">هدايا إعادة الشحن</span></> : <><div className="flex h-[124px] items-center gap-4 bg-[radial-gradient(circle_at_20%_20%,rgba(251,191,36,.35),transparent_35%),linear-gradient(135deg,#160a2d,#3b1157,#120718)] px-5"><img src="/manus-storage/weekly-star-title_79761d37.png" alt="النجم الأسبوعي" className="h-24 w-24 object-contain drop-shadow-[0_0_18px_rgba(251,191,36,.8)]" /><div className="text-right"><p className="text-xs font-bold text-amber-200/70">هذا الأسبوع</p><p className="text-2xl font-black text-amber-100">النجم الأسبوعي</p><p className="text-[11px] text-white/60">اضغط لمعرفة الترتيب والمكافآت</p></div></div><span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-[#160a2d]/90 to-transparent px-3 pb-2 pt-7 text-right text-[11px] font-black text-amber-100">النجم الأسبوعي</span></>}
+                    {rechargeBanner === 0 ? <><img src={rechargeBannerUrl} alt="هدية إعادة الشحن" className="h-[124px] w-full object-cover transition duration-500 group-hover:scale-[1.02]" onError={(event) => { const image = event.currentTarget; image.onerror = null; image.src = fallbackBannerUrl; }} /><span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-[#26040c]/90 to-transparent px-3 pb-2 pt-7 text-right text-[11px] font-black text-amber-100">هدايا إعادة الشحن</span></> : <><div className="flex h-[124px] items-center gap-4 bg-[radial-gradient(circle_at_20%_20%,rgba(251,191,36,.35),transparent_35%),linear-gradient(135deg,#160a2d,#3b1157,#120718)] px-5"><img src="/manus-storage/weekly-star-title_79761d37.png" alt="النجم الأسبوعي" className="h-24 w-24 object-contain drop-shadow-[0_0_18px_rgba(251,191,36,.8)]" /><div className="text-right"><p className="text-xs font-bold text-amber-200/70">هذا الأسبوع</p><p className="text-2xl font-black text-amber-100">النجم الأسبوعي</p><p className="text-[11px] text-white/60">اضغط لمعرفة الترتيب والمكافآت</p></div></div><span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-[#160a2d]/90 to-transparent px-3 pb-2 pt-7 text-right text-[11px] font-black text-amber-100">النجم الأسبوعي</span></>}
                   </button>
                 )}
               </Fragment>
