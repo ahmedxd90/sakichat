@@ -39,18 +39,6 @@ function ReferralCodeChecker({ code }: { code: string }) {
   return null;
 }
 
-async function createUniqueSakiId(): Promise<string> {
-  for (let attempt = 0; attempt < 5; attempt += 1) {
-    const random = new Uint32Array(1);
-    crypto.getRandomValues(random);
-    const candidate = String(100000 + (random[0] % 900000));
-    const { data, error } = await supabase.from("profiles").select("id").eq("saki_id", candidate).maybeSingle();
-    if (error) throw error;
-    if (!data) return candidate;
-  }
-  throw new Error("تعذر إنشاء معرف Saki فريد، حاول مرة أخرى");
-}
-
 export default function RegisterPage({ onBack, isProfileSetup }: RegisterPageProps) {
   const { refreshProfile } = useProfile();
   const fingerprint = useDeviceFingerprint();
@@ -109,36 +97,23 @@ export default function RegisterPage({ onBack, isProfileSetup }: RegisterPagePro
         avatarUrl = publicUrl;
       }
 
-      // profiles.user_id references public.users.id, so create the parent row
-      // from the authenticated Supabase user before inserting the profile.
-      const { error: ensureUserError } = await supabase.rpc("ensure_current_user_record");
-      if (ensureUserError) throw ensureUserError;
+      // Save the profile and allocate/reuse the six-digit Saki ID in one
+      // server-side transaction. This avoids losing saki_id between a client
+      // uniqueness check and the profile upsert.
+      const { data: savedProfile, error: profileError } = await supabase.rpc("complete_current_profile", {
+        p_name: name.trim(),
+        p_country: country,
+        p_gender: gender,
+        p_avatar_url: avatarUrl || null,
+      });
 
-      const { data: existingProfile, error: existingProfileError } = await supabase
-        .from("profiles")
-        .select("saki_id")
-        .eq("user_id", authenticatedUser.id)
-        .maybeSingle();
-      if (existingProfileError) throw existingProfileError;
+      if (profileError) throw profileError;
+      const completedProfile = Array.isArray(savedProfile) ? savedProfile[0] : savedProfile;
+      const savedSakiId = completedProfile?.saki_id;
+      if (!savedSakiId) throw new Error("تعذر حفظ معرف Saki، حاول مرة أخرى");
 
-      const sakiId = existingProfile?.saki_id ?? await createUniqueSakiId();
-      const { error } = await supabase
-        .from("profiles")
-        .upsert(
-          {
-            user_id: authenticatedUser.id,
-            name: name.trim(),
-            saki_id: sakiId,
-            country,
-            gender: gender as "male" | "female",
-            avatar_url: avatarUrl,
-          },
-          { onConflict: "user_id" },
-        );
-
-      if (error) throw error;
       await refreshProfile();
-      toast.success("تم حفظ معلومات الحساب بنجاح! 🎉");
+      toast.success(`تم حفظ معلومات الحساب بنجاح — معرف Saki: ${savedSakiId} 🎉`);
     } catch (e: any) {
       toast.error(e.message || "حدث خطأ");
     } finally {
