@@ -105,6 +105,33 @@ export default function HomePage({ onRoomSelect, setCurrentPage, onUserSelect, o
   const [myRooms, setMyRooms] = useState<any>({ recent: [], followed: [], managed: [] });
   const { lang, tr, isRtl } = useLang();
 
+  const seedBanners = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("banners")
+        .select("*")
+        .limit(6);
+
+      if (error || !data) {
+        setBanners([]);
+        return;
+      }
+
+      const normalizedBanners = data
+        .map((banner: any) => ({
+          ...banner,
+          imageUrl: banner.imageUrl ?? banner.image_url ?? banner.url ?? "",
+        }))
+        .filter((banner: any) => Boolean(banner.imageUrl));
+
+      setBanners(normalizedBanners);
+    } catch {
+      // The home screen remains usable with local fallback banners when the
+      // optional banners table is unavailable or blocked by RLS.
+      setBanners([]);
+    }
+  };
+
   useEffect(() => {
     const fetchRooms = async () => {
       const { data } = await supabase.from('rooms').select('*').order('created_at', { ascending: false });

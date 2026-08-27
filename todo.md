@@ -112,3 +112,9 @@
 السياق: يظهر بعد اختيار حساب Google الخطأ ERR_CONNECTION_REFUSED لأن المتصفح يحاول فتح localhost.
 
 المبدأ: عدم تخزين أو عرض أسرار OAuth أو مفاتيح خاصة في الكود أو السجل.
+
+## إصلاح خطأ HomePage — 2026-08-27
+- [x] تحديد مصدر المرجع المفقود `seedBanners` في HomePage.
+- [x] إصلاح مسار banners مع fallback آمن عند فشل القراءة من Supabase.
+- [x] تشغيل TypeScript وVite build والتحقق من عدم ظهور `seedBanners` في الحزمة.
+- [x] مزامنة bundle المصحح مع Android تمهيداً لإعادة البناء الموقّع.
