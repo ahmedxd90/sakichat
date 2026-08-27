@@ -95,6 +95,13 @@
 
 النتيجة: أضيفت سياسة INSERT بشرط `user_id = auth.uid()::text`، وسياسة UPDATE بنفس الشرط، وسياسة SELECT للمستخدمين المسجلين.
 
+## إصلاح Google OAuth: Invalid API key
+- [x] تحديد أن الخطأ صادر من مفتاح Supabase العام المستخدم في حزمة Vite، وليس من OAuth client ID.
+- [x] التحقق من package name وSHA-1 وOAuth client IDs دون كشف الأسرار.
+- [x] مطابقة عنوان مشروع Supabase مع المفتاح العام الصحيح.
+- [x] إزالة placeholder API key من بيئة الإنتاج وGitHub Actions.
+- [x] إعادة بناء Android محلياً بنجاح وإطلاق تشغيل CI جديد.
+
 السياق: يظهر بعد اختيار حساب Google الخطأ ERR_CONNECTION_REFUSED لأن المتصفح يحاول فتح localhost.
 
 المبدأ: عدم تخزين أو عرض أسرار OAuth أو مفاتيح خاصة في الكود أو السجل.
