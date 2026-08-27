@@ -1,5 +1,6 @@
-import { useState, useRef } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useSupabase } from "../contexts/SupabaseContext";
+import { useProfile } from "../components/ProfileManager";
 import { supabase } from "../lib/supabaseClient";
 import { toast } from "../lib/toast";
 import { ARAB_COUNTRIES } from "../data/countries";
@@ -39,8 +40,21 @@ function ReferralCodeChecker({ code }: { code: string }) {
   return null;
 }
 
+async function createUniqueSakiId(): Promise<string> {
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const random = new Uint32Array(1);
+    crypto.getRandomValues(random);
+    const candidate = String(100000 + (random[0] % 900000));
+    const { data, error } = await supabase.from("profiles").select("id").eq("saki_id", candidate).maybeSingle();
+    if (error) throw error;
+    if (!data) return candidate;
+  }
+  throw new Error("تعذر إنشاء معرف Saki فريد، حاول مرة أخرى");
+}
+
 export default function RegisterPage({ onBack, isProfileSetup }: RegisterPageProps) {
   const { user } = useSupabase();
+  const { refreshProfile } = useProfile();
   const fingerprint = useDeviceFingerprint();
   const registrationCheck = null; // Will implement with Supabase RPC later
 
@@ -93,11 +107,17 @@ export default function RegisterPage({ onBack, isProfileSetup }: RegisterPagePro
         avatarUrl = publicUrl;
       }
 
-      const sakiId = Math.floor(100000 + Math.random() * 900000).toString();
+      const { data: existingProfile, error: existingProfileError } = await supabase
+        .from("profiles")
+        .select("saki_id")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (existingProfileError) throw existingProfileError;
 
+      const sakiId = existingProfile?.saki_id ?? await createUniqueSakiId();
       const { error } = await supabase
-        .from('profiles')
-        .insert([
+        .from("profiles")
+        .upsert(
           {
             user_id: user.id,
             name: name.trim(),
@@ -105,11 +125,13 @@ export default function RegisterPage({ onBack, isProfileSetup }: RegisterPagePro
             country,
             gender: gender as "male" | "female",
             avatar_url: avatarUrl,
-          }
-        ]);
+          },
+          { onConflict: "user_id" },
+        );
 
       if (error) throw error;
-      toast.success("تم إنشاء الحساب بنجاح! 🎉");
+      await refreshProfile();
+      toast.success("تم حفظ معلومات الحساب بنجاح! 🎉");
     } catch (e: any) {
       toast.error(e.message || "حدث خطأ");
     } finally {
