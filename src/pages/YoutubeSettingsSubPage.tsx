@@ -60,7 +60,7 @@ export default function YoutubeSettingsSubPage({ roomId, onBack }: Props) {
     } catch (e: any) {
       const msg = e?.message ?? "";
       if (msg.includes("YOUTUBE_API_KEY")) {
-        toast.error("⚠️ أضف YOUTUBE_API_KEY في إعدادات Convex لتفعيل البحث");
+        toast.error("⚠️ أضف YOUTUBE_API_KEY في إعدادات الخادم لتفعيل البحث");
       } else {
         toast.error("فشل البحث: " + msg);
       }
@@ -263,7 +263,7 @@ export default function YoutubeSettingsSubPage({ roomId, onBack }: Props) {
           <p className="text-blue-400/80 text-[11px] font-bold mb-1.5"> كيف يعمل؟</p>
           <p className="text-gray-500 text-[11px]">• ابحث بالاسم أو الصق رابط يوتيوب مباشرة</p>
           <p className="text-gray-500 text-[11px]">• الفيديو يظهر فوراً لجميع أعضاء الغرفة</p>
-          <p className="text-gray-500 text-[11px]">• يتطلب البحث إضافة YOUTUBE_API_KEY في Convex</p>
+          <p className="text-gray-500 text-[11px]">• يتطلب البحث إضافة YOUTUBE_API_KEY في إعدادات الخادم</p>
         </div>
       </div>
     </div>

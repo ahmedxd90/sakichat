@@ -102,6 +102,13 @@
 - [x] إزالة placeholder API key من بيئة الإنتاج وGitHub Actions.
 - [x] إعادة بناء Android محلياً بنجاح وإطلاق تشغيل CI جديد.
 
+## إصلاح foreign key بين profiles وauth.users
+- [ ] فحص نوع ووجهة القيد `profiles_user_id_fkey` ومسار إنشاء auth user.
+- [ ] التحقق من تطابق مشروع Supabase المستخدم في OAuth مع مشروع التطبيق.
+- [ ] جعل إنشاء/تحديث profile يعتمد على جلسة Supabase الحالية فقط.
+- [ ] تطبيق migration أو إصلاح الكود دون تجاوز قيد foreign key.
+- [ ] إعادة بناء APK/AAB واختبار تسجيل الدخول وإكمال المعلومات.
+
 السياق: يظهر بعد اختيار حساب Google الخطأ ERR_CONNECTION_REFUSED لأن المتصفح يحاول فتح localhost.
 
 المبدأ: عدم تخزين أو عرض أسرار OAuth أو مفاتيح خاصة في الكود أو السجل.

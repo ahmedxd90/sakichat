@@ -68,7 +68,7 @@ export default function AdminHostAgenciesTab() {
       {(
         <div className="space-y-3">
           <div className="rounded-2xl p-3 text-xs text-slate-600 bg-white shadow-sm" style={{ border: "1px solid rgba(22,163,74,.14)" }}>
-            🏢 وكالات المضيفين المعلقة — القائمة الشاملة والحظر متاحان بعد نشر تحديث Convex
+            🏢 وكالات المضيفين المعلقة — القائمة الشاملة والحظر متاحان عبر الإدارة الحالية
           </div>
           {!allAgencies ? <div className="flex justify-center py-10"><div className="w-8 h-8 border-2 border-green-600 border-t-transparent rounded-full animate-spin" /></div> : allAgencies.length === 0 ? (
             <div className="text-center py-12"><div className="text-4xl mb-3">🏢</div><p className="text-slate-500 text-sm font-bold">لا توجد وكالات</p></div>

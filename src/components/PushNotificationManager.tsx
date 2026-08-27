@@ -1,5 +1,5 @@
 // إشعارات Saki: تسجيل FCM مرة واحدة بعد جاهزية المستخدم، مع تنظيف المستمعين لمنع التسريب وتكرار التسجيل.
-// فلسفة الملف: الإشعار الحقيقي يأتي من Firebase/Convex، ولا تُمنح الثقة لأي بيانات محلية.
+// فلسفة الملف: الإشعار الحقيقي يأتي من Firebase/Supabase، ولا تُمنح الثقة لأي بيانات محلية.
 //
 // The native listeners must be installed before register(); otherwise the registration
 // event can be emitted before the listener exists on some Android devices.

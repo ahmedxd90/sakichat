@@ -202,7 +202,7 @@ export default function RoomSeatActionSheet({
               onClick={async () => {
                 if (inviteTargetUser) {
                   if (!seatInvitesEnabled) {
-                    toast.error("دعوات المقاعد ستتفعّل بعد نشر تحديث Convex");
+                    toast.error("دعوات المقاعد غير متاحة حالياً");
                     return;
                   }
                   try {

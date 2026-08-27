@@ -1,5 +1,5 @@
 // Style reminder: صفحة ترتيب عربية RTL مستوحاة من المرجع المرفق؛ خلفية فاتحة slate، بطاقات بيضاء، خط Cairo، رأس ثابت، منصة للمراكز الثلاثة، وقائمة نتائج حقيقية بلا بيانات تجريبية.
-// Data reminder: جميع النتائج تأتي من Convex leaderboards ولا توجد بيانات تجريبية داخل الواجهة.
+// Data reminder: جميع النتائج تأتي من Supabase leaderboards ولا توجد بيانات تجريبية داخل الواجهة.
 // @ts-nocheck
 import { supabase } from "../lib/supabaseClient";
 import { useProfile } from "../components/ProfileManager";

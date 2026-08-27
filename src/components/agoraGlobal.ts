@@ -124,7 +124,7 @@ export async function joinAgoraGlobal(
   try {
     const safeChannel = channelName.replace(/[^a-zA-Z0-9_-]/g, "").substring(0, 64);
     // يجب أن يطابق هذا الحساب الخادم حرفياً؛ إبقاء الباقي في كل خطوة يمنع
-    // فقدان الدقة الرقمية مع معرّفات Convex الطويلة.
+    // فقدان الدقة الرقمية مع معرّفات المستخدمين الطويلة.
     const safeUid = Math.abs(
       userId.split("").reduce((acc, c) => (acc * 31 + c.charCodeAt(0)) % 100000000, 0)
     );

@@ -1,4 +1,4 @@
-// DJ Spin — واجهة DJ/Rave أصلية، مرحلة تجريبية آمنة بلا خصم عملات حقيقية حتى يكتمل ربط Convex.
+// DJ Spin — واجهة DJ/Rave أصلية، مرحلة تجريبية آمنة بلا خصم عملات حقيقية حتى يكتمل ربط التسوية الخادمية.
 import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "../lib/supabaseClient";
 
@@ -110,7 +110,7 @@ export default function DJSpinGame({ roomId, onBack }: { roomId?: string; onBack
         const payout = count >= 5 ? bet * 45 : count === 4 ? bet * 10 : count === 3 ? bet * 5 : 0;
         if (currentRound) {
           setWin(0);
-          setMessage("تم تسجيل الرهان خادميًا؛ ستظهر التسوية والنتيجة من Convex");
+          setMessage("تم تسجيل الرهان خادميًا؛ ستظهر التسوية والنتيجة بعد اكتمال المعالجة الخادمية");
         } else {
           setWin(payout);
           setMessage(payout > 0 ? `فوز DJ تجريبي! +${payout.toLocaleString()}` : "لا يوجد تطابق تجريبي هذه المرة");
@@ -156,7 +156,7 @@ export default function DJSpinGame({ roomId, onBack }: { roomId?: string; onBack
             <div className="mt-2 grid grid-cols-4 gap-2">{BETS.map((amount) => <button key={amount} onClick={() => setBet(amount)} className={`rounded-xl border py-2 text-[10px] font-black ${bet === amount ? "border-fuchsia-300 bg-fuchsia-500/30 text-white" : "border-white/10 bg-black/35 text-white/55"}`}>{amount >= 1000 ? `${amount / 1000}K` : amount}</button>)}</div>
             <button onClick={spin} disabled={spinning || seconds === 0} className="mt-3 w-full rounded-2xl border border-yellow-200/60 bg-gradient-to-r from-fuchsia-600 via-purple-600 to-cyan-500 py-3 text-sm font-black shadow-[0_0_28px_rgba(217,70,239,.4)] active:scale-[.98] disabled:opacity-50">{spinning ? "يتم تدوير الأعمدة..." : currentRound ? `SPIN · ${bet.toLocaleString()} عملة` : `SPIN · ${bet.toLocaleString()} تجريبي`}</button>
             <p className="mt-2 text-center text-[10px] text-white/45">{message}</p>
-          </> : tab === "rules" ? <div className="rounded-2xl border border-white/10 bg-black/45 p-4 text-right text-sm leading-7 text-white/75"><h2 className="mb-2 font-black text-fuchsia-200">قواعد DJ Spin</h2><p>اختر مبلغ الرهان ثم اضغط Spin. تُحسب خطوط الفوز من الرموز المتطابقة، وتُعرض النتيجة في نهاية الدوران. هذه المرحلة تجريبية ولا تخصم عملات حقيقية.</p><p className="mt-3 text-cyan-200">عند ظهور «حقيقية» يحدد Convex الجولة والرهان والخصم والتسوية لكل غرفة. لا يتم قبول نتيجة من الهاتف.</p></div> : <div className="rounded-2xl border border-white/10 bg-black/45 p-4 text-center text-sm text-white/60">سيظهر سجل الجولات بعد تفعيل الربط الخادمي.</div>}
+          </> : tab === "rules" ? <div className="rounded-2xl border border-white/10 bg-black/45 p-4 text-right text-sm leading-7 text-white/75"><h2 className="mb-2 font-black text-fuchsia-200">قواعد DJ Spin</h2><p>اختر مبلغ الرهان ثم اضغط Spin. تُحسب خطوط الفوز من الرموز المتطابقة، وتُعرض النتيجة في نهاية الدوران. هذه المرحلة تجريبية ولا تخصم عملات حقيقية.</p><p className="mt-3 text-cyan-200">عند ظهور «حقيقية» يحدد الخادم الجولة والرهان والخصم والتسوية لكل غرفة. لا يتم قبول نتيجة من الهاتف.</p></div> : <div className="rounded-2xl border border-white/10 bg-black/45 p-4 text-center text-sm text-white/60">سيظهر سجل الجولات بعد تفعيل الربط الخادمي.</div>}
         </div>
       </div>
     </div>

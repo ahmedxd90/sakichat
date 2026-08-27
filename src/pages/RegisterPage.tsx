@@ -1,5 +1,4 @@
 import { useEffect, useState, useRef } from "react";
-import { useSupabase } from "../contexts/SupabaseContext";
 import { useProfile } from "../components/ProfileManager";
 import { supabase } from "../lib/supabaseClient";
 import { toast } from "../lib/toast";
@@ -53,7 +52,6 @@ async function createUniqueSakiId(): Promise<string> {
 }
 
 export default function RegisterPage({ onBack, isProfileSetup }: RegisterPageProps) {
-  const { user } = useSupabase();
   const { refreshProfile } = useProfile();
   const fingerprint = useDeviceFingerprint();
   const registrationCheck = null; // Will implement with Supabase RPC later
@@ -90,14 +88,18 @@ export default function RegisterPage({ onBack, isProfileSetup }: RegisterPagePro
     if (!name.trim()) { toast.error("أدخل اسمك"); return; }
     if (!country) { toast.error("اختر دولتك"); return; }
     if (!gender) { toast.error("اختر جنسك"); return; }
-    if (!user) { toast.error("يجب تسجيل الدخول أولاً"); return; }
-
     setLoading(true);
     try {
+      // Read the authoritative user from Supabase after the OAuth callback.
+      // React auth state can still be one render behind on Android WebView.
+      const { data: { user: authenticatedUser }, error: authUserError } = await supabase.auth.getUser();
+      if (authUserError) throw authUserError;
+      if (!authenticatedUser) throw new Error("يجب تسجيل الدخول أولاً");
+
       let avatarUrl = "";
       if (avatarFile) {
         const fileExt = avatarFile.name.split('.').pop();
-        const fileName = `${user.id}-${Math.random()}.${fileExt}`;
+        const fileName = `${authenticatedUser.id}-${Math.random()}.${fileExt}`;
         const { data, error: uploadError } = await supabase.storage
           .from('avatars')
           .upload(fileName, avatarFile);
@@ -107,10 +109,15 @@ export default function RegisterPage({ onBack, isProfileSetup }: RegisterPagePro
         avatarUrl = publicUrl;
       }
 
+      // profiles.user_id references public.users.id, so create the parent row
+      // from the authenticated Supabase user before inserting the profile.
+      const { error: ensureUserError } = await supabase.rpc("ensure_current_user_record");
+      if (ensureUserError) throw ensureUserError;
+
       const { data: existingProfile, error: existingProfileError } = await supabase
         .from("profiles")
         .select("saki_id")
-        .eq("user_id", user.id)
+        .eq("user_id", authenticatedUser.id)
         .maybeSingle();
       if (existingProfileError) throw existingProfileError;
 
@@ -119,7 +126,7 @@ export default function RegisterPage({ onBack, isProfileSetup }: RegisterPagePro
         .from("profiles")
         .upsert(
           {
-            user_id: user.id,
+            user_id: authenticatedUser.id,
             name: name.trim(),
             saki_id: sakiId,
             country,

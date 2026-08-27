@@ -136,7 +136,7 @@ export default function FruitPartyGame({ onBack, roomId }: Props) {
     startSpinAnimation();
     if (recoveryRoundRef.current !== roundId) {
       recoveryRoundRef.current = roundId;
-      // Do not rely only on the scheduled Convex job. Android/Web clients
+      // Do not rely only on the scheduled server job. Android/Web clients
       // explicitly resolve the expired round, then request the next one.
       resolveExpiredRound({ roundId: expiredRound._id })
         .catch(() => null)

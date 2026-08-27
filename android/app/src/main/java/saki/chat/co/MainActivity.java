@@ -31,7 +31,7 @@ public class MainActivity extends BridgeActivity {
         WebSettings settings = webView.getSettings();
         settings.setJavaScriptEnabled(true);
         settings.setDomStorageEnabled(true);
-        // ZEGOCLOUD Web SDK creates MediaStream audio tracks inside the WebView.
+        // Agora Web SDK creates MediaStream audio tracks inside the WebView.
         // Without this flag Android may block remote audio until an extra gesture.
         settings.setMediaPlaybackRequiresUserGesture(false);
         webView.setKeepScreenOn(false);

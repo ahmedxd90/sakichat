@@ -5,7 +5,6 @@ allowBuilds:
   '@firebase/util': true
   esbuild: true
   protobufjs: true
-  zego-express-engine-webrtc: true
 
 patchedDependencies:
   '@capacitor-community/http@1.4.1': patches/@capacitor-community__http@1.4.1.patch

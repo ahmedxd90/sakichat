@@ -693,7 +693,7 @@ function RoomPageInner({ roomId, onBack, onBackgroundLeave, onViewProfile, onMes
       return;
     }
     if (!seatInvitesAvailable) {
-      toast.error("دعوات المقاعد ستتفعّل بعد نشر تحديث Convex");
+      toast.error("دعوات المقاعد غير متاحة حالياً");
       return;
     }
     const occupied = new Set((members ?? []).map((m: any) => m.seatIndex).filter((i: any) => i !== undefined && i !== null));

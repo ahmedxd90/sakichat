@@ -30,14 +30,12 @@ const ERROR_MAP: Record<string, string> = {
 
 // أنماط تقنية يجب إخفاؤها
 const TECHNICAL_PATTERNS = [
-  /\[CONVEX [A-Z]+\([^)]+\)\]/,           // [CONVEX Q(xxx:yyy)]
   /\[Request ID: [a-f0-9]+\]/,             // [Request ID: abc123]
   /Server Error\s*\n/,                      // Server Error\n
   /Uncaught Error:/,                        // Uncaught Error:
   /at handler \([^)]+\)/,                  // at handler (file.ts:line)
   /at [a-zA-Z]+ \([^)]+\)/,               // at function (file:line)
   /Called by client/,                       // Called by client
-  /convex\/_generated/,                     // convex/_generated
   /\.ts:\d+:\d+/,                          // file.ts:123:45
   /Index [a-zA-Z]+\.[a-zA-Z_]+ not found/, // Index table.index not found
   /\n\s+at /,                              // stack trace lines
@@ -75,7 +73,7 @@ export function cleanErrorMessage(error: any): string {
 
   // تنظيف الرسالة من أي نص تقني متبقٍ
   msg = msg
-    .replace(/\[CONVEX [^\]]+\]/g, "")
+    .replace(/\[[A-Z][A-Z0-9_ ]+[^\]]*\]/g, "")
     .replace(/\[Request ID: [^\]]+\]/g, "")
     .replace(/Server Error\s*/g, "")
     .replace(/Uncaught Error:\s*/g, "")
