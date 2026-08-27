@@ -1,17 +1,19 @@
 // @ts-nocheck
 import { useState, useEffect } from "react";
-import { useQuery } from "convex/react";
-import { api } from "../../../convex/_generated/api";
-import { Id } from "../../../convex/_generated/dataModel";
+import { supabase } from "../../lib/supabaseClient";
 
 interface RoomEntryGateProps {
-  roomId: Id<"rooms">;
+  roomId: string;
   children: React.ReactNode;
 }
 
 export default function RoomEntryGate({ roomId, children }: RoomEntryGateProps) {
-  const room = useQuery(api.rooms.getRoom, { roomId });
+  const [room, setRoom] = useState<any>(null);
   const [phase, setPhase] = useState<"loading" | "gate" | "opening" | "done">("loading");
+
+  useEffect(() => {
+    supabase.from('rooms').select('*').eq('id', roomId).single().then(({ data }) => setRoom(data));
+  }, [roomId]);
 
   useEffect(() => {
     if (!room) return;
@@ -20,7 +22,7 @@ export default function RoomEntryGate({ roomId, children }: RoomEntryGateProps) 
     const t1 = setTimeout(() => setPhase("opening"), 800);
     const t2 = setTimeout(() => setPhase("done"), 1500);
     return () => { clearTimeout(t1); clearTimeout(t2); };
-  }, [room?._id]); // نعتمد فقط على id الغرفة لتجنب إعادة التشغيل
+  }, [room?.id]); // نعتمد فقط على id الغرفة لتجنب إعادة التشغيل
 
   // fallback: إذا تأخر تحميل الغرفة أكثر من 4 ثوانٍ، ادخل مباشرة
   useEffect(() => {
@@ -31,7 +33,7 @@ export default function RoomEntryGate({ roomId, children }: RoomEntryGateProps) 
   if (phase === "done") return <>{children}</>;
 
   const roomName = room?.name ?? "";
-  const coverUrl = room?.coverUrl ?? null;
+  const coverUrl = room?.cover_url ?? null;
 
   return (
     <div

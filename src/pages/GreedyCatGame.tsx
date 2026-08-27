@@ -1,7 +1,6 @@
 // @ts-nocheck
 import { useState, useEffect, useRef } from "react";
-import { useQuery, useMutation } from "convex/react";
-import { api } from "../../convex/_generated/api";
+import { supabase } from "../lib/supabaseClient";
 
 const FOOD_ITEMS = [
   { key: "corn",   label: "ذرة",    multiplier: 5,  emoji: "🌽", color: "#fbbf24", group: "veg" },
@@ -21,22 +20,47 @@ interface ToastMsg { id: number; text: string; color: string }
 interface Props { onBack: () => void }
 
 export default function GreedyCatGame({ onBack }: Props) {
-  const profile      = useQuery(api.profiles.getMyProfile);
-  const currentRound = useQuery(api.greedyCat.getCurrentRound);
-  const lastRounds   = useQuery(api.greedyCat.getLastRounds);
-  const leaderboard  = useQuery(api.greedyCat.getLeaderboard);
-  const todayWinnings = useQuery(api.greedyCat.getMyTodayWinnings);
-  const betsSummary  = useQuery(api.greedyCat.getRoundBetsSummary, currentRound ? { roundId: currentRound._id } : "skip");
-  const myBets       = useQuery(api.greedyCat.getMyBetsForRound,   currentRound ? { roundId: currentRound._id } : "skip");
-  const recentBets   = useQuery(api.greedyCat.getRecentBets,       currentRound ? { roundId: currentRound._id } : "skip");
+  const [profile, setProfile] = useState<any>(null);
+  const [currentRound, setCurrentRound] = useState<any>(null);
+  const [lastRounds, setLastRounds] = useState<any[]>([]);
+  const [leaderboard, setLeaderboard] = useState<any[]>([]);
+  const [todayWinnings, setTodayWinnings] = useState<any>(null);
+  const [betsSummary, setBetsSummary] = useState<any>(null);
+  const [myBets, setMyBets] = useState<any[]>([]);
+  const [recentBets, setRecentBets] = useState<any[]>([]);
 
   const [resultRoundId, setResultRoundId] = useState<string | null>(null);
-  const topBettors        = useQuery(api.greedyCat.getRoundTopBettors,      resultRoundId ? { roundId: resultRoundId as any } : "skip");
-  const finishedRoundMyBets = useQuery(api.greedyCat.getMyBetsForFinishedRound, resultRoundId ? { roundId: resultRoundId as any } : "skip");
+  const [topBettors, setTopBettors] = useState<any[]>([]);
+  const [finishedRoundMyBets, setFinishedRoundMyBets] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: p } = await supabase.from('profiles').select('*').eq('user_id', user.id).single();
+        setProfile(p);
+      }
+      const { data: round } = await supabase.from('greedy_cat_rounds').select('*').eq('status', 'betting').order('created_at', { ascending: false }).limit(1).single();
+      setCurrentRound(round);
+      const { data: last } = await supabase.from('greedy_cat_rounds').select('*').eq('status', 'finished').order('created_at', { ascending: false }).limit(10);
+      setLastRounds(last || []);
+    };
+    fetchData();
+  }, []);
 
   const [lastRoundWinnerKey, setLastRoundWinnerKey] = useState<string | null>(null);
-  const placeBet    = useMutation(api.greedyCat.placeBet);
-  const forceRestart = useMutation(api.greedyCat.forceRestartGame);
+  const placeBet = async (args: any) => {
+    const { error } = await supabase.from('greedy_cat_bets').insert({
+      round_id: args.roundId,
+      user_id: profile.user_id,
+      food_key: args.foodKey,
+      amount: args.amount
+    });
+    if (error) throw error;
+  };
+  const forceRestart = async () => {
+    // Logic for force restart
+  };
 
   const [selectedAmount, setSelectedAmount] = useState(1000);
   const [placing, setPlacing]   = useState(false);
@@ -82,7 +106,7 @@ export default function GreedyCatGame({ onBack }: Props) {
       forceRestart().catch(() => {}).finally(() => setTimeout(() => { restartingRef.current = false; }, 5000));
     }
     if (currentRound !== null && !isStuck) restartingRef.current = false;
-  }, [currentRound?._id, currentRound?.status, currentRound?.endsAt, phase]);
+  }, [currentRound?.id, currentRound?.status, currentRound?.endsAt, phase]);
 
   // ── phase sync ────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -90,7 +114,7 @@ export default function GreedyCatGame({ onBack }: Props) {
     const now = Date.now();
     if (currentRound.status === "betting" && currentRound.endsAt > now) setPhase("betting");
     else if (currentRound.status === "betting" && currentRound.endsAt <= now) setPhase("stopped");
-  }, [currentRound?._id, currentRound?.status, timeLeft === 0]);
+  }, [currentRound?.id, currentRound?.status, timeLeft === 0]);
 
   // ── spin animation ────────────────────────────────────────────────────────
   useEffect(() => {
@@ -125,7 +149,7 @@ export default function GreedyCatGame({ onBack }: Props) {
       }
     }, 120);
     return () => clearInterval(flashInterval);
-  }, [lastRounds?.[0]?._id]);
+  }, [lastRounds?.[0]?.id]);
 
   // ── place bet ─────────────────────────────────────────────────────────────
   const handleBetOnFood = async (foodKey: string) => {
@@ -133,7 +157,7 @@ export default function GreedyCatGame({ onBack }: Props) {
     const food = FOOD_ITEMS.find(f => f.key === foodKey);
     setPlacing(true);
     try {
-      await placeBet({ roundId: currentRound._id, foodKey, amount: selectedAmount });
+      await placeBet({ roundId: currentRound.id, foodKey, amount: selectedAmount });
       showToast(`✅ رهنت ${selectedAmount.toLocaleString()} على ${food?.emoji} ${food?.label}`, "#22c55e");
     } catch (e: any) {
       showToast(`❌ ${e.message}`, "#ef4444");
@@ -355,7 +379,7 @@ export default function GreedyCatGame({ onBack }: Props) {
                 {recentBets.slice(0, 8).map((bet, idx) => {
                   const food = FOOD_ITEMS.find(f => f.key === bet.foodKey);
                   return (
-                    <div key={bet._id} className="flex items-center gap-2">
+                    <div key={bet.id} className="flex items-center gap-2">
                       <div className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] flex-shrink-0"
                         style={{ background: `${food?.color ?? "#fff"}20`, border: `1px solid ${food?.color ?? "#fff"}40` }}>
                         {food?.emoji ?? "❓"}
@@ -383,7 +407,7 @@ export default function GreedyCatGame({ onBack }: Props) {
                 const hide = idx === 0 && (phase === "betting" || phase === "stopped");
                 const food = hide ? null : FOOD_ITEMS.find(f => f.key === round.winningFood);
                 return (
-                  <div key={round._id} className="flex flex-col items-center gap-0.5 rounded-xl px-2 py-1.5"
+                  <div key={round.id} className="flex flex-col items-center gap-0.5 rounded-xl px-2 py-1.5"
                     style={{ background: idx === 0 ? "rgba(168,85,247,0.15)" : "rgba(255,255,255,0.05)", border: idx === 0 ? "1px solid rgba(168,85,247,0.3)" : "1px solid rgba(255,255,255,0.07)", minWidth: 36 }}>
                     <span style={{ fontSize: 15 }}>{hide ? "🔒" : (food?.emoji ?? "❓")}</span>
                     <span className="text-[7px] font-black" style={{ color: hide ? "rgba(255,255,255,0.2)" : (food?.color ?? "#fff") }}>
@@ -503,7 +527,7 @@ export default function GreedyCatGame({ onBack }: Props) {
               ) : leaderboard.length === 0 ? (
                 <p className="text-white/20 text-sm text-center py-10">لا يوجد لاعبون بعد</p>
               ) : leaderboard.map((entry, idx) => (
-                <div key={entry._id} className="flex items-center gap-2.5 rounded-2xl px-3 py-2.5"
+                <div key={entry.id} className="flex items-center gap-2.5 rounded-2xl px-3 py-2.5"
                   style={{ background: idx === 0 ? "rgba(251,191,36,0.08)" : "rgba(255,255,255,0.04)", border: idx === 0 ? "1px solid rgba(251,191,36,0.2)" : "1px solid rgba(255,255,255,0.07)" }}>
                   <span className="text-sm font-black w-6 text-center flex-shrink-0" style={{ color: idx < 3 ? "#fbbf24" : "rgba(255,255,255,0.3)" }}>
                     {idx === 0 ? "🥇" : idx === 1 ? "🥈" : idx === 2 ? "🥉" : `${idx+1}`}

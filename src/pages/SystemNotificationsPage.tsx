@@ -1,8 +1,6 @@
 // @ts-nocheck
 import React, { useEffect, useState, useCallback } from "react";
-import { useQuery, useMutation } from "convex/react";
-import { api } from "../../convex/_generated/api";
-import { Id } from "../../convex/_generated/dataModel";
+import { supabase } from "../lib/supabaseClient";
 import { toast } from "../lib/toast";
 import { useHardwareBack } from "../hooks/useHardwareBack";
 
@@ -49,20 +47,28 @@ function formatTime(timestamp: number): string {
 }
 
 export default function SystemNotificationsPage({ onBack }: Props) {
-  const notifications = useQuery(api.notifications.getMyNotifications);
-  const markAllRead = useMutation(api.notifications.markAllRead);
-  const respondToCp = useMutation(api.store.respondToCpRing);
+  const [notifications, setNotifications] = useState<any[]>([]);
   const [cpLoading, setCpLoading] = useState<string | null>(null);
   const [fullscreenImage, setFullscreenImage] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      const { data } = await supabase.from('notifications').select('*, actor_profile:profiles(*)').order('created_at', { ascending: false });
+      setNotifications(data || []);
+      // Mark all read
+      if (data && data.length > 0) {
+        await supabase.from('notifications').update({ is_read: true }).eq('is_read', false);
+      }
+    };
+    fetchData();
+  }, []);
 
   const systemNotifs = notifications?.filter((n) =>
     ["charge", "system", "diamond_received", "family_invite", "gift_received", "cp_ring",
      "follow", "like", "comment", "mention"].includes(n.type)
   ) ?? [];
 
-  useEffect(() => {
-    markAllRead().catch(() => {});
-  }, []);
+  const respondToCp = async (args: any) => {};
 
   // زر الرجوع في الهاتف
   useHardwareBack(onBack, true);
@@ -70,7 +76,7 @@ export default function SystemNotificationsPage({ onBack }: Props) {
   const handleCpRespond = useCallback(async (refId: string, accept: boolean) => {
     setCpLoading(refId);
     try {
-      await respondToCp({ userItemId: refId as Id<"userStoreItems">, accept });
+      await respondToCp({ userItemId: refId as string, accept });
       toast.success(accept ? "قبلت الخاتم 💍" : "رفضت الخاتم");
     } catch (e: any) {
       toast.error(e.message);
@@ -132,7 +138,7 @@ export default function SystemNotificationsPage({ onBack }: Props) {
           <div className="divide-y divide-gray-50">
             {systemNotifs.map((notif) => (
               <NotifItem
-                key={notif._id}
+                key={notif.id}
                 notif={notif}
                 cpLoading={cpLoading}
                 onCpRespond={handleCpRespond}

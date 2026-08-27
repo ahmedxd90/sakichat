@@ -1,5 +1,4 @@
 // @ts-nocheck
-import { Id } from "../../../convex/_generated/dataModel";
 import { VipFrame, VipName, VipBadge } from "../VipBadge";
 import { AristocracyName, AristocracyBadge, getAristocracyConfig } from "../AristocracyBadge";
 import UserAvatar from "../UserAvatar";
@@ -97,7 +96,7 @@ export default function RoomMembersSheet({
               </div>
               <div className="space-y-1">
                 {seated.map((member) => (
-                  <MemberRow key={member._id} member={member} myProfile={myProfile} isMuted={isMuted} onSelect={() => { onSelectUser(member); onClose(); }} />
+                  <MemberRow key={member.id} member={member} myProfile={myProfile} isMuted={isMuted} onSelect={() => { onSelectUser(member); onClose(); }} />
                 ))}
               </div>
             </div>
@@ -112,7 +111,7 @@ export default function RoomMembersSheet({
               </div>
               <div className="space-y-1">
                 {listeners.map((member) => (
-                  <MemberRow key={member._id} member={member} myProfile={myProfile} isMuted={isMuted} onSelect={() => { onSelectUser(member); onClose(); }} />
+                  <MemberRow key={member.id} member={member} myProfile={myProfile} isMuted={isMuted} onSelect={() => { onSelectUser(member); onClose(); }} />
                 ))}
               </div>
             </div>
@@ -124,13 +123,13 @@ export default function RoomMembersSheet({
 }
 
 function MemberRow({ member, myProfile, isMuted, onSelect }: { member: any; myProfile: any; isMuted: boolean; onSelect: () => void }) {
-  const isPrivateMember = Boolean(member.profile?.isPrivateProfile && member.profile?.userId !== myProfile?.userId);
+  const isPrivateMember = Boolean(member.profile?.isPrivateProfile && member.profile?.user_id !== myProfile?.user_id);
   const privateAvatarUrl = "/assets/privacy/private-person-icon.svg";
   const isVipM = isPrivateMember ? false : (member.profile?.isVip ?? false);
   const memberVipLevel = member.profile?.vipLevel;
   const memberAristoLevel = isPrivateMember ? 0 : (member.profile?.aristocracyLevel ?? 0);
   const memberAristoActive = memberAristoLevel > 0 && member.profile?.aristocracyExpiresAt && member.profile.aristocracyExpiresAt > Date.now();
-  const isMe = member.profile?.userId === myProfile?.userId;
+  const isMe = member.profile?.user_id === myProfile?.user_id;
   const isOnSeat = member.seatIndex !== undefined && member.seatIndex !== null;
   const memberMuted = isMe ? Boolean(isMuted) : false;
   const nameStyle = getMemberNameStyle(member.profile);
@@ -147,7 +146,7 @@ function MemberRow({ member, myProfile, isMuted, onSelect }: { member: any; myPr
       {/* Avatar */}
       <div className="relative flex-shrink-0">
         <VipFrame isVip={isVipM} level={memberVipLevel}>
-          <UserAvatar userId={member.userId as Id<"users">} avatarUrl={isPrivateMember ? privateAvatarUrl : member.profile?.avatarUrl} name={isPrivateMember ? "شخصي" : member.profile?.name} size={42} showFrame={!isPrivateMember} />
+          <UserAvatar userId={member.user_id} avatarUrl={isPrivateMember ? privateAvatarUrl : member.profile?.avatarUrl} name={isPrivateMember ? "شخصي" : member.profile?.name} size={42} showFrame={!isPrivateMember} />
         </VipFrame>
         {/* Online dot */}
         <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-[#0f0a1e]"

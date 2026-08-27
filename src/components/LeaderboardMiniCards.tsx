@@ -1,6 +1,6 @@
 // @ts-nocheck
-import { useQuery } from "convex/react";
-import { api } from "../../convex/_generated/api";
+import { useState, useEffect } from "react";
+import { supabase } from "../lib/supabaseClient";
 
 interface Props {
   onGoWealth: () => void;
@@ -125,15 +125,29 @@ function MiniCard({
 }
 
 export default function LeaderboardMiniCards({ onGoWealth, onGoCharisma, onGoRooms, onGoCp }: Props) {
-  const wealth = useQuery(api.leaderboards.getWealthLeaderboard, { period: "weekly" });
-  const charisma = useQuery(api.leaderboards.getCharismaLeaderboard, { period: "weekly" });
-  const rooms = useQuery(api.leaderboards.getRoomsLeaderboard, { period: "weekly" });
-  const cp = useQuery(api.leaderboards.getCpLeaderboard);
+  const [wealth, setWealth] = useState<any[]>([]);
+  const [charisma, setCharisma] = useState<any[]>([]);
+  const [rooms, setRooms] = useState<any[]>([]);
+  const [cp, setCp] = useState<any[]>([]);
 
-  const wTop3 = (wealth ?? []).slice(0, 3);
-  const cTop3 = (charisma ?? []).slice(0, 3);
-  const rTop3 = (rooms ?? []).slice(0, 3);
-  const cpTop3 = (cp ?? []).slice(0, 3);
+  useEffect(() => {
+    const fetchData = async () => {
+      const { data: w } = await supabase.from('profiles').select('*').order('gold_coins', { ascending: false }).limit(3);
+      setWealth(w || []);
+      const { data: c } = await supabase.from('profiles').select('*').order('charisma', { ascending: false }).limit(3);
+      setCharisma(c || []);
+      const { data: r } = await supabase.from('rooms').select('*').order('popularity', { ascending: false }).limit(3);
+      setRooms(r || []);
+      const { data: p } = await supabase.from('couples').select('*').order('points', { ascending: false }).limit(3);
+      setCp(p || []);
+    };
+    fetchData();
+  }, []);
+
+  const wTop3 = wealth.slice(0, 3);
+  const cTop3 = charisma.slice(0, 3);
+  const rTop3 = rooms.slice(0, 3);
+  const cpTop3 = cp.slice(0, 3);
 
   return (
     <div className="px-4 mt-2 mb-1">
@@ -143,26 +157,26 @@ export default function LeaderboardMiniCards({ onGoWealth, onGoCharisma, onGoRoo
       >
         <MiniCard
           label={CARDS[0].label} bg={CARDS[0].bg} top3={wTop3}
-          getImg={(u) => u?.avatarUrl}
+          getImg={(u) => u?.avatar_url}
           getName={(u) => u?.name ?? "?"}
           onClick={onGoWealth}
         />
         <MiniCard
           label={CARDS[1].label} bg={CARDS[1].bg} top3={cTop3}
-          getImg={(u) => u?.avatarUrl}
+          getImg={(u) => u?.avatar_url}
           getName={(u) => u?.name ?? "?"}
           onClick={onGoCharisma}
         />
         <MiniCard
           label={CARDS[2].label} bg={CARDS[2].bg} top3={rTop3}
-          getImg={(u) => u?.coverUrl}
+          getImg={(u) => u?.cover_url}
           getName={(u) => u?.name ?? "?"}
           onClick={onGoRooms}
         />
         <MiniCard
           label={CARDS[3].label} bg={CARDS[3].bg} top3={cpTop3}
-          getImg={(u) => u?.user1AvatarUrl ?? u?.user2AvatarUrl}
-          getName={(u) => u?.user1Name ?? u?.user2Name ?? "?"}
+          getImg={(u) => u?.user1_avatar_url ?? u?.user2_avatar_url}
+          getName={(u) => u?.user1_name ?? u?.user2_name ?? "?"}
           onClick={onGoCp}
         />
       </div>

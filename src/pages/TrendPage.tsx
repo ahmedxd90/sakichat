@@ -1,25 +1,39 @@
 // @ts-nocheck
-import { useQuery } from "convex/react";
-import { api } from "../../convex/_generated/api";
+import { supabase } from "../lib/supabaseClient";
+import { useEffect } from "react";
 import { useState } from "react";
-import { Id } from "../../convex/_generated/dataModel";
 import { Page } from "../App";
 import UserAvatar from "../components/UserAvatar";
 import { VipName, getVipConfig } from "../components/VipBadge";
 
 interface TrendPageProps {
   setCurrentPage: (p: Page) => void;
-  onUserSelect: (userId: Id<"users">) => void;
-  onRoomSelect?: (roomId: Id<"rooms">) => void;
+  onUserSelect: (userId: string) => void;
+  onRoomSelect?: (roomId: string) => void;
 }
 
 type TrendTab = "discover" | "trending" | "rooms" | "people";
 
 export default function TrendPage({ setCurrentPage, onUserSelect, onRoomSelect }: TrendPageProps) {
   const [tab, setTab] = useState<TrendTab>("discover");
-  const moments = useQuery(api.moments.getMoments);
-  const rooms = useQuery(api.rooms.listRooms, {});
-  const myProfile = useQuery(api.profiles.getMyProfile);
+  const [moments, setMoments] = useState<any[]>([]);
+  const [rooms, setRooms] = useState<any[]>([]);
+  const [myProfile, setMyProfile] = useState<any>(null);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      const { data: m } = await supabase.from('moments').select('*, profile:profiles(*)').order('created_at', { ascending: false });
+      setMoments(m || []);
+      const { data: r } = await supabase.from('rooms').select('*').order('member_count', { ascending: false });
+      setRooms(r || []);
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: p } = await supabase.from('profiles').select('*').eq('user_id', user.id).single();
+        setMyProfile(p);
+      }
+    };
+    fetchData();
+  }, []);
 
   const tabs = [
     { id: "discover" as TrendTab, label: "اكتشف", emoji: "🔭" },
@@ -114,7 +128,7 @@ function DiscoverTab({ items, onUserSelect, myProfile }: any) {
 
       <div className="grid grid-cols-3 gap-1">
         {items.map((item: any, i: number) => (
-          <button key={item._id} onClick={() => setSelected(item)}
+          <button key={item.id} onClick={() => setSelected(item)}
             className="relative rounded-xl overflow-hidden active:scale-95 transition-transform"
             style={{ aspectRatio: i % 7 === 0 ? "1/2" : "1/1", gridRow: i % 7 === 0 ? "span 2" : "span 1" }}>
             <img src={item.imageUrl} alt="" className="w-full h-full object-cover" />
@@ -155,7 +169,7 @@ function TrendingTab({ moments, onUserSelect, myProfile }: any) {
       {moments.map((moment: any, idx: number) => {
         const vipCfg = getVipConfig(moment.profile?.vipLevel);
         return (
-          <div key={moment._id} className="rounded-2xl overflow-hidden"
+          <div key={moment.id} className="rounded-2xl overflow-hidden"
             style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}>
             <div className="flex items-start gap-3 p-3">
               <div className="flex-shrink-0 w-7 h-7 rounded-xl flex items-center justify-center font-black text-sm"
@@ -211,7 +225,7 @@ function RoomsTab({ rooms, onRoomSelect }: any) {
       </div>
 
       {rooms.map((room: any, idx: number) => (
-        <button key={room._id} onClick={() => onRoomSelect?.(room._id)}
+        <button key={room.id} onClick={() => onRoomSelect?.(room.id)}
           className="w-full flex items-center gap-3 p-3 rounded-2xl active:scale-[0.98] transition-all"
           style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}>
           <div className="flex-shrink-0 w-7 h-7 rounded-xl flex items-center justify-center font-black text-sm"
@@ -240,7 +254,14 @@ function RoomsTab({ rooms, onRoomSelect }: any) {
 
 // ── People Tab ──
 function PeopleTab({ onUserSelect }: any) {
-  const leaderboard = useQuery(api.leaderboards.getWealthLeaderboard);
+  const [leaderboard, setLeaderboard] = useState<any[]>([]);
+  useEffect(() => {
+    const fetchData = async () => {
+      const { data } = await supabase.from('profiles').select('*').order('total_coins_received', { ascending: false }).limit(20);
+      setLeaderboard(data || []);
+    };
+    fetchData();
+  }, []);
 
   if (!leaderboard) return <LoadingSpinner />;
 
@@ -261,14 +282,14 @@ function PeopleTab({ onUserSelect }: any) {
       {leaderboard.slice(0, 20).map((user: any, idx: number) => {
         const vipCfg = getVipConfig(user.vipLevel);
         return (
-          <button key={user.userId} onClick={() => onUserSelect(user.userId)}
+          <button key={user.user_id} onClick={() => onUserSelect(user.user_id)}
             className="w-full flex items-center gap-3 p-3 rounded-2xl active:scale-[0.98] transition-all"
             style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}>
             <div className="flex-shrink-0 w-7 h-7 rounded-xl flex items-center justify-center font-black text-sm"
               style={{ background: idx < 3 ? "linear-gradient(135deg,#fbbf24,#d97706)" : "rgba(255,255,255,0.1)", color: idx < 3 ? "#000" : "#6b7280" }}>
               {idx === 0 ? "🥇" : idx === 1 ? "🥈" : idx === 2 ? "🥉" : idx + 1}
             </div>
-            <UserAvatar userId={user.userId} avatarUrl={user.avatarUrl} name={user.name} size={44} showFrame showVipFrame vipLevel={user.vipLevel} />
+            <UserAvatar userId={user.user_id} avatarUrl={user.avatarUrl} name={user.name} size={44} showFrame showVipFrame vipLevel={user.vipLevel} />
             <div className="flex-1 min-w-0 text-right">
               {user.isVip
                 ? <VipName name={user.name ?? "مجهول"} level={user.vipLevel} />

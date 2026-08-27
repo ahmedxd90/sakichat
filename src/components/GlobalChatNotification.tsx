@@ -1,38 +1,38 @@
 // @ts-nocheck
-import { useQuery } from "convex/react";
-import { api } from "../../convex/_generated/api";
 import { useState, useEffect, useRef } from "react";
+import { supabase } from "../lib/supabaseClient";
+import { useProfile } from "./ProfileManager";
 
 export default function GlobalChatNotification() {
-  const conversations = useQuery(api.messages.getConversations);
-  const myProfile = useQuery(api.profiles.getMyProfile);
+  const { profile: myProfile } = useProfile();
   const [notification, setNotification] = useState<any>(null);
   const lastMsgIdRef = useRef<string | null>(null);
-  const initDoneRef = useRef(false);
 
   useEffect(() => {
-    if (!conversations || !myProfile) return;
-    if (!initDoneRef.current) {
-      initDoneRef.current = true;
-      if (conversations.length > 0) lastMsgIdRef.current = conversations[0]._id;
-      return;
-    }
-    if (conversations.length === 0) return;
-    const latest = conversations[0];
-    if (latest._id === lastMsgIdRef.current) return;
-    if (latest.senderId === myProfile.userId) {
-      lastMsgIdRef.current = latest._id;
-      return;
-    }
-    lastMsgIdRef.current = latest._id;
-    setNotification({
-      key: latest._id,
-      senderName: latest.otherProfile?.name ?? "مجهول",
-      senderAvatar: latest.otherProfile?.avatarUrl,
-      content: latest.content ?? "",
-      type: latest.type ?? "text",
-    });
-  }, [conversations?.[0]?._id]);
+    if (!myProfile) return;
+
+    const channel = supabase.channel('global_chat_notifs')
+      .on('postgres_changes', { event: 'INSERT', table: 'messages' }, async (payload) => {
+        const msg = payload.new;
+        if (msg.receiver_id === myProfile.user_id && msg.sender_id !== myProfile.user_id) {
+          if (msg.id === lastMsgIdRef.current) return;
+          lastMsgIdRef.current = msg.id;
+          
+          const { data: sender } = await supabase.from('profiles').select('name, avatar_url').eq('user_id', msg.sender_id).single();
+          
+          setNotification({
+            key: msg.id,
+            senderName: sender?.name ?? "مجهول",
+            senderAvatar: sender?.avatar_url,
+            content: msg.content ?? "",
+            type: msg.type ?? "text",
+          });
+        }
+      })
+      .subscribe();
+    
+    return () => { supabase.removeChannel(channel); };
+  }, [myProfile]);
 
   if (!notification) return null;
   return (

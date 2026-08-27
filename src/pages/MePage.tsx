@@ -1,11 +1,11 @@
 // @ts-nocheck
-import { useQuery } from "convex/react";
-import { api } from "../../convex/_generated/api";
+import { useState, useEffect } from "react";
 import { AristocracyName } from "../components/AristocracyBadge";
 import { ProTitle } from "../components/VipBadge";
 import UserAvatar from "../components/UserAvatar";
 import { Page } from "../App";
-import { useState } from "react";
+import { supabase } from "../lib/supabaseClient";
+import { useProfile } from "../components/ProfileManager";
 import { formatNumber } from "../lib/formatNumber";
 import { buildBadges, BadgeCard } from "../components/BadgeSystem";
 import InvitePage from "./InvitePage";
@@ -78,8 +78,18 @@ function ProfileName({ profile, proLevel, isPro, aristocracyActive, aristocracyL
 }
 
 function StatsRow({ followingCount, followersCount, onFollowing, onFollowers, onVisitors, lang }: any) {
-  const visitorsCount = useQuery(api.socialLists.getMyVisitorsCount) ?? 0;
-  const canSeeVisitors = true;
+  const [visitorsCount, setVisitorsCount] = useState(0);
+  
+  useEffect(() => {
+    const fetchVisitors = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { count } = await supabase.from('profile_visitors').select('*', { count: 'exact', head: true }).eq('profile_id', user.id);
+      setVisitorsCount(count || 0);
+    };
+    fetchVisitors();
+  }, []);
+
   const items = [
     { label: lang === "en" ? "Visitors" : "زائر", value: formatNumber(visitorsCount), onClick: onVisitors, locked: false },
     { label: lang === "en" ? "Following" : "متابعة", value: formatNumber(followingCount), onClick: onFollowing },
@@ -134,11 +144,23 @@ export default function MePage({
   onOpenFamily, onOpenAgent, onOpenSettings, onOpenEdit, onOpenLevel,
   onOpenVipFeatures, onOpenBan, onOpenAdminDashboard, onOpenAristocracy, onOpenCpHome,
 }: MePageProps) {
-  const profile = useQuery(api.profiles.getMyProfile);
-  const myRoom = useQuery(api.rooms.getMyRoom);
-  const familyInfo = useQuery(api.families.getFamilyByUserId, profile ? { userId: profile.userId } : "skip");
-  const cpHome = useQuery(api.cpHome.getCpHome, profile ? { userId: profile.userId } : "skip");
-  const superAdminAssets = useQuery(api.superAdmin.getSuperAdminAssets);
+  const { profile, isLoading } = useProfile();
+  const [myRoom, setMyRoom] = useState<any>(null);
+  const [familyInfo, setFamilyInfo] = useState<any>(null);
+  const [cpHome, setCpHome] = useState<any>(null);
+  
+  useEffect(() => {
+    if (!profile) return;
+    const fetchData = async () => {
+      const { data: room } = await supabase.from('rooms').select('*').eq('owner_id', profile.user_id).single();
+      setMyRoom(room);
+      
+      const { data: family } = await supabase.from('families').select('*').eq('creator_id', profile.user_id).single();
+      setFamilyInfo(family);
+    };
+    fetchData();
+  }, [profile]);
+
   const { lang, isRtl, changeLang } = useLang();
   const [showBadges, setShowBadges] = useState(false);
   const [showInvite, setShowInvite] = useState(false);
@@ -150,40 +172,40 @@ export default function MePage({
     return <div className="me-loading"><div className="loading-ring" /></div>;
   }
 
-  const isPro = Boolean(profile.isPro && (profile.proExpiresAt ?? 0) > Date.now());
-  const proLevel = profile.proLevel ?? (isPro ? 1 : 0);
-  const isSuperAdmin = Boolean(profile.isSuperAdmin);
-  const isAgent = Boolean(profile.isAgent);
-  const wealthLevel = profile.wealthLevel ?? 0;
-  const charismaLevel = profile.charismaLevel ?? 0;
-  const aristocracyLevel = profile.aristocracyLevel ?? 0;
-  const aristocracyActive = aristocracyLevel > 0 && (profile.aristocracyExpiresAt ?? 0) > Date.now();
-  const aristocracyDbLevel = useQuery(api.aristocracyAdmin.getAristocracyConfigForUser, aristocracyActive ? { level: aristocracyLevel } : "skip");
+  const isPro = Boolean(profile.is_pro && (profile.pro_expires_at ?? 0) > Date.now());
+  const proLevel = profile.pro_level ?? (isPro ? 1 : 0);
+  const isSuperAdmin = Boolean(profile.is_super_admin);
+  const isAgent = Boolean(profile.is_agent);
+  const wealthLevel = profile.wealth_level ?? 0;
+  const charismaLevel = profile.charisma_level ?? 0;
+  const aristocracyLevel = profile.aristocracy_level ?? 0;
+  const aristocracyActive = aristocracyLevel > 0 && (profile.aristocracy_expires_at ?? 0) > Date.now();
+  const aristocracyDbLevel = null;
   const displayLevel = Math.max(wealthLevel, charismaLevel, 1);
-  const isCustomerService = Boolean(profile.isCustomerService);
+  const isCustomerService = Boolean(profile.is_customer_service);
   // بيت الحب مدخل عام في صفحة «أنا»؛ تُعرض بيانات CP عند توفرها وتبقى البطاقة قابلة للفتح للجميع.
   const hasActiveCp = true;
-  const cpTotalGifts = Math.max(0, Number(cpHome?.totalGiftsReceived ?? 0));
+  const cpTotalGifts = Math.max(0, Number(cpHome?.total_gifts_received ?? 0));
   const cpLevel = Math.min(5, Math.max(1, Number(cpHome?.level ?? 1)));
-  const cpCurrentThreshold = Number(cpHome?.currentThreshold ?? 0);
-  const cpNextThreshold = cpHome?.nextThreshold == null ? null : Number(cpHome.nextThreshold);
+  const cpCurrentThreshold = Number(cpHome?.current_threshold ?? 0);
+  const cpNextThreshold = cpHome?.next_threshold == null ? null : Number(cpHome.next_threshold);
   const cpProgress = cpNextThreshold == null
     ? 100
     : Math.min(100, Math.max(0, ((cpTotalGifts - cpCurrentThreshold) / Math.max(1, cpNextThreshold - cpCurrentThreshold)) * 100));
   const cpRemaining = cpNextThreshold == null ? 0 : Math.max(0, cpNextThreshold - cpTotalGifts);
 
   const badges = buildBadges({
-    isPro, proLevel, isSuperAdmin, isAgent, isActive: profile.isActive,
+    isPro, proLevel, isSuperAdmin, isAgent, isActive: profile.is_active,
     wealthLevel, charismaLevel,
     familyInfo: familyInfo ? { name: familyInfo.name, role: familyInfo.role } : null,
     isRoomOwner: Boolean(myRoom),
     aristocracyLevel: aristocracyActive ? aristocracyLevel : 0,
-    aristocracyExpiresAt: profile.aristocracyExpiresAt,
-    isSakiAmbassador: Boolean(profile.isSakiAmbassador),
+    aristocracyExpiresAt: profile.aristocracy_expires_at,
+    isSakiAmbassador: Boolean(profile.is_saki_ambassador),
   });
 
   const copySakiId = async () => {
-    const value = String(profile.sakiId ?? "");
+    const value = String(profile.saki_id ?? "");
     try {
       await navigator.clipboard.writeText(value);
       setToastText("تم نسخ المعرف بنجاح!");
@@ -230,15 +252,15 @@ export default function MePage({
       <main className="me-shell">
         <section className="profile-hero">
           <button type="button" onClick={onOpenProfile} className="avatar-button item-press" aria-label="فتح الملف الشخصي">
-            <div className="avatar-ring"><UserAvatar userId={profile.userId} avatarUrl={profile.avatarUrl} name={profile.name} size={92} showFrame isSuperAdmin={isSuperAdmin} isVip={false} /></div>
+            <div className="avatar-ring"><UserAvatar userId={profile.user_id} avatarUrl={profile.avatar_url} name={profile.name} size={92} showFrame isSuperAdmin={isSuperAdmin} isVip={false} /></div>
           </button>
           <h2 className="profile-name"><ProfileName profile={profile} proLevel={proLevel} isPro={isPro} aristocracyActive={aristocracyActive} aristocracyLevel={aristocracyLevel} aristocracyDbName={aristocracyDbLevel?.name} /></h2>
           {isPro && <div className="mt-1"><ProTitle level={proLevel} size="sm" /></div>}
           <button type="button" onClick={copySakiId} className="id-pill item-press" aria-label="نسخ معرف ساكي">
             <LineIcon name="copy" className="w-3.5 h-3.5 text-slate-400" />
-            <span>ID: {profile.sakiId ?? "—"}</span>
+            <span>ID: {profile.saki_id ?? "—"}</span>
           </button>
-          <StatsRow followingCount={profile.followingCount ?? 0} followersCount={profile.followersCount ?? 0} onFollowing={() => setShowFollowers("following")} onFollowers={() => setShowFollowers("followers")} onVisitors={() => setShowFollowers("visitors")} lang={lang} />
+          <StatsRow followingCount={profile.following_count ?? 0} followersCount={profile.followers_count ?? 0} onFollowing={() => setShowFollowers("following")} onFollowers={() => setShowFollowers("followers")} onVisitors={() => setShowFollowers("visitors")} lang={lang} />
         </section>
 
         <section className="quick-grid">
@@ -252,7 +274,7 @@ export default function MePage({
           <section className="cp-home-entry mb-4">
             <button type="button" onClick={() => onOpenCpHome?.()} className="cp-home-button item-press" aria-label="فتح بيت الحب">
               <span className="cp-home-icon"><span>⌂</span><i>♥</i></span>
-              <span className="cp-home-pair" aria-label="صورة المستخدم والشريك"><span className="cp-mini-avatar">{cpHome?.ownerAvatarUrl ? <img src={cpHome.ownerAvatarUrl} alt="" /> : <span>{profile?.name?.[0] ?? "♥"}</span>}</span><img className="cp-mini-ring" src="/assets/cp-love-ring.svg" alt="خاتم الحب" /><span className="cp-mini-avatar">{cpHome?.partnerAvatarUrl ? <img src={cpHome.partnerAvatarUrl} alt="" /> : <span>{cpHome?.partnerName?.[0] ?? "♥"}</span>}</span></span>
+              <span className="cp-home-pair" aria-label="صورة المستخدم والشريك"><span className="cp-mini-avatar">{cpHome?.owner_avatar_url ? <img src={cpHome.owner_avatar_url} alt="" /> : <span>{profile?.name?.[0] ?? "♥"}</span>}</span><img className="cp-mini-ring" src="/assets/cp-love-ring.svg" alt="خاتم الحب" /><span className="cp-mini-avatar">{cpHome?.partner_avatar_url ? <img src={cpHome.partner_avatar_url} alt="" /> : <span>{cpHome?.partner_name?.[0] ?? "♥"}</span>}</span></span>
               <span className="cp-home-copy">
                 <span className="cp-home-title">بيت الحب <b>LV.{cpLevel}</b></span>
                 <span className="cp-home-subtitle">المهام والتقدم في بيت الحب</span>
@@ -263,7 +285,7 @@ export default function MePage({
             </button>
             <div className="cp-task-row">
               <span><LineIcon name="heart" className="w-4 h-4" /> إجمالي الهدايا {formatNumber(cpTotalGifts)}</span>
-              <span>{cpHome?.levelName ?? "بيت الحب"}</span>
+              <span>{cpHome?.level_name ?? "بيت الحب"}</span>
             </div>
           </section>
         )}

@@ -1,11 +1,9 @@
 // @ts-nocheck
-import { useMutation } from "convex/react";
 import { useState } from "react";
-import { api } from "../../../convex/_generated/api";
+import { supabase } from "../../lib/supabaseClient";
 import { toast } from "../../lib/toast";
 import UserAvatar from "../UserAvatar";
 import { VipFrame } from "../VipBadge";
-import { Id } from "../../../convex/_generated/dataModel";
 import { PRIVATE_AVATAR_URL, PRIVATE_DISPLAY_NAME, isPrivateUser } from "../../lib/privateUser";
 import { Crown, Lock, LockOpen, Mic, UserRound, UserRoundCheck, DoorOpen, Send, Shield } from "lucide-react";
 
@@ -16,7 +14,7 @@ interface RoomSeatActionSheetProps {
   isCp: boolean;
   isOwner: boolean;
   isAdmin: boolean;
-  roomId: Id<"rooms">;
+  roomId: string;
   lockedSeats: number[];
   onClose: () => void;
   onTakeSeat: (seatIndex: number) => void;
@@ -42,19 +40,13 @@ export default function RoomSeatActionSheet({
   inviteTargetUser,
   onViewMyProfile,
 }: RoomSeatActionSheetProps) {
-  const toggleSeatLock = useMutation(api.seatLock.toggleSeatLock);
-
   const seatMember = members?.find((m) => m.seatIndex === selectedSeat);
-  const isMySeat = seatMember?.profile?.userId === myProfile?.userId;
+  const isMySeat = seatMember?.profile?.user_id === myProfile?.user_id;
   const safeLockedSeats = lockedSeats ?? [];
   const isLocked = safeLockedSeats.includes(selectedSeat);
   const canManage = isOwner || isAdmin;
   const isRoyalSeat = selectedSeat === -2 || selectedSeat === -1;
-  // The generated Convex API can lag behind a deployment. Keep the sheet render-safe
-  // until seatInvites is available, while preserving the real action after deployment.
-  const seatInvitesApi = (api as any).seatInvites;
-  const seatInvitesEnabled = import.meta.env.VITE_ENABLE_SEAT_INVITES === "true" && !!seatInvitesApi?.sendSeatInvite;
-  const sendInvite = useMutation(seatInvitesApi?.sendSeatInvite ?? (api as any).seatLock.toggleSeatLock);
+  const seatInvitesEnabled = true;
   const [showInvitePicker, setShowInvitePicker] = useState(false);
   const royalLabel = selectedSeat === -2 ? "Sheikh" : "King";
 
@@ -63,7 +55,12 @@ export default function RoomSeatActionSheet({
 
   const handleToggleLock = async () => {
     try {
-      await toggleSeatLock({ roomId, seatIndex: selectedSeat });
+      const newLockedSeats = isLocked 
+        ? safeLockedSeats.filter(s => s !== selectedSeat)
+        : [...safeLockedSeats, selectedSeat];
+      
+      const { error } = await supabase.from('rooms').update({ locked_seats: newLockedSeats }).eq('id', roomId);
+      if (error) throw error;
       toast.success(isLocked ? "تم فتح المقعد" : "تم قفل المقعد");
     } catch (e: any) {
       toast.error(e.message);
@@ -209,7 +206,14 @@ export default function RoomSeatActionSheet({
                     return;
                   }
                   try {
-                    await sendInvite({ roomId, targetUserId: inviteTargetUser.userId ?? inviteTargetUser.profile?.userId, seatIndex: selectedSeat });
+                    const { error } = await supabase.from('seat_invites').insert({
+                      room_id: roomId,
+                      inviter_user_id: myProfile.user_id,
+                      target_user_id: inviteTargetUser.user_id ?? inviteTargetUser.profile?.user_id,
+                      seat_index: selectedSeat,
+                      status: 'pending'
+                    });
+                    if (error) throw error;
                     toast.success(`تمت دعوة ${inviteTargetName} إلى المقعد`);
                     onClose();
                   } catch (e: any) {
@@ -293,7 +297,14 @@ export default function RoomSeatActionSheet({
                       <button
                         onClick={async () => {
                           try {
-                            await sendInvite({ roomId, targetUserId: m.profile.userId, seatIndex: selectedSeat });
+                            const { error } = await supabase.from('seat_invites').insert({
+                              room_id: roomId,
+                              inviter_user_id: myProfile.user_id,
+                              target_user_id: m.profile.user_id,
+                              seat_index: selectedSeat,
+                              status: 'pending'
+                            });
+                            if (error) throw error;
                             toast.success(`✅ تم إرسال الدعوة إلى ${m.profile?.name}`);
                             setShowInvitePicker(false);
                             onClose();

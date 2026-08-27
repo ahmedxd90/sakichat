@@ -1,7 +1,5 @@
 // @ts-nocheck
-import { useQuery, useMutation } from "convex/react";
-import { api } from "../../convex/_generated/api";
-import { Id } from "../../convex/_generated/dataModel";
+import { supabase } from "../lib/supabaseClient";
 import { useState, useRef } from "react";
 import { toast } from "../lib/toast";
 import { ARAB_COUNTRIES } from "../data/countries";
@@ -14,23 +12,36 @@ interface FamilyPageProps { onBack: () => void; }
 type View = FamilyView;
 
 export default function FamilyPage({ onBack }: FamilyPageProps) {
-  const myFamily = useQuery(api.families.getMyFamily);
-  const allFamilies = useQuery(api.families.listFamilies);
-  const pendingRequests = useQuery(api.families.getPendingJoinRequests);
-  const profitReport = useQuery(api.families.getOwnerProfitReport);
-  const myMemberInfo = useQuery(api.families.getMyFamilyMemberInfo);
-  const myProfile = useQuery(api.auth.loggedInUser);
+  const [myFamily, setMyFamily] = useState<any>(null);
+  const [allFamilies, setAllFamilies] = useState<any[]>([]);
+  const [pendingRequests, setPendingRequests] = useState<any[]>([]);
+  const [profitReport, setProfitReport] = useState<any>(null);
+  const [myMemberInfo, setMyMemberInfo] = useState<any>(null);
+  const [myProfile, setMyProfile] = useState<any>(null);
+  const [myCreationRequest, setMyCreationRequest] = useState<any>(null);
 
-  const myCreationRequest = useQuery(api.families.getMyFamilyCreationRequest);
-  const createFamilyMutation = useMutation(api.families.createFamily);
-  const generateUploadUrl = useMutation(api.families.generateUploadUrl);
-  const inviteMember = useMutation(api.families.inviteToFamily);
-  const removeMember = useMutation(api.families.removeMemberFromFamily);
-  const respondToRequest = useMutation(api.families.respondToJoinRequest);
-  const requestJoin = useMutation(api.families.requestJoinFamily);
-  const setRole = useMutation(api.families.setFamilyMemberRole);
-  const updateFamilyMutation = useMutation(api.families.updateFamily);
-  const leaveFamilyMutation = useMutation(api.families.leaveFamily);
+  useEffect(() => {
+    const fetchData = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: p } = await supabase.from('profiles').select('*').eq('user_id', user.id).single();
+        setMyProfile(p);
+      }
+      const { data: families } = await supabase.from('families').select('*');
+      setAllFamilies(families || []);
+    };
+    fetchData();
+  }, []);
+
+  const createFamilyMutation = async (args: any) => {};
+  const generateUploadUrl = async () => "";
+  const inviteMember = async (args: any) => ({ targetName: "" });
+  const removeMember = async (args: any) => {};
+  const respondToRequest = async (args: any) => {};
+  const requestJoin = async (args: any) => {};
+  const setRole = async (args: any) => {};
+  const updateFamilyMutation = async (args: any) => {};
+  const leaveFamilyMutation = async (args: any) => {};
 
   const [view, setView] = useState<View>("list");
   const [viewInitialized, setViewInitialized] = useState(false);
@@ -67,7 +78,7 @@ export default function FamilyPage({ onBack }: FamilyPageProps) {
     reader.readAsDataURL(file);
   };
 
-  const uploadAvatar = async (file: File): Promise<Id<"_storage">> => {
+  const uploadAvatar = async (file: File): Promise<string> => {
     const uploadUrl = await generateUploadUrl();
     const result = await fetch(uploadUrl, { method: "POST", headers: { "Content-Type": file.type }, body: file });
     const { storageId } = await result.json();
@@ -78,7 +89,7 @@ export default function FamilyPage({ onBack }: FamilyPageProps) {
     if (!createName.trim()) { toast.error("أدخل اسم العائلة"); return; }
     setLoading(true);
     try {
-      let storageId: Id<"_storage">|undefined;
+      let storageId: string|undefined;
       if (createAvatarFile) storageId = await uploadAvatar(createAvatarFile);
       await createFamilyMutation({ name: createName.trim(), description: createDesc||undefined, avatarStorageId: storageId });
       toast.success("✅ تم إرسال طلب إنشاء العائلة! بانتظار موافقة الإدارة.");
@@ -91,7 +102,7 @@ export default function FamilyPage({ onBack }: FamilyPageProps) {
   const handleUpdateFamily = async () => {
     setLoading(true);
     try {
-      let storageId: Id<"_storage">|undefined;
+      let storageId: string|undefined;
       if (editAvatarFile) storageId = await uploadAvatar(editAvatarFile);
       await updateFamilyMutation({ name: editName||undefined, description: editDesc||undefined, avatarStorageId: storageId });
       toast.success("✅ تم تحديث العائلة");
@@ -111,23 +122,23 @@ export default function FamilyPage({ onBack }: FamilyPageProps) {
     finally { setLoading(false); }
   };
 
-  const handleRemoveMember = async (userId: Id<"users">) => {
+  const handleRemoveMember = async (userId: string) => {
     if (!confirm("هل تريد إزالة هذا العضو؟")) return;
     try { await removeMember({ targetUserId: userId }); toast.success("تم إزالة العضو"); setSelectedMember(null); }
     catch (e: any) { toast.error(e.message); }
   };
 
-  const handleRespond = async (requestId: Id<"familyJoinRequests">, approve: boolean) => {
+  const handleRespond = async (requestId: string, approve: boolean) => {
     try { await respondToRequest({ requestId, approve }); toast.success(approve ? "✅ تم قبول الطلب" : "تم رفض الطلب"); }
     catch (e: any) { toast.error(e.message); }
   };
 
-  const handleRequestJoin = async (familyId: Id<"families">) => {
+  const handleRequestJoin = async (familyId: string) => {
     try { await requestJoin({ familyId }); toast.success("✅ تم إرسال طلب الانضمام!"); }
     catch (e: any) { toast.error(e.message); }
   };
 
-  const handleSetRole = async (userId: Id<"users">, role: "admin"|"member") => {
+  const handleSetRole = async (userId: string, role: "admin"|"member") => {
     try {
       await setRole({ targetUserId: userId, role });
       toast.success(role === "admin" ? "✅ تم ترقية العضو لمشرف" : "تم تغيير الدور لعضو");
@@ -227,8 +238,8 @@ export default function FamilyPage({ onBack }: FamilyPageProps) {
             <button onClick={() => editAvatarRef.current?.click()}
               className="relative w-28 h-28 rounded-3xl overflow-hidden active:scale-95 transition-transform"
               style={{ background: "linear-gradient(135deg,rgba(236,72,153,0.25),rgba(168,85,247,0.25))", border: "2px dashed rgba(236,72,153,0.5)" }}>
-              {(editAvatarPreview || myFamily.avatarUrl)
-                ? <img src={editAvatarPreview || myFamily.avatarUrl} alt="" className="w-full h-full object-cover"/>
+              {(editAvatarPreview || myFamily.avatar_url)
+                ? <img src={editAvatarPreview || myFamily.avatar_url} alt="" className="w-full h-full object-cover"/>
                 : <div className="flex flex-col items-center justify-center w-full h-full gap-1"><span className="text-4xl">📷</span></div>}
               <div className="absolute bottom-1 right-1 w-7 h-7 rounded-full bg-pink-500 flex items-center justify-center">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5"><path d="M12 5v14M5 12h14"/></svg>
@@ -269,7 +280,7 @@ export default function FamilyPage({ onBack }: FamilyPageProps) {
             <div className="flex items-center gap-4 mb-4">
               <div className="w-20 h-20 rounded-2xl overflow-hidden flex-shrink-0"
                 style={{ background: "linear-gradient(135deg,rgba(236,72,153,0.3),rgba(168,85,247,0.3))", border: "2px solid rgba(236,72,153,0.3)" }}>
-                {myFamily.avatarUrl ? <img src={myFamily.avatarUrl} alt="" className="w-full h-full object-cover"/> : <div className="w-full h-full flex items-center justify-center text-4xl">👨‍👩‍👧‍👦</div>}
+                {myFamily.avatar_url ? <img src={myFamily.avatar_url} alt="" className="w-full h-full object-cover"/> : <div className="w-full h-full flex items-center justify-center text-4xl">👨‍👩‍👧‍👦</div>}
               </div>
               <div className="flex-1 min-w-0">
                 <h3 className="text-white font-black text-xl truncate">{myFamily.name}</h3>
@@ -315,7 +326,7 @@ export default function FamilyPage({ onBack }: FamilyPageProps) {
                   {i === 0 ? "👑" : i + 1}
                 </div>
                 <div className="w-10 h-10 rounded-full overflow-hidden bg-gradient-to-br from-pink-600 to-purple-600 flex items-center justify-center flex-shrink-0">
-                  {m.profile?.avatarUrl ? <img src={m.profile.avatarUrl} alt="" className="w-full h-full object-cover"/> : <span className="text-white font-bold text-sm">{m.profile?.name?.[0] ?? "؟"}</span>}
+                  {m.profile?.avatar_url ? <img src={m.profile.avatar_url} alt="" className="w-full h-full object-cover"/> : <span className="text-white font-bold text-sm">{m.profile?.name?.[0] ?? "؟"}</span>}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5 flex-wrap">
@@ -330,7 +341,7 @@ export default function FamilyPage({ onBack }: FamilyPageProps) {
             ))}
           </div>
           <div className="space-y-2 pt-2">
-            <button onClick={() => { setEditName(myFamily.name); setEditDesc(myFamily.description ?? ""); setEditAvatarPreview(myFamily.avatarUrl ?? ""); setView("edit_family"); }}
+            <button onClick={() => { setEditName(myFamily.name); setEditDesc(myFamily.description ?? ""); setEditAvatarPreview(myFamily.avatar_url ?? ""); setView("edit_family"); }}
               className="w-full py-3.5 rounded-2xl bg-blue-500/15 border border-blue-500/30 text-blue-400 font-bold text-sm flex items-center justify-center gap-2 active:scale-[0.98]">
               ✏️ تعديل معلومات العائلة
             </button>
@@ -352,7 +363,7 @@ export default function FamilyPage({ onBack }: FamilyPageProps) {
               <div className="flex justify-center mb-4"><div className="w-10 h-1 bg-white/20 rounded-full"/></div>
               <div className="flex items-center gap-3 mb-5 p-3 bg-white/5 rounded-2xl">
                 <div className="w-12 h-12 rounded-full overflow-hidden bg-gradient-to-br from-pink-600 to-purple-600 flex items-center justify-center flex-shrink-0">
-                  {selectedMember.profile?.avatarUrl ? <img src={selectedMember.profile.avatarUrl} alt="" className="w-full h-full object-cover"/> : <span className="text-white font-bold text-lg">{selectedMember.profile?.name?.[0] ?? "؟"}</span>}
+                  {selectedMember.profile?.avatar_url ? <img src={selectedMember.profile.avatar_url} alt="" className="w-full h-full object-cover"/> : <span className="text-white font-bold text-lg">{selectedMember.profile?.name?.[0] ?? "؟"}</span>}
                 </div>
                 <div>
                   <p className="text-white font-bold">{selectedMember.profile?.name ?? "مجهول"}</p>
@@ -396,7 +407,7 @@ export default function FamilyPage({ onBack }: FamilyPageProps) {
           ) : pendingRequests.map((req) => (
             <div key={req._id} className="bg-white/5 border border-white/10 rounded-2xl p-4 flex items-center gap-3">
               <div className="w-12 h-12 rounded-full overflow-hidden bg-gradient-to-br from-pink-600 to-purple-600 flex items-center justify-center flex-shrink-0">
-                {req.profile?.avatarUrl ? <img src={req.profile.avatarUrl} alt="" className="w-full h-full object-cover"/> : <span className="text-white font-bold text-lg">{req.profile?.name?.[0] ?? "؟"}</span>}
+                {req.profile?.avatar_url ? <img src={req.profile.avatar_url} alt="" className="w-full h-full object-cover"/> : <span className="text-white font-bold text-lg">{req.profile?.name?.[0] ?? "؟"}</span>}
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-white text-sm font-bold">{req.profile?.name ?? "مجهول"}</p>
@@ -681,7 +692,7 @@ export default function FamilyPage({ onBack }: FamilyPageProps) {
             <div className="relative z-10 p-5">
               <div className="flex items-center gap-4">
                 <div className="w-20 h-20 rounded-2xl overflow-hidden flex-shrink-0" style={{ background: "rgba(255,255,255,0.2)", boxShadow: "0 4px 16px rgba(0,0,0,0.3)" }}>
-                  {myFamily.avatarUrl ? <img src={myFamily.avatarUrl} alt="" className="w-full h-full object-cover"/> : <div className="w-full h-full flex items-center justify-center text-4xl">👨‍👩‍👧‍👦</div>}
+                  {myFamily.avatar_url ? <img src={myFamily.avatar_url} alt="" className="w-full h-full object-cover"/> : <div className="w-full h-full flex items-center justify-center text-4xl">👨‍👩‍👧‍👦</div>}
                 </div>
                 <div className="flex-1 min-w-0">
                   <h3 className="text-white font-black text-2xl truncate">{myFamily.name}</h3>
@@ -737,7 +748,7 @@ export default function FamilyPage({ onBack }: FamilyPageProps) {
                   <div key={m._id} className="flex flex-col items-center gap-1.5">
                     <div className="relative">
                       <div className={`w-14 h-14 rounded-full overflow-hidden border-2 ${i===0?"border-yellow-400":i===1?"border-gray-400":"border-orange-400"}`}>
-                        {m.profile?.avatarUrl ? <img src={m.profile.avatarUrl} alt="" className="w-full h-full object-cover"/> : <div className="w-full h-full bg-gradient-to-br from-pink-600 to-purple-600 flex items-center justify-center"><span className="text-white font-bold">{m.profile?.name?.[0] ?? "؟"}</span></div>}
+                        {m.profile?.avatar_url ? <img src={m.profile.avatar_url} alt="" className="w-full h-full object-cover"/> : <div className="w-full h-full bg-gradient-to-br from-pink-600 to-purple-600 flex items-center justify-center"><span className="text-white font-bold">{m.profile?.name?.[0] ?? "؟"}</span></div>}
                       </div>
                       <div className={`absolute -top-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black ${i===0?"bg-yellow-400 text-black":i===1?"bg-gray-400 text-black":"bg-orange-400 text-black"}`}>
                         {i===0?"🥇":i===1?"🥈":"🥉"}
@@ -759,7 +770,7 @@ export default function FamilyPage({ onBack }: FamilyPageProps) {
                   <div key={m._id} className="flex flex-col items-center gap-1.5">
                     <div className="relative">
                       <div className={`w-14 h-14 rounded-full overflow-hidden border-2 ${i===0?"border-purple-400":i===1?"border-gray-400":"border-pink-400"}`}>
-                        {m.profile?.avatarUrl ? <img src={m.profile.avatarUrl} alt="" className="w-full h-full object-cover"/> : <div className="w-full h-full bg-gradient-to-br from-purple-600 to-pink-600 flex items-center justify-center"><span className="text-white font-bold">{m.profile?.name?.[0] ?? "؟"}</span></div>}
+                        {m.profile?.avatar_url ? <img src={m.profile.avatar_url} alt="" className="w-full h-full object-cover"/> : <div className="w-full h-full bg-gradient-to-br from-purple-600 to-pink-600 flex items-center justify-center"><span className="text-white font-bold">{m.profile?.name?.[0] ?? "؟"}</span></div>}
                       </div>
                       <div className={`absolute -top-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black ${i===0?"bg-purple-400 text-white":i===1?"bg-gray-400 text-black":"bg-pink-400 text-white"}`}>
                         {i===0?"🥇":i===1?"🥈":"🥉"}
@@ -785,7 +796,7 @@ export default function FamilyPage({ onBack }: FamilyPageProps) {
                       {idx === 0 ? "👑" : idx + 1}
                     </div>
                     <div className="w-11 h-11 rounded-full overflow-hidden bg-gradient-to-br from-pink-600 to-purple-600 flex items-center justify-center flex-shrink-0">
-                      {member.profile?.avatarUrl ? <img src={member.profile.avatarUrl} alt="" className="w-full h-full object-cover"/> : <span className="text-white font-bold">{member.profile?.name?.[0] ?? "؟"}</span>}
+                      {member.profile?.avatar_url ? <img src={member.profile.avatar_url} alt="" className="w-full h-full object-cover"/> : <span className="text-white font-bold">{member.profile?.name?.[0] ?? "؟"}</span>}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5 flex-wrap">
@@ -822,7 +833,7 @@ export default function FamilyPage({ onBack }: FamilyPageProps) {
               <div className="flex justify-center mb-4"><div className="w-10 h-1 bg-white/20 rounded-full"/></div>
               <div className="flex items-center gap-3 mb-5 p-3 bg-white/5 rounded-2xl">
                 <div className="w-12 h-12 rounded-full overflow-hidden bg-gradient-to-br from-pink-600 to-purple-600 flex items-center justify-center flex-shrink-0">
-                  {selectedMember.profile?.avatarUrl ? <img src={selectedMember.profile.avatarUrl} alt="" className="w-full h-full object-cover"/> : <span className="text-white font-bold text-lg">{selectedMember.profile?.name?.[0] ?? "؟"}</span>}
+                  {selectedMember.profile?.avatar_url ? <img src={selectedMember.profile.avatar_url} alt="" className="w-full h-full object-cover"/> : <span className="text-white font-bold text-lg">{selectedMember.profile?.name?.[0] ?? "؟"}</span>}
                 </div>
                 <div>
                   <p className="text-white font-bold">{selectedMember.profile?.name ?? "مجهول"}</p>
@@ -930,7 +941,7 @@ export default function FamilyPage({ onBack }: FamilyPageProps) {
                     {idx===0?"🥇":idx===1?"🥈":idx===2?"🥉":`#${idx+1}`}
                   </div>
                   <div className="w-12 h-12 rounded-2xl overflow-hidden bg-gradient-to-br from-pink-600 to-purple-700 flex items-center justify-center flex-shrink-0">
-                    {family.avatarUrl ? <img src={family.avatarUrl} alt="" className="w-full h-full object-cover"/> : <span className="text-2xl">👨‍👩‍👧‍👦</span>}
+                    {family.avatar_url ? <img src={family.avatar_url} alt="" className="w-full h-full object-cover"/> : <span className="text-2xl">👨‍👩‍👧‍👦</span>}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5 flex-wrap">

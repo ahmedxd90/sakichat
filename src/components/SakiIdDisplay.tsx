@@ -1,7 +1,6 @@
 // @ts-nocheck
-import { useQuery } from "convex/react";
-import { api } from "../../convex/_generated/api";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { supabase } from "../lib/supabaseClient";
 import { toast } from "../lib/toast";
 
 // ── Gradient presets ──────────────────────────────────────────────────────
@@ -174,9 +173,16 @@ export default function SakiIdDisplay({
 
 // ── Hook to get saki id style ─────────────────────────────────────────────
 export function useSakiIdStyle(userId?: string | null) {
-  const style = useQuery(
-    api.sakiIdStyle.getSakiIdStyleByUserId,
-    userId ? { userId: userId as any } : "skip"
-  );
+  const [style, setStyle] = useState<any>(null);
+
+  useEffect(() => {
+    if (!userId) return;
+    const fetchStyle = async () => {
+      const { data } = await supabase.from('saki_id_styles').select('*').eq('user_id', userId).single();
+      setStyle(data);
+    };
+    fetchStyle();
+  }, [userId]);
+
   return style;
 }

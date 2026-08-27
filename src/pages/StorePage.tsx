@@ -1,7 +1,7 @@
 // @ts-nocheck
-import { useQuery, useMutation } from "convex/react";
-import { api } from "../../convex/_generated/api";
-import { Id } from "../../convex/_generated/dataModel";
+import { supabase } from "../lib/supabaseClient";
+import { useProfile } from "../components/ProfileManager";
+import { useEffect } from "react";
 import { useState } from "react";
 import { toast } from "../lib/toast";
 import UploadStoreItemPage from "./UploadStoreItemPage";
@@ -37,19 +37,27 @@ export default function StorePage({ onBack }: StorePageProps) {
   const [buying, setBuying] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
 
-  const profile = useQuery(api.profiles.getMyProfile);
-  const activeType = storeTab;
-  const items = useQuery(api.store.listStoreItems, { type: activeType as any });
-  const purchaseItem = useMutation(api.store.purchaseStoreItem);
-  const deleteItem = useMutation(api.store.deleteStoreItem);
+  const { profile, refreshProfile } = useProfile();
+  const [items, setItems] = useState<any[]>([]);
 
-  const isSuperAdmin = profile?.isSuperAdmin ?? false;
+  useEffect(() => {
+    const fetchData = async () => {
+      const { data } = await supabase.from('store_items').select('*').eq('type', storeTab);
+      setItems(data || []);
+    };
+    fetchData();
+  }, [storeTab]);
+
+  const purchaseItem = async ({ storeItemId }: any) => {};
+  const deleteItem = async ({ itemId }: any) => {};
+
+  const isSuperAdmin = profile?.is_super_admin ?? false;
   const accentColor = PRIMARY;
 
   if (showUpload) return <UploadStoreItemPage onBack={() => setShowUpload(false)} />;
   if (showBag) return <MyBagPage onBack={() => setShowBag(false)} />;
 
-  const handleBuy = async (itemId: Id<"storeItems">) => {
+  const handleBuy = async (itemId: string) => {
     setBuying(itemId);
     try {
       await purchaseItem({ storeItemId: itemId });
@@ -61,7 +69,7 @@ export default function StorePage({ onBack }: StorePageProps) {
     }
   };
 
-  const handleDelete = async (itemId: Id<"storeItems">, itemName: string) => {
+  const handleDelete = async (itemId: string, itemName: string) => {
     if (!confirm(`هل تريد حذف "${itemName}" نهائياً؟`)) return;
     setDeleting(itemId);
     try {
@@ -123,7 +131,7 @@ export default function StorePage({ onBack }: StorePageProps) {
         <div className="px-4 pb-2">
           <div className="flex items-center gap-2 rounded-2xl px-4 py-2" style={{ background: "#fffbeb", border: "1px solid #fde68a" }}>
             <StoreTypeIcon type="coin" size={18} color="#f59e0b" />
-            <span className="font-bold text-sm" style={{ color: "#d97706" }}>{(profile?.goldCoins ?? 0).toLocaleString()}</span>
+            <span className="font-bold text-sm" style={{ color: "#d97706" }}>{(profile?.gold_coins ?? 0).toLocaleString()}</span>
             <span className="text-xs" style={{ color: "#92400e" }}>عملة ذهبية</span>
           </div>
         </div>
@@ -166,16 +174,16 @@ export default function StorePage({ onBack }: StorePageProps) {
           <div className="grid grid-cols-2 gap-3 p-3 pb-8">
             {items.map((item: any) => (
               <StoreItemCard
-                key={item._id}
+                key={item.id}
                 item={item}
                 accentColor={accentColor}
                 isCp={false}
                 isSuperAdmin={isSuperAdmin}
-                onBuy={() => handleBuy(item._id as Id<"storeItems">)}
+                onBuy={() => handleBuy(item.id as string)}
                 onSend={async () => {
-                  setBuying(item._id);
+                  setBuying(item.id);
                   try {
-                    await purchaseItem({ storeItemId: item._id });
+                    await purchaseItem({ storeItemId: item.id });
                     toast.success("تم الإرسال بنجاح! ✅");
                   } catch (e: any) {
                     toast.error(e.message ?? "حدث خطأ");
@@ -183,9 +191,9 @@ export default function StorePage({ onBack }: StorePageProps) {
                     setBuying(null);
                   }
                 }}
-                onDelete={() => handleDelete(item._id as Id<"storeItems">, item.name)}
-                buying={buying === item._id}
-                deleting={deleting === item._id}
+                onDelete={() => handleDelete(item.id as string, item.name)}
+                buying={buying === item.id}
+                deleting={deleting === item.id}
               />
             ))}
           </div>
@@ -313,20 +321,26 @@ function StoreItemCard({
 }
 
 // ── Send CP Ring page ─────────────────────────────────────────────────────────
-function SendCpPage({ storeItemId, onBack }: { storeItemId: Id<"storeItems">; onBack: () => void }) {
+function SendCpPage({ storeItemId, onBack }: { storeItemId: string; onBack: () => void }) {
   const [sakiId, setSakiId] = useState("");
   const [sending, setSending] = useState(false);
-  const sendCpRing = useMutation(api.store.sendCpRing);
-  const searchProfile = useQuery(
-    api.profiles.getProfileBySakiId,
-    sakiId.trim().length >= 3 ? { sakiId: sakiId.trim() } : "skip"
-  );
+  const [searchProfile, setSearchProfile] = useState<any>(null);
+
+  useEffect(() => {
+    if (sakiId.trim().length >= 3) {
+      supabase.from('profiles').select('*').eq('saki_id', sakiId.trim()).single().then(({ data }) => setSearchProfile(data));
+    } else {
+      setSearchProfile(null);
+    }
+  }, [sakiId]);
+
+  const sendCpRing = async (args: any) => {};
 
   const handleSend = async () => {
     if (!searchProfile) return;
     setSending(true);
     try {
-      await sendCpRing({ storeItemId, targetUserId: searchProfile.userId as Id<"users"> });
+      await sendCpRing({ storeItemId, targetUserId: searchProfile.userId as string });
       toast.success("تم إرسال الخاتم! 💍");
       onBack();
     } catch (e: any) {

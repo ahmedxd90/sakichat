@@ -1,7 +1,7 @@
 // @ts-nocheck
 import React, { useEffect, useCallback } from "react";
-import { useQuery, useMutation } from "convex/react";
-import { api } from "../../convex/_generated/api";
+import { supabase } from "../lib/supabaseClient";
+import { useState } from "react";
 import { useHardwareBack } from "../hooks/useHardwareBack";
 
 interface Props {
@@ -37,16 +37,23 @@ function formatTime(timestamp: number): string {
 }
 
 export default function SocialNotificationsPage({ onBack }: Props) {
-  const notifications = useQuery(api.notifications.getMyNotifications);
-  const markAllRead = useMutation(api.notifications.markAllRead);
+  const [notifications, setNotifications] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      const { data } = await supabase.from('notifications').select('*, actor_profile:profiles(*)').order('created_at', { ascending: false });
+      setNotifications(data || []);
+      // Mark all read
+      if (data && data.length > 0) {
+        await supabase.from('notifications').update({ is_read: true }).eq('is_read', false);
+      }
+    };
+    fetchData();
+  }, []);
 
   const socialNotifs = notifications?.filter((n) =>
     ["like_moment", "comment_moment", "like_reel", "comment_reel", "follow"].includes(n.type)
   ) ?? [];
-
-  useEffect(() => {
-    markAllRead().catch(() => {});
-  }, []);
 
   // زر الرجوع في الهاتف
   useHardwareBack(onBack, true);
@@ -103,7 +110,7 @@ export default function SocialNotificationsPage({ onBack }: Props) {
               const actorName = notif.actorProfile?.name;
               return (
                 <div
-                  key={notif._id}
+                  key={notif.id}
                   className="px-4 py-3.5"
                   style={{ background: notif.isRead ? "#fff" : "#f8fff8" }}
                 >

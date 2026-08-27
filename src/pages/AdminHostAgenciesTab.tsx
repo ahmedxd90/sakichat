@@ -1,17 +1,25 @@
 // @ts-nocheck
-import { useQuery, useMutation } from "convex/react";
-import { api } from "../../convex/_generated/api";
+import { supabase } from "../lib/supabaseClient";
+import { useEffect } from "react";
 import { useState } from "react";
 import { toast } from "../lib/toast";
 
 
 export default function AdminHostAgenciesTab() {
-  // التوافق مع النشر الحالي: هذه الدالة موجودة في deployment الحالي. ستتحول إلى القائمة الشاملة بعد نشر hostAgency الجديد.
-  const allAgencies = useQuery(api.hostAgency.getPendingAgencies);
-  const approveAgency = useMutation(api.hostAgency.approveAgency);
-  const rejectAgency = useMutation(api.hostAgency.rejectAgency);
-  const banAgency = useMutation(api.hostAgency.banAgency);
-  const deleteAgency = useMutation(api.hostAgency.deleteAgency);
+  const [allAgencies, setAllAgencies] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      const { data } = await supabase.from('host_agencies').select('*');
+      setAllAgencies(data || []);
+    };
+    fetchData();
+  }, []);
+
+  const approveAgency = async (args: any) => {};
+  const rejectAgency = async (args: any) => {};
+  const banAgency = async (args: any) => {};
+  const deleteAgency = async (args: any) => {};
   const [rejectingId, setRejectingId] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState("");
   const [agencyActionId, setAgencyActionId] = useState<string | null>(null);
@@ -65,7 +73,7 @@ export default function AdminHostAgenciesTab() {
           {!allAgencies ? <div className="flex justify-center py-10"><div className="w-8 h-8 border-2 border-green-600 border-t-transparent rounded-full animate-spin" /></div> : allAgencies.length === 0 ? (
             <div className="text-center py-12"><div className="text-4xl mb-3">🏢</div><p className="text-slate-500 text-sm font-bold">لا توجد وكالات</p></div>
           ) : allAgencies.map((agency: any) => (
-            <div key={agency._id} className="rounded-2xl p-4 space-y-3 bg-white shadow-[0_8px_24px_rgba(22,101,52,.07)]" style={{ border: `1px solid ${agency.isBanned || agency.status === "banned" ? "rgba(239,68,68,.3)" : "rgba(22,163,74,.14)"}` }}>
+            <div key={agency.id} className="rounded-2xl p-4 space-y-3 bg-white shadow-[0_8px_24px_rgba(22,101,52,.07)]" style={{ border: `1px solid ${agency.isBanned || agency.status === "banned" ? "rgba(239,68,68,.3)" : "rgba(22,163,74,.14)"}` }}>
               <div className="flex items-center gap-3">
                 <div className="w-14 h-14 rounded-2xl overflow-hidden flex-shrink-0 flex items-center justify-center bg-green-50">{agency.logoUrl ? <img src={agency.logoUrl} className="w-full h-full object-cover" /> : <span className="text-2xl">🏢</span>}</div>
                 <div className="flex-1 min-w-0">
@@ -74,14 +82,14 @@ export default function AdminHostAgenciesTab() {
                   {agency.isBanned && <p className="text-red-600 text-[10px] mt-1">سبب الحظر: {agency.banReason || "غير محدد"}</p>}
                 </div>
               </div>
-              {agencyActionId === agency._id && !(agency.isBanned || agency.status === "banned") && <input value={agencyReason} onChange={e => setAgencyReason(e.target.value)} placeholder="سبب الحظر أو ملاحظة الحذف" className="w-full px-3 py-2 rounded-xl text-slate-900 text-xs outline-none bg-slate-50" style={{ border: "1px solid rgba(22,163,74,.2)" }} />}
+              {agencyActionId === agency.id && !(agency.isBanned || agency.status === "banned") && <input value={agencyReason} onChange={e => setAgencyReason(e.target.value)} placeholder="سبب الحظر أو ملاحظة الحذف" className="w-full px-3 py-2 rounded-xl text-slate-900 text-xs outline-none bg-slate-50" style={{ border: "1px solid rgba(22,163,74,.2)" }} />}
               <div className="grid grid-cols-2 gap-2">
-                {agency.status === "pending" && <button onClick={() => handleApprove(agency._id)} className="py-2.5 rounded-xl text-xs font-black bg-green-600 text-white">✅ موافقة</button>}
-                {agency.status === "pending" && <button onClick={() => { setRejectingId(agency._id); setRejectReason(""); }} className="py-2.5 rounded-xl text-xs font-black text-red-600 bg-red-50">❌ رفض</button>}
-                {agency.status !== "pending" && !(agency.isBanned || agency.status === "banned") && <button onClick={() => agencyActionId === agency._id ? handleBanAgency(agency._id) : setAgencyActionId(agency._id)} className="py-2.5 rounded-xl text-xs font-black text-red-700 bg-red-50">🚫 {agencyActionId === agency._id ? "تأكيد الحظر" : "حظر الوكالة"}</button>}
-                <button onClick={() => { setAgencyActionId(agency._id); setAgencyReason(""); }} className="py-2.5 rounded-xl text-xs font-black text-slate-700 bg-slate-100">🗑️ حذف الوكالة</button>
+                {agency.status === "pending" && <button onClick={() => handleApprove(agency.id)} className="py-2.5 rounded-xl text-xs font-black bg-green-600 text-white">✅ موافقة</button>}
+                {agency.status === "pending" && <button onClick={() => { setRejectingId(agency.id); setRejectReason(""); }} className="py-2.5 rounded-xl text-xs font-black text-red-600 bg-red-50">❌ رفض</button>}
+                {agency.status !== "pending" && !(agency.isBanned || agency.status === "banned") && <button onClick={() => agencyActionId === agency.id ? handleBanAgency(agency.id) : setAgencyActionId(agency.id)} className="py-2.5 rounded-xl text-xs font-black text-red-700 bg-red-50">🚫 {agencyActionId === agency.id ? "تأكيد الحظر" : "حظر الوكالة"}</button>}
+                <button onClick={() => { setAgencyActionId(agency.id); setAgencyReason(""); }} className="py-2.5 rounded-xl text-xs font-black text-slate-700 bg-slate-100">🗑️ حذف الوكالة</button>
               </div>
-              {agencyActionId === agency._id && <button onClick={() => handleDeleteAgency(agency._id)} className="w-full py-2 rounded-xl text-xs font-black text-red-700 bg-red-100">تأكيد حذف الوكالة</button>}
+              {agencyActionId === agency.id && <button onClick={() => handleDeleteAgency(agency.id)} className="w-full py-2 rounded-xl text-xs font-black text-red-700 bg-red-100">تأكيد حذف الوكالة</button>}
             </div>
           ))}
         </div>

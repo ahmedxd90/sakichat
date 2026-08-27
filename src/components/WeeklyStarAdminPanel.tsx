@@ -1,7 +1,6 @@
 // لوحة إدارة النجم الأسبوعي: اختيار هدية الفعالية والجوائز والبنر من بيانات Saki الحقيقية.
-import { useMemo, useState } from "react";
-import { useMutation, useQuery } from "convex/react";
-import { api } from "../../convex/_generated/api";
+import { useMemo, useState, useEffect } from "react";
+import { supabase } from "../lib/supabaseClient";
 import { toast } from "../lib/toast";
 
 function Preview({ item, label }: { item: any; label: string }) {
@@ -19,10 +18,22 @@ function Preview({ item, label }: { item: any; label: string }) {
 }
 
 export default function WeeklyStarAdminPanel({ onClose }: { onClose: () => void }) {
-  const settings = useQuery(api.weeklyStar.getWeeklyStarSettings);
-  const catalog = useQuery(api.weeklyStar.getWeeklyStarAdminCatalog);
-  const save = useMutation(api.weeklyStar.saveWeeklyStarSettings);
-  const uploadUrl = useMutation(api.weeklyStar.generateWeeklyStarUploadUrl);
+  const [settings, setSettings] = useState<any>(null);
+  const [catalog, setCatalog] = useState<any>(null);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      const { data: s } = await supabase.from('weekly_star_settings').select('*').single();
+      setSettings(s);
+      
+      const { data: g } = await supabase.from('gifts').select('*').eq('category', 'event');
+      const { data: f } = await supabase.from('store_items').select('*').eq('type', 'frame');
+      const { data: e } = await supabase.from('store_items').select('*').eq('type', 'entry');
+      setCatalog({ gifts: g || [], frames: f || [], entries: e || [], allowed: true });
+    };
+    fetchData();
+  }, []);
 
   const [currentGiftId, setCurrentGiftId] = useState<any>(undefined);
   const [nextGiftId, setNextGiftId] = useState<any>(undefined);
@@ -38,7 +49,6 @@ export default function WeeklyStarAdminPanel({ onClose }: { onClose: () => void 
   const [thirdGold, setThirdGold] = useState(25000);
   const [bannerUrl, setBannerUrl] = useState("");
   const [bannerStorageId, setBannerStorageId] = useState<any>(undefined);
-  const [saving, setSaving] = useState(false);
   const [initialized, setInitialized] = useState(false);
 
   if (settings && !initialized) {
@@ -69,12 +79,10 @@ export default function WeeklyStarAdminPanel({ onClose }: { onClose: () => void 
 
   const uploadBanner = async (file: File) => {
     try {
-      const url = await uploadUrl({});
-      const response = await fetch(url, { method: "POST", headers: { "Content-Type": file.type }, body: file });
-      if (!response.ok) throw new Error("تعذر رفع البنر");
-      const body = await response.json();
-      setBannerStorageId(body.storageId);
-      setBannerUrl("");
+      const { data, error } = await supabase.storage.from('banners').upload(`weekly-star-${Date.now()}`, file);
+      if (error) throw error;
+      const { data: { publicUrl } } = supabase.storage.from('banners').getPublicUrl(data.path);
+      setBannerUrl(publicUrl);
       toast.success("تم رفع البنر، اضغط حفظ لتثبيته");
     } catch (error: any) {
       toast.error(error?.message ?? "تعذر رفع البنر");
@@ -88,7 +96,23 @@ export default function WeeklyStarAdminPanel({ onClose }: { onClose: () => void 
     }
     setSaving(true);
     try {
-      await save({ currentGiftId, nextGiftId, title, titleIconUrl: titleIconUrl || undefined, frameItemId, entryItemId, aristocracyLevel: aristocracyLevel || undefined, aristocracyDays, firstGold, secondGold, thirdGold, titleDays, bannerStorageId, bannerUrl: bannerUrl || undefined });
+      const { error } = await supabase.from('weekly_star_settings').upsert({
+        id: settings?.id || undefined,
+        current_gift_id: currentGiftId,
+        next_gift_id: nextGiftId,
+        title,
+        title_icon_url: titleIconUrl,
+        frame_item_id: frameItemId,
+        entry_item_id: entryItemId,
+        aristocracy_level: aristocracyLevel,
+        aristocracy_days: aristocracyDays,
+        first_gold: firstGold,
+        second_gold: secondGold,
+        third_gold: thirdGold,
+        title_days: titleDays,
+        banner_url: bannerUrl
+      });
+      if (error) throw error;
       toast.success("تم حفظ إعدادات النجم الأسبوعي");
     } catch (error: any) {
       toast.error(error?.message ?? "تعذر حفظ الإعدادات");

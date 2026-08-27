@@ -1,26 +1,33 @@
 // @ts-nocheck
-import { useQuery } from "convex/react";
-import { api } from "../../convex/_generated/api";
-import { Id } from "../../convex/_generated/dataModel";
+import { useState, useEffect } from "react";
+import { supabase } from "../lib/supabaseClient";
 import { toast } from "sonner";
 
 interface MessageButtonProps {
-  userId: Id<"users">;
-  onMessage: (userId: Id<"users">) => void;
+  userId: string;
+  onMessage: (userId: string) => void;
 }
 
 export default function MessageButton({ userId, onMessage }: MessageButtonProps) {
-  const areFriends = useQuery(api.friends.areFriends, { otherUserId: userId });
+  const [isFriend, setIsFriend] = useState(false);
+
+  useEffect(() => {
+    const checkFriendship = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data } = await supabase.from('friends').select('*').or(`and(user1_id.eq.${user.id},user2_id.eq.${userId}),and(user1_id.eq.${userId},user2_id.eq.${user.id})`).single();
+      setIsFriend(!!data);
+    };
+    checkFriendship();
+  }, [userId]);
 
   const handleClick = () => {
-    if (areFriends === false) {
+    if (!isFriend) {
       toast.error("يجب أن تكونا أصدقاء لإرسال رسالة خاصة 👥");
       return;
     }
     onMessage(userId);
   };
-
-  const isFriend = areFriends === true;
 
   return (
     <button

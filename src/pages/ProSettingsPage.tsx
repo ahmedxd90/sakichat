@@ -1,7 +1,6 @@
 // @ts-nocheck
 import React, { useState, useEffect } from "react";
-import { useQuery, useMutation } from "convex/react";
-import { api } from "../../convex/_generated/api";
+import { supabase } from "../lib/supabaseClient";
 import { toast } from "../lib/toast";
 
 interface ProSettingsPageProps {
@@ -9,9 +8,8 @@ interface ProSettingsPageProps {
 }
 
 export default function ProSettingsPage({ onBack }: ProSettingsPageProps) {
-  const proStatus = useQuery(api.proMembership.getMyProStatus);
-  const updateSettings = useMutation(api.proMembership.updateProSettings);
-  const currentLevel = proStatus?.isPro ? (proStatus.proLevel ?? 1) : 0;
+  const [proStatus, setProStatus] = useState<any>(null);
+  const currentLevel = proStatus?.is_pro ? (proStatus.pro_level ?? 1) : 0;
 
   const [settings, setSettings] = useState({
     glowingName: true,
@@ -22,17 +20,26 @@ export default function ProSettingsPage({ onBack }: ProSettingsPageProps) {
   });
 
   useEffect(() => {
-    if (proStatus?.proSettings) {
-      setSettings(proStatus.proSettings);
-    }
-  }, [proStatus]);
+    const fetchData = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data } = await supabase.from('profiles').select('*').eq('user_id', user.id).single();
+        setProStatus(data);
+        if (data?.pro_settings) setSettings(data.pro_settings);
+      }
+    };
+    fetchData();
+  }, []);
 
   const handleToggle = async (key: string) => {
     const next = { ...settings, [key]: !settings[key as keyof typeof settings] };
     setSettings(next);
     try {
-      await updateSettings(next);
-      toast.success("تم تحديث إعدادات PRO بنجاح");
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        await supabase.from('profiles').update({ pro_settings: next }).eq('user_id', user.id);
+        toast.success("تم تحديث إعدادات PRO بنجاح");
+      }
     } catch (e: any) {
       toast.error("فشل حفظ الإعدادات");
     }

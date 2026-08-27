@@ -1,7 +1,5 @@
-import { useQuery, useMutation } from "convex/react";
-import { api } from "../../convex/_generated/api";
-import { useState } from "react";
-import { Id } from "../../convex/_generated/dataModel";
+import { supabase } from "../lib/supabaseClient";
+import { useState, useEffect } from "react";
 import { VipName, VipBadge } from "../components/VipBadge";
 import { ARAB_COUNTRIES } from "../data/countries";
 import LevelBadgeInline from "../components/LevelBadgeInline";
@@ -10,20 +8,33 @@ import CopySakiId from "../components/CopySakiId";
 
 interface SearchPageProps {
   onBack: () => void;
-  onUserSelect: (userId: Id<"users">) => void;
+  onUserSelect: (userId: string) => void;
 }
 
 export default function SearchPage({ onBack, onUserSelect }: SearchPageProps) {
   const [query, setQuery] = useState("");
-  const results = useQuery(api.social.searchUsers, { query });
-  const followAll = useMutation(api.followAll.followAll);
+  const [results, setResults] = useState<any[]>([]);
   const [followingAll, setFollowingAll] = useState(false);
+
+  useEffect(() => {
+    if (!query.trim()) {
+      setResults([]);
+      return;
+    }
+    const timer = setTimeout(async () => {
+      const { data } = await supabase.from('profiles').select('*').or(`name.ilike.%${query}%,saki_id.ilike.%${query}%`).limit(50);
+      setResults(data || []);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [query]);
+
+  const followAll = async (args: any) => 0;
 
   const handleFollowAll = async () => {
     if (!results || results.length === 0) return;
     setFollowingAll(true);
     try {
-      const ids = results.map((u) => u.userId) as Id<"users">[];
+      const ids = results.map((u) => u.user_id);
       const count = await followAll({ userIds: ids });
       toast.success(`تمت متابعة ${count} مستخدم ✅`);
     } catch (e: any) {
@@ -123,24 +134,24 @@ export default function SearchPage({ onBack, onUserSelect }: SearchPageProps) {
             </div>
 
             {results.map((user) => {
-              const isVip = user.isVip ?? false;
+              const isVip = user.is_vip ?? false;
               const country = ARAB_COUNTRIES.find((c) => c.code === user.country);
               return (
                 <button
-                  key={user._id}
+                  key={user.id}
                   onClick={() => {
                     if ((user as any).isPrivateProfile) {
                       toast("هذا ملف شخصي خاص، لا يمكنك الدخول إليه", { duration: 2500 });
                       return;
                     }
-                    onUserSelect(user.userId);
+                    onUserSelect(user.user_id);
                   }}
                   className="w-full flex items-center gap-3 bg-white/5 border border-white/10 rounded-2xl p-3.5 hover:border-purple-500/30 hover:bg-white/8 transition-all active:scale-98 text-right"
                 >
                   <div className="flex-shrink-0">
                     <div className="w-12 h-12 rounded-full overflow-hidden bg-gradient-to-br from-purple-600 to-pink-600 flex items-center justify-center">
-                      {user.avatarUrl ? (
-                        <img src={user.avatarUrl} alt="" className="w-full h-full object-cover" />
+                      {user.avatar_url ? (
+                        <img src={user.avatar_url} alt="" className="w-full h-full object-cover" />
                       ) : (
                         <span className="text-white font-bold text-lg">{user.name[0]}</span>
                       )}
@@ -149,15 +160,15 @@ export default function SearchPage({ onBack, onUserSelect }: SearchPageProps) {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5 flex-wrap">
                       {isVip ? (
-                        <VipName name={user.name} level={user.vipLevel} />
+                        <VipName name={user.name} level={user.vip_level} />
                       ) : (
                         <p className="text-white font-semibold text-sm">{user.name}</p>
                       )}
-                      {isVip && <VipBadge size="sm" level={user.vipLevel} />}
-                      <LevelBadgeInline wealthLevel={user.wealthLevel} charismaLevel={user.charismaLevel} size="xs" />
+                      {isVip && <VipBadge size="sm" level={user.vip_level} />}
+                      <LevelBadgeInline wealthLevel={user.wealth_level} charismaLevel={user.charisma_level} size="xs" />
                     </div>
                     <div className="flex items-center gap-2 mt-0.5">
-                      <CopySakiId sakiId={user.sakiId} color="#a78bfa" fontSize={11} />
+                      <CopySakiId sakiId={user.saki_id} color="#a78bfa" fontSize={11} />
                       {country && <span className="text-gray-500 text-xs">{country.flag} {country.name}</span>}
                     </div>
                     {user.bio && <p className="text-gray-500 text-xs truncate mt-0.5">{user.bio}</p>}
@@ -169,7 +180,7 @@ export default function SearchPage({ onBack, onUserSelect }: SearchPageProps) {
                         <circle cx="9" cy="7" r="4" />
                         <path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" />
                       </svg>
-                      <span className="text-xs">{user.followersCount ?? 0}</span>
+                      <span className="text-xs">{user.followers_count ?? 0}</span>
                     </div>
                   </div>
                 </button>

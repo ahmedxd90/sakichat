@@ -1,25 +1,50 @@
 // @ts-nocheck
-import { useQuery, useMutation } from "convex/react";
-import { api } from "../../convex/_generated/api";
-import { Id } from "../../convex/_generated/dataModel";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { supabase } from "../lib/supabaseClient";
 import { toast } from "../lib/toast";
 
 interface FriendButtonProps {
-  targetUserId: Id<"users">;
+  targetUserId: string;
   compact?: boolean;
   compactGrid?: boolean;
 }
 
 export default function FriendButton({ targetUserId, compact, compactGrid }: FriendButtonProps) {
-  const status = useQuery(api.friends.getFriendshipStatus, { targetUserId });
-  const sendRequest = useMutation(api.friends.sendFriendRequest);
-  const cancelRequest = useMutation(api.friends.cancelFriendRequest);
-  const acceptRequest = useMutation(api.friends.acceptFriendRequest);
-  const rejectRequest = useMutation(api.friends.rejectFriendRequest);
-  const removeFriend = useMutation(api.friends.removeFriend);
+  const [status, setStatus] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+
+  const fetchStatus = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    
+    // Check if friends
+    const { data: friend } = await supabase.from('friends').select('*').or(`and(user1_id.eq.${user.id},user2_id.eq.${targetUserId}),and(user1_id.eq.${targetUserId},user2_id.eq.${user.id})`).single();
+    if (friend) {
+      setStatus({ status: 'friends' });
+      return;
+    }
+
+    // Check sent requests
+    const { data: sent } = await supabase.from('friend_requests').select('*').eq('sender_id', user.id).eq('receiver_id', targetUserId).eq('status', 'pending').single();
+    if (sent) {
+      setStatus({ status: 'sent', requestId: sent.id });
+      return;
+    }
+
+    // Check received requests
+    const { data: received } = await supabase.from('friend_requests').select('*').eq('sender_id', targetUserId).eq('receiver_id', user.id).eq('status', 'pending').single();
+    if (received) {
+      setStatus({ status: 'received', requestId: received.id });
+      return;
+    }
+
+    setStatus({ status: 'none' });
+  };
+
+  useEffect(() => {
+    fetchStatus();
+  }, [targetUserId]);
 
   if (!status) return null;
 
@@ -28,16 +53,20 @@ export default function FriendButton({ targetUserId, compact, compactGrid }: Fri
     if (status.status === "friends") { setShowConfirm(true); return; }
     setLoading(true);
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("يجب تسجيل الدخول");
+
       if (status.status === "none") {
-        const res = await sendRequest({ targetUserId });
-        toast.success(res.status === "accepted" ? "🎉 أصبحتما أصدقاء!" : "✅ تم إرسال طلب الصداقة");
+        await supabase.from('friend_requests').insert({ sender_id: user.id, receiver_id: targetUserId });
+        toast.success("✅ تم إرسال طلب الصداقة");
       } else if (status.status === "sent") {
-        await cancelRequest({ targetUserId });
+        await supabase.from('friend_requests').delete().eq('id', status.requestId);
         toast.success("تم إلغاء الطلب");
       } else if (status.status === "received") {
-        await acceptRequest({ requestId: status.requestId });
+        await supabase.rpc('accept_friend_request', { request_id: status.requestId });
         toast.success("🎉 تمت قبول طلب الصداقة!");
       }
+      fetchStatus();
     } catch (e: any) { toast.error(e.message); }
     finally { setLoading(false); }
   };
@@ -45,8 +74,11 @@ export default function FriendButton({ targetUserId, compact, compactGrid }: Fri
   const handleRemoveFriend = async () => {
     setLoading(true);
     try {
-      await removeFriend({ friendUserId: targetUserId });
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      await supabase.from('friends').delete().or(`and(user1_id.eq.${user.id},user2_id.eq.${targetUserId}),and(user1_id.eq.${targetUserId},user2_id.eq.${user.id})`);
       toast.success("تم إلغاء الصداقة");
+      fetchStatus();
     } catch (e: any) { toast.error(e.message); }
     finally { setLoading(false); setShowConfirm(false); }
   };
@@ -55,8 +87,9 @@ export default function FriendButton({ targetUserId, compact, compactGrid }: Fri
     if (!status.requestId) return;
     setLoading(true);
     try {
-      await rejectRequest({ requestId: status.requestId });
+      await supabase.from('friend_requests').update({ status: 'rejected' }).eq('id', status.requestId);
       toast.success("تم رفض الطلب");
+      fetchStatus();
     } catch (e: any) { toast.error(e.message); }
     finally { setLoading(false); }
   };

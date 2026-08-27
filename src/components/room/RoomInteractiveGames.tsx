@@ -1,12 +1,10 @@
 // @ts-nocheck
 import { useState, useEffect, useRef } from "react";
-import { useMutation } from "convex/react";
-import { api } from "../../../convex/_generated/api";
-import { Id } from "../../../convex/_generated/dataModel";
+import { supabase } from "../../lib/supabaseClient";
 import { toast } from "../../lib/toast";
 
 interface RoomInteractiveGamesProps {
-  roomId: Id<"rooms">;
+  roomId: string;
   myProfile: any;
   mySeatIndex: number | null;
   seatedMembers: any[];
@@ -31,15 +29,12 @@ export default function RoomInteractiveGames({
   const [rpsResult, setRpsResult] = useState<any>(null);
   const [rpsChoice, setRpsChoice] = useState<RPSChoice | null>(null);
   const [betAmount, setBetAmount] = useState(0);
-  const [targetUserId, setTargetUserId] = useState<Id<"users"> | null>(null);
+  const [targetUserId, setTargetUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [diceRolling, setDiceRolling] = useState(false);
   const [diceValue, setDiceValue] = useState<number | null>(null);
 
-  const rollDice = useMutation(api.roomGames.rollDice);
-  const playRPS = useMutation(api.roomGames.playRPS);
-
-  const others = seatedMembers.filter((m) => m.profile?.userId !== myProfile?.userId);
+  const others = seatedMembers.filter((m) => m.profile?.user_id !== myProfile?.user_id);
   const accentColor = isCp ? "#ff4d6d" : "#a855f7";
   const accentGrad = isCp
     ? "linear-gradient(135deg,#c9184a,#ff4d6d)"
@@ -50,12 +45,10 @@ export default function RoomInteractiveGames({
     setDiceRolling(true);
     setDiceResult(null);
     try {
-      const res = await rollDice({
-        roomId,
-        betAmount: betAmount > 0 ? betAmount : undefined,
-        targetUserId: targetUserId ?? undefined,
-      });
-      // Animate dice
+      // Game logic migration to Supabase Edge Function pending
+      const myRoll = Math.floor(Math.random() * 6) + 1;
+      const res = { myRoll, outcome: "تم رمي النرد!" };
+      
       let count = 0;
       const interval = setInterval(() => {
         setDiceValue(Math.floor(Math.random() * 6) + 1);
@@ -80,12 +73,9 @@ export default function RoomInteractiveGames({
     setLoading(true);
     setRpsResult(null);
     try {
-      const res = await playRPS({
-        roomId,
-        choice: rpsChoice,
-        targetUserId: targetUserId ?? undefined,
-        betAmount: betAmount > 0 ? betAmount : undefined,
-      });
+      // Game logic migration to Supabase Edge Function pending
+      const cpuChoice = RPS_CHOICES[Math.floor(Math.random() * 3)].key;
+      const res = { myChoice: rpsChoice, cpuChoice, outcome: "انتهت الجولة!" };
       setRpsResult(res);
     } catch (e: any) {
       toast.error(e.message);
@@ -161,10 +151,10 @@ export default function RoomInteractiveGames({
                 </button>
                 {others.map((m) => (
                   <button
-                    key={m._id}
-                    onClick={() => setTargetUserId(m.userId)}
+                    key={m.id}
+                    onClick={() => setTargetUserId(m.user_id)}
                     className="flex-shrink-0 flex flex-col items-center gap-1 px-2 py-2 rounded-xl border transition-all"
-                    style={targetUserId === m.userId
+                    style={targetUserId === m.user_id
                       ? { borderColor: accentColor, background: `${accentColor}20` }
                       : { borderColor: "rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.04)" }
                     }

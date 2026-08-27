@@ -1,9 +1,8 @@
 // @ts-nocheck
-import { Id } from "../../../../convex/_generated/dataModel";
 
 interface PKPendingViewProps {
   activePK: any;
-  roomId: Id<"rooms">;
+  roomId: string;
   canManage: boolean;
   loading: boolean;
   onAccept: () => void;

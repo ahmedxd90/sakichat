@@ -62,24 +62,25 @@ function RegisterStep1({ onNext, onBack }: { onNext: (email: string, password: s
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const { signIn } = useAuthActions();
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email.trim() || !password.trim()) return;
     if (password.length < 6) { toast.error("كلمة المرور يجب أن تكون 6 أحرف على الأقل"); return; }
     setSubmitting(true);
-    const formData = new FormData();
-    formData.set("email", email);
-    formData.set("password", password);
-    formData.set("flow", "signUp");
     try {
-      await signIn("password", formData);
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+      });
+      if (error) throw error;
       onNext(email, password);
     } catch (err: any) {
       const msg = err?.message ?? "";
-      if (msg.includes("already")) toast.error("هذا البريد الإلكتروني مسجل مسبقاً");
-      else toast.error("تعذّر إنشاء الحساب");
+      if (msg.includes("already") || msg.includes("User already registered")) {
+        toast.error("هذا البريد الإلكتروني مسجل مسبقاً");
+      } else {
+        toast.error("تعذّر إنشاء الحساب");
+      }
     } finally {
       setSubmitting(false);
     }
@@ -138,9 +139,6 @@ function RegisterStep1({ onNext, onBack }: { onNext: (email: string, password: s
 
 // ── Register Step 2: Profile Info ──
 function RegisterStep2({ onBack }: { onBack: () => void }) {
-  const createProfile = useMutation(api.profiles.createProfile);
-  const generateUploadUrl = useMutation(api.hostAgency.generateUploadUrl);
-
   const [name, setName] = useState("");
   const [country, setCountry] = useState("");
   const [gender, setGender] = useState<"male" | "female" | "">("");
@@ -165,24 +163,36 @@ function RegisterStep2({ onBack }: { onBack: () => void }) {
     if (!gender) { toast.error("اختر جنسك"); return; }
     setSubmitting(true);
     try {
-      let avatarStorageId: any = undefined;
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("لم يتم العثور على مستخدم");
+
+      let avatarUrl = "";
       if (avatarFile) {
-        const uploadUrl = await generateUploadUrl();
-        const res = await fetch(uploadUrl, {
-          method: "POST",
-          headers: { "Content-Type": avatarFile.type },
-          body: avatarFile,
-        });
-        const json = await res.json();
-        avatarStorageId = json.storageId;
+        const fileExt = avatarFile.name.split('.').pop();
+        const fileName = `${user.id}-${Math.random()}.${fileExt}`;
+        const { data, error: uploadError } = await supabase.storage
+          .from('avatars')
+          .upload(fileName, avatarFile);
+        if (uploadError) throw uploadError;
+        const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(data.path);
+        avatarUrl = publicUrl;
       }
-      await createProfile({
-        name: name.trim(),
-        country,
-        gender: gender as "male" | "female",
-        avatarStorageId,
-        referralCode: referralCode.trim() || undefined,
-      });
+
+      const { error } = await supabase
+        .from('profiles')
+        .insert({
+          user_id: user.id,
+          name: name.trim(),
+          country,
+          gender: gender as "male" | "female",
+          avatar_url: avatarUrl,
+          referral_code: referralCode.trim() || null,
+          gold_coins: 0,
+          is_pro: false,
+          level: 1,
+        });
+      if (error) throw error;
+
       toast.success("تم إنشاء الحساب بنجاح! 🎉");
     } catch (e: any) {
       toast.error(e.message || "حدث خطأ");
@@ -487,7 +497,7 @@ export default function LoginPage() {
         toast.error(`${nativeHint} [${providerCode}]${diagnostic}`);
       }
       setSubmitting(false);
-      const networkDetails = `المنصة: ${Capacitor.getPlatform()} | الاتصال: ${navigator.onLine ? "متصل" : "غير متصل"} | Convex: ${convexUrl}`;
+      const networkDetails = `المنصة: ${Capacitor.getPlatform()} | الاتصال: ${navigator.onLine ? "متصل" : "غير متصل"}`;
       setOauthDiagnostics({ stage: "تعذر بدء تسجيل الدخول", message: `${message || "لم يتم فتح Chrome أو لم يستجب خادم OAuth."} | ${networkDetails}`, code: errorCode || (message.includes("IOException") ? "ANDROID_NETWORK_IO" : "UNKNOWN") });
     }
   };

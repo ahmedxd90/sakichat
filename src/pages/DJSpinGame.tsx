@@ -1,7 +1,6 @@
 // DJ Spin — واجهة DJ/Rave أصلية، مرحلة تجريبية آمنة بلا خصم عملات حقيقية حتى يكتمل ربط Convex.
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useMutation, useQuery } from "convex/react";
-import { api } from "../../convex/_generated/api";
+import { supabase } from "../lib/supabaseClient";
 
 type SymbolKey = "headphones" | "glasses" | "vinyl" | "deck" | "A" | "K" | "Q" | "J" | "wild" | "scatter";
 
@@ -45,10 +44,22 @@ export default function DJSpinGame({ roomId, onBack }: { roomId?: string; onBack
   const [message, setMessage] = useState("اختر الرهان واضغط Spin");
   const [tab, setTab] = useState<"game" | "rules" | "history">("game");
   const timerRef = useRef<number | null>(null);
-  const currentRound = useQuery(api.djSpin.getCurrentRound, roomId ? { roomId: roomId as any } : "skip");
-  const startRound = useMutation(api.djSpin.startRound);
-  const placeBet = useMutation(api.djSpin.placeBet);
-  const recentRounds = useQuery(api.djSpin.getRecentRounds, roomId ? { roomId: roomId as any } : "skip");
+  
+  const [currentRound, setCurrentRound] = useState<any>(null);
+  const [recentRounds, setRecentRounds] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      const { data: r } = await supabase.from('dj_spin_rounds').select('*').eq('room_id', roomId).eq('status', 'betting').order('created_at', { ascending: false }).limit(1).single();
+      setCurrentRound(r);
+      const { data: hist } = await supabase.from('dj_spin_rounds').select('*').eq('room_id', roomId).eq('status', 'finished').order('created_at', { ascending: false }).limit(10);
+      setRecentRounds(hist || []);
+    };
+    fetchData();
+  }, [roomId]);
+
+  const startRound = async (args: any) => {};
+  const placeBet = async (args: any) => {};
 
   useEffect(() => {
     if (!roomId) return;
@@ -57,11 +68,11 @@ export default function DJSpinGame({ roomId, onBack }: { roomId?: string; onBack
 
   useEffect(() => {
     if (!currentRound) return;
-    const tick = () => setSeconds(Math.max(0, Math.ceil((currentRound.bettingEndsAt - Date.now()) / 1000)));
+    const tick = () => setSeconds(Math.max(0, Math.ceil((currentRound.betting_ends_at - Date.now()) / 1000)));
     tick();
     const interval = window.setInterval(tick, 500);
     return () => window.clearInterval(interval);
-  }, [currentRound?.bettingEndsAt]);
+  }, [currentRound?.betting_ends_at]);
 
   const winningLine = useMemo(() => {
     const row = [reels[0], reels[1], reels[2], reels[3], reels[4]];
@@ -76,7 +87,7 @@ export default function DJSpinGame({ roomId, onBack }: { roomId?: string; onBack
     if (spinning) return;
     if (currentRound) {
       try {
-        await placeBet({ roomId: roomId as any, roundId: currentRound._id, amount: bet, symbolKey: selectedSymbol });
+        await placeBet({ roomId: roomId as any, roundId: currentRound.id, amount: bet, symbolKey: selectedSymbol });
       } catch (error: any) {
         setMessage(error?.message ?? "تعذر تسجيل الرهان");
         return;

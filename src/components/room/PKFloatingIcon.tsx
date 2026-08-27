@@ -1,11 +1,9 @@
 // @ts-nocheck
 import { useState, useEffect } from "react";
-import { useQuery } from "convex/react";
-import { api } from "../../../convex/_generated/api";
-import { Id } from "../../../convex/_generated/dataModel";
+import { supabase } from "../../lib/supabaseClient";
 
 interface PKFloatingIconProps {
-  roomId: Id<"rooms">;
+  roomId: string;
   onClick: () => void;
 }
 
@@ -21,8 +19,18 @@ function SwordSVG({ color, size = 18 }: { color: string; size?: number }) {
 }
 
 export default function PKFloatingIcon({ roomId, onClick }: PKFloatingIconProps) {
-  const activePK = useQuery(api.pk.getActivePKBattle, { roomId });
+  const [activePK, setActivePK] = useState<any>(null);
   const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    const fetchPK = async () => {
+      const { data } = await supabase.from('pk_battles').select('*').or(`room1_id.eq.${roomId},room2_id.eq.${roomId}`).in('status', ['pending', 'active']).single();
+      setActivePK(data);
+    };
+    fetchPK();
+    const sub = supabase.channel(`pk_icon_${roomId}`).on('postgres_changes', { event: '*', schema: 'public', table: 'pk_battles' }, fetchPK).subscribe();
+    return () => { sub.unsubscribe(); };
+  }, [roomId]);
 
   useEffect(() => {
     if (!activePK || activePK.status !== "active") return;
@@ -33,7 +41,7 @@ export default function PKFloatingIcon({ roomId, onClick }: PKFloatingIconProps)
   if (!activePK || (activePK.status !== "active" && activePK.status !== "pending")) return null;
 
   const isActive = activePK.status === "active";
-  const timeLeft = activePK.endsAt ? Math.max(0, activePK.endsAt - now) : 0;
+  const timeLeft = activePK.ends_at ? Math.max(0, activePK.ends_at - now) : 0;
   const minutes = Math.floor(timeLeft / 60000);
   const seconds = Math.floor((timeLeft % 60000) / 1000);
   const isUrgent = timeLeft < 60000 && isActive;

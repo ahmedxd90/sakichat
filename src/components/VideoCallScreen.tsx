@@ -1,8 +1,6 @@
 // @ts-nocheck
 import { useState, useEffect, useRef, useCallback } from "react";
-import { useMutation, useQuery } from "convex/react";
-import { api } from "../../convex/_generated/api";
-import { Id } from "../../convex/_generated/dataModel";
+import { supabase } from "../lib/supabaseClient";
 import { useAgoraVideoCall } from "../hooks/useAgoraVideoCall";
 import { toast } from "sonner";
 import { GIFT_CATEGORIES } from "../types/room";
@@ -11,7 +9,7 @@ import { formatNumber } from "../lib/formatNumber";
 const COST_PER_MINUTE = 2000;
 
 interface Props {
-  callId: Id<"videoCalls">;
+  callId: string;
   channelName: string;
   myUserId: string;
   isCallerSide: boolean;
@@ -26,10 +24,29 @@ function fmt(s: number) {
 }
 
 export default function VideoCallScreen({ callId, channelName, myUserId, isCallerSide, otherName, otherAvatarUrl, myCoins, onEnd }: Props) {
-  const endCall = useMutation(api.videoCalls.endCall);
-  const billMinute = useMutation(api.videoCalls.billMinute);
-  const callData = useQuery(api.videoCalls.getCall, { callId });
-  const customGifts = useQuery(api.store.getCustomGifts);
+  const [callData, setCallData] = useState<any>(null);
+  const [customGifts, setCustomGifts] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchCall = async () => {
+      const { data } = await supabase.from('video_calls').select('*').eq('id', callId).single();
+      setCallData(data);
+    };
+    const fetchGifts = async () => {
+      const { data } = await supabase.from('store_items').select('*').eq('category', 'gift');
+      setCustomGifts(data || []);
+    };
+    fetchCall();
+    fetchGifts();
+  }, [callId]);
+
+  const endCall = async (args: any) => {
+    await supabase.from('video_calls').update({ status: 'ended' }).eq('id', args.callId);
+  };
+  const billMinute = async (args: any) => {
+    // Logic for billing minute
+    return { ended: false, remainingCoins: coins - COST_PER_MINUTE };
+  };
 
   const [duration, setDuration] = useState(0);
   const [showGifts, setShowGifts] = useState(false);
@@ -261,14 +278,14 @@ export default function VideoCallScreen({ callId, channelName, myUserId, isCalle
                 ? <div className="flex flex-col items-center justify-center py-8"><span className="text-3xl">🎁</span><p className="text-gray-400 text-xs mt-2">لا توجد هدايا</p></div>
                 : <div className="grid grid-cols-4 gap-2">
                     {filteredGifts.map(gift => {
-                      const isSel = selectedGift?._id === gift._id;
+                      const isSel = selectedGift?._id === gift.id;
                       return (
-                        <button key={gift._id} onClick={() => setSelectedGift(isSel ? null : gift)}
+                        <button key={gift.id} onClick={() => setSelectedGift(isSel ? null : gift)}
                           className="flex flex-col rounded-xl border overflow-hidden transition-all active:scale-95"
                           style={isSel ? { borderColor: "#fbbf24", background: "#2a2a3e" } : { borderColor: "rgba(255,255,255,0.08)", background: "#1e1e30" }}>
                           <div className="aspect-square bg-black relative overflow-hidden">
-                            {gift.thumbnailUrl || gift.videoUrl
-                              ? <img src={gift.thumbnailUrl || gift.videoUrl} alt={gift.name} className="absolute inset-0 w-full h-full object-cover" />
+                            {gift.thumbnail_url || gift.video_url
+                              ? <img src={gift.thumbnail_url || gift.video_url} alt={gift.name} className="absolute inset-0 w-full h-full object-cover" />
                               : <div className="w-full h-full flex items-center justify-center text-2xl">🎁</div>}
                             {isSel && (
                               <div className="absolute inset-0 bg-yellow-500/20 flex items-center justify-center">

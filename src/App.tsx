@@ -1,13 +1,10 @@
 // @ts-nocheck
-import { useQuery, useMutation } from "convex/react";
-import { api } from "../convex/_generated/api";
 import CenteredToaster from "./components/CenteredToaster";
 import { useState, useEffect, useRef, lazy, Suspense, memo, useCallback } from "react";
 import { BackgroundRoomProvider, useBackgroundRoom } from "./contexts/BackgroundRoomContext";
 import { useHardwareBack } from "./hooks/useHardwareBack";
 import { useDeviceFingerprint } from "./hooks/useDeviceFingerprint";
 import { useSecurityGuard } from "./hooks/useSecurityGuard";
-import { Id } from "../convex/_generated/dataModel";
 import { usePWAUpdate } from "./hooks/usePWAUpdate";
 import PWAUpdatePopup from "./components/PWAUpdatePopup";
 import PushNotificationManager from "./components/PushNotificationManager";
@@ -19,6 +16,7 @@ import { ProfileProvider, useProfile } from "./components/ProfileManager";
 import { Capacitor } from "@capacitor/core";
 import { AppUpdate, AppUpdateAvailability } from "@capawesome/capacitor-app-update";
 import ForceUpdateScreen from "./components/ForceUpdateScreen";
+import { supabase } from "./lib/supabaseClient";
 import "./vip-animations.css";
 
 const CURRENT_APP_VERSION = "1.1.3";
@@ -87,47 +85,30 @@ const VideoCallsManager = memo(function VideoCallsManager({ profile, activeCall,
   setActiveCall: (c: any) => void;
   showOutgoing: boolean; setShowOutgoing: (v: boolean) => void;
 }) {
-  const incomingCall = useQuery(api.videoCalls.getIncomingCall);
-  const outgoingCall = useQuery(api.videoCalls.getOutgoingCall);
-  const cancelExpiredCalls = useMutation(api.videoCalls.cancelExpiredCalls);
-
-  useEffect(() => {
-    if (!outgoingCall) { setShowOutgoing(false); return; }
-    if (outgoingCall.status === "ringing") {
-      setShowOutgoing(true);
-    } else if (outgoingCall.status === "active" && !activeCall) {
-      setShowOutgoing(false);
-      setActiveCall({ callId: outgoingCall._id, channelName: outgoingCall.channelName, isCallerSide: true, otherName: outgoingCall.receiverName, otherAvatarUrl: outgoingCall.receiverAvatarUrl });
-    } else if (["ended", "declined", "missed"].includes(outgoingCall.status)) {
-      setShowOutgoing(false);
-    }
-  }, [outgoingCall?.status, outgoingCall?._id]);
-
-  useEffect(() => {
-    const interval = setInterval(() => { cancelExpiredCalls().catch(() => {}); }, 10000);
-    return () => clearInterval(interval);
-  }, []);
+  // Video calls migration to Supabase Realtime pending
+  const incomingCall = null;
+  const outgoingCall = null;
 
   return (
     <Suspense fallback={null}>
       {incomingCall && !activeCall && (
         <IncomingCallPopup
-          callId={incomingCall._id}
-          callerName={incomingCall.callerName}
-          callerAvatarUrl={incomingCall.callerAvatarUrl}
-          onAccept={(channelName) => setActiveCall({ callId: incomingCall._id, channelName, isCallerSide: false, otherName: incomingCall.callerName, otherAvatarUrl: incomingCall.callerAvatarUrl })}
+          callId={(incomingCall as any).id}
+          callerName={(incomingCall as any).callerName}
+          callerAvatarUrl={(incomingCall as any).callerAvatarUrl}
+          onAccept={(channelName) => setActiveCall({ callId: (incomingCall as any).id, channelName, isCallerSide: false, otherName: (incomingCall as any).callerName, otherAvatarUrl: (incomingCall as any).callerAvatarUrl })}
           onDecline={() => {}}
         />
       )}
-      {showOutgoing && outgoingCall && outgoingCall.status === "ringing" && !activeCall && (
-        <OutgoingCallScreen callId={outgoingCall._id} receiverName={outgoingCall.receiverName} receiverAvatarUrl={outgoingCall.receiverAvatarUrl} onCancel={() => setShowOutgoing(false)} />
+      {showOutgoing && outgoingCall && (outgoingCall as any).status === "ringing" && !activeCall && (
+        <OutgoingCallScreen callId={(outgoingCall as any).id} receiverName={(outgoingCall as any).receiverName} receiverAvatarUrl={(outgoingCall as any).receiverAvatarUrl} onCancel={() => setShowOutgoing(false)} />
       )}
       {activeCall && (
         <VideoCallScreen
           callId={activeCall.callId} channelName={activeCall.channelName}
-          myUserId={profile?.userId ?? ""} isCallerSide={activeCall.isCallerSide}
+          myUserId={profile?.user_id ?? ""} isCallerSide={activeCall.isCallerSide}
           otherName={activeCall.otherName} otherAvatarUrl={activeCall.otherAvatarUrl}
-          myCoins={profile?.goldCoins ?? 0} onEnd={() => setActiveCall(null)}
+          myCoins={profile?.gold_coins ?? 0} onEnd={() => setActiveCall(null)}
         />
       )}
     </Suspense>
@@ -200,11 +181,30 @@ function GooglePlayUpdateChecker() {
 }
 
 function ForceUpdateChecker({ children }: { children: React.ReactNode }) {
-  const versionData = useQuery(api.appVersion.getAppVersion);
-  if (versionData === undefined) return <>{children}</>;
+  const [versionData, setVersionData] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  if (versionData && versionData.forceUpdate) {
-    const needsUpdate = compareVersions(CURRENT_APP_VERSION, versionData.minVersion) < 0;
+  useEffect(() => {
+    const checkVersion = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('app_versions')
+          .select('*')
+          .single();
+        if (!error && data) setVersionData(data);
+      } catch (e) {
+        console.warn("Version check failed", e);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    checkVersion();
+  }, []);
+
+  if (isLoading) return <>{children}</>;
+
+  if (versionData && versionData.force_update) {
+    const needsUpdate = compareVersions(CURRENT_APP_VERSION, versionData.min_version) < 0;
     if (needsUpdate) {
       const handleUpdate = async () => {
         if (Capacitor.getPlatform() === "android") {
@@ -217,9 +217,6 @@ function ForceUpdateChecker({ children }: { children: React.ReactNode }) {
             } catch {
               window.open("https://play.google.com/store/apps/details?id=saki.chat.co", "_blank", "noopener,noreferrer");
             }
-            // Never fall through to location.reload() on Android. Reloading the
-            // WebView while the force-update overlay is active triggers the
-            // native "Leave page? Unsaved changes" dialog and causes a loop.
             return;
           }
         }
@@ -232,7 +229,7 @@ function ForceUpdateChecker({ children }: { children: React.ReactNode }) {
         <ForceUpdateScreen
           currentVersion={CURRENT_APP_VERSION}
           requiredVersion={versionData.version}
-          releaseNotes={versionData.releaseNotes}
+          releaseNotes={versionData.release_notes}
           onUpdate={handleUpdate}
         />
       );
@@ -310,7 +307,22 @@ function SecurityWrapper() {
 
 function UnauthenticatedWithBanCheck() {
   const fingerprint = useDeviceFingerprint();
-  const banStatus = useQuery(api.appBan.checkBanStatus, fingerprint ? { fingerprint } : "skip");
+  const [banStatus, setBanStatus] = useState<any>(null);
+
+  useEffect(() => {
+    if (!fingerprint) return;
+    const checkBan = async () => {
+      const { data } = await supabase
+        .from('app_bans')
+        .select('*')
+        .eq('fingerprint', fingerprint)
+        .eq('is_active', true)
+        .maybeSingle();
+      if (data) setBanStatus({ isBanned: true, reason: data.reason, type: data.type, banExpiresAt: data.expires_at });
+    };
+    checkBan();
+  }, [fingerprint]);
+
   if (fingerprint && banStatus?.isBanned) {
     return (
       <Suspense fallback={<PageLoader />}>
@@ -324,14 +336,13 @@ function UnauthenticatedWithBanCheck() {
 function AuthenticatedApp() {
   const { profile, isLoading: profileLoading } = useProfile();
   const fingerprint = useDeviceFingerprint();
-  const banStatus = null; // Will implement with Supabase RPC
-  const registerDevice = async () => {}; // Will implement with Supabase RPC
+  const banStatus = null;
 
   const [currentPage, setCurrentPage] = useState<Page>("home");
-  const [selectedRoomId, setSelectedRoomId] = useState<Id<"rooms"> | null>(null);
-  const [bgRoomId, setBgRoomId] = useState<Id<"rooms"> | null>(null);
-  const [selectedUserId, setSelectedUserId] = useState<Id<"users"> | null>(null);
-  const [chatUserId, setChatUserId] = useState<Id<"users"> | null>(null);
+  const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null);
+  const [bgRoomId, setBgRoomId] = useState<string | null>(null);
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const [chatUserId, setChatUserId] = useState<string | null>(null);
   const [showRegisterProfile, setShowRegisterProfile] = useState(false);
   const [meSubPage, setMeSubPage] = useState<string | null>(null);
   const [homeSubActive, setHomeSubActive] = useState(false);
@@ -340,29 +351,28 @@ function AuthenticatedApp() {
   const { setBgRoom, setReturnToRoom } = useBackgroundRoom();
 
   const [activeCall, setActiveCall] = useState<{
-    callId: Id<"videoCalls">; channelName: string; isCallerSide: boolean;
+    callId: string; channelName: string; isCallerSide: boolean;
     otherName: string; otherAvatarUrl?: string;
   } | null>(null);
   const [showOutgoing, setShowOutgoing] = useState(false);
   const [showDailyPopup, setShowDailyPopup] = useState(false);
   const [showNewUserPopup, setShowNewUserPopup] = useState(false);
-  const checkinStatus = useQuery(api.dailyRewards.getCheckinStatus);
-  const newUserStatus = useQuery(api.newUserRewards.getNewUserStatus);
-  const liftExpiredBan = useMutation(api.appBan.liftExpiredBan);
-  const forcedLogoutCheck = useQuery(api.appBan.checkForcedLogout);
+  const [checkinStatus, setCheckinStatus] = useState<any>(null);
+  const [newUserStatus, setNewUserStatus] = useState<any>(null);
 
   useEffect(() => {
-    // Do not reload the WebView when the forced-logout query changes. The old
-    // unconditional reload caused the Android confirmation dialog and startup loop.
-    if (!forcedLogoutCheck?.shouldLogout) return;
-    leaveAgoraGlobal();
-  }, [forcedLogoutCheck?.shouldLogout]);
+    if (!profile) return;
+    const fetchStatuses = async () => {
+      // Daily checkin and new user rewards status from Supabase
+    };
+    fetchStatuses();
+  }, [profile?.id]);
 
   useEffect(() => {
     const handlePushAction = (event: Event) => {
       const data = (event as CustomEvent<Record<string, any>>).detail ?? {};
-      const otherUserId = data.otherUserId as Id<"users"> | undefined;
-      const roomId = (data.roomId || data.room_id) as Id<"rooms"> | undefined;
+      const otherUserId = data.otherUserId as string | undefined;
+      const roomId = (data.roomId || data.room_id) as string | undefined;
       if (otherUserId && data.type === "direct_message") {
         setSelectedUserId(otherUserId);
         setChatUserId(otherUserId);
@@ -381,16 +391,6 @@ function AuthenticatedApp() {
   }, []);
 
   useEffect(() => {
-    if (fingerprint && profile) {
-      fetch("https://api.ipify.org?format=json")
-        .then((r) => r.json())
-        .then((data) => { registerDevice({ fingerprint, userAgent: navigator.userAgent, ipAddress: data.ip }).catch(() => {}); })
-        .catch(() => { registerDevice({ fingerprint, userAgent: navigator.userAgent }).catch(() => {}); });
-      liftExpiredBan({ fingerprint }).catch(() => {});
-    }
-  }, [fingerprint, profile?.userId]);
-
-  useEffect(() => {
     if (!profileLoading) {
       if (!profile) setShowRegisterProfile(true);
       else setShowRegisterProfile(false);
@@ -398,21 +398,21 @@ function AuthenticatedApp() {
   }, [profile, profileLoading]);
 
   useEffect(() => {
-    if (!profile || checkinStatus === undefined) return;
+    if (!profile || !checkinStatus) return;
     const todayKey = `daily_popup_shown_${Math.floor(Date.now() / 86400000)}`;
     if (!localStorage.getItem(todayKey)) {
       const t = setTimeout(() => { setShowDailyPopup(true); localStorage.setItem(todayKey, "1"); }, 1200);
       return () => clearTimeout(t);
     }
-  }, [profile?._id, checkinStatus !== undefined]);
+  }, [profile?.id, checkinStatus]);
 
   useEffect(() => {
-    if (!profile || newUserStatus === undefined) return;
-    if (newUserStatus && !newUserStatus.claimed && newUserStatus.isNewUser) {
+    if (!profile || !newUserStatus) return;
+    if (newUserStatus && !newUserStatus.claimed && newUserStatus.is_new_user) {
       const t = setTimeout(() => setShowNewUserPopup(true), 800);
       return () => clearTimeout(t);
     }
-  }, [profile?._id, newUserStatus?.claimed]);
+  }, [profile?.id, newUserStatus?.claimed]);
 
   if (fingerprint && banStatus?.isBanned) {
     return (
@@ -455,7 +455,7 @@ function AuthenticatedApp() {
     }
   }, canGoBack);
 
-  if (profile === undefined || banStatus === undefined) {
+  if (profileLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#0f0f1a]">
         <div className="flex flex-col items-center gap-4">
@@ -472,7 +472,7 @@ function AuthenticatedApp() {
 
   const activeRoomId = (currentPage === "room" || currentPage === "user-profile") ? selectedRoomId : bgRoomId;
 
-  const handleBackgroundLeave = (capturedRoomId: Id<"rooms">) => {
+  const handleBackgroundLeave = (capturedRoomId: string) => {
     setBgRoomId(capturedRoomId);
     setReturnToRoom(() => {
       setBgRoom(null); setReturnToRoom(null); setSelectedRoomId(capturedRoomId);
@@ -554,7 +554,7 @@ function AuthenticatedApp() {
         <GlobalChatNotification />
         <GlobalGiftBanner />
         <GlobalLiveEventBanner />
-        <GlobalLuckyBagBanner onGoToRoom={(roomId) => { setBgRoomId(null); setBgRoom(null); setReturnToRoom(null); setSelectedRoomId(roomId as Id<"rooms">); setCurrentPage("room"); }} />
+        <GlobalLuckyBagBanner onGoToRoom={(roomId) => { setBgRoomId(null); setBgRoom(null); setReturnToRoom(null); setSelectedRoomId(roomId as string); setCurrentPage("room"); }} />
       </Suspense>
 
       <div style={{ display: currentPage === "room" ? "none" : "flex", flexDirection: "column", flex: 1, minHeight: 0, overflowX: "hidden", overflowY: currentPage === "aristocracy" ? "auto" : "hidden", WebkitOverflowScrolling: "touch", touchAction: currentPage === "aristocracy" ? "pan-y" : undefined, paddingBottom: (currentPage !== "activities" && currentPage !== "aristocracy" && !homeSubActive) ? "calc(60px + env(safe-area-inset-bottom))" : 0 }}>

@@ -1,6 +1,5 @@
 // @ts-nocheck
-import { useQuery, useMutation } from "convex/react";
-import { api } from "../../convex/_generated/api";
+import { supabase } from "../lib/supabaseClient";
 import { useState, useEffect } from "react";
 import { toast } from "../lib/toast";
 import confetti from "canvas-confetti";
@@ -108,9 +107,21 @@ function RewardPreviewCard({ reward, color, icon, img, label, sub, dayIndex }: a
 interface DailyRewardsPopupProps { onClose: () => void; }
 
 export default function DailyRewardsPopup({ onClose }: DailyRewardsPopupProps) {
-  const checkinStatus = useQuery(api.dailyRewards.getCheckinStatus);
-  const claimCheckin = useMutation(api.dailyRewards.claimDailyCheckin);
+  const [checkinStatus, setCheckinStatus] = useState<any>(null);
   const countdown = useCountdown();
+
+  useEffect(() => {
+    const fetchData = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        // Placeholder for checkin status
+        setCheckinStatus({ checkedInToday: true, currentStreak: 1, nextDay: 2, rewards: [] });
+      }
+    };
+    fetchData();
+  }, []);
+
+  const claimCheckin = async () => ({ reward: null });
   const [claiming, setClaiming] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [claimedReward, setClaimedReward] = useState<any>(null);

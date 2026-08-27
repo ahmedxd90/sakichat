@@ -6,19 +6,15 @@
 //
 // @ts-nocheck
 import { useEffect, useState } from "react";
-import { useMutation, useQuery } from "convex/react";
-import { api } from "../../convex/_generated/api";
 import { PushNotifications } from "@capacitor/push-notifications";
+import { supabase } from "../lib/supabaseClient";
+import { useProfile } from "./ProfileManager";
 import { Capacitor } from "@capacitor/core";
 import { App } from "@capacitor/app";
 
 export default function PushNotificationManager() {
   const [notificationsEnabled, setNotificationsEnabled] = useState(() => localStorage.getItem("saki:notifications") !== "0");
-  const saveFcmToken = useMutation(api.fcmSubscriptions.saveFcmToken);
-  const removeFcmToken = useMutation(api.fcmSubscriptions.removeFcmToken);
-  const saveWebSubscription = useMutation(api.pushSubscriptions.saveSubscription);
-  const vapidKey = useQuery(api.pushSubscriptions.getVapidPublicKey);
-  const myProfile = useQuery(api.profiles.getMyProfile);
+  const { profile: myProfile } = useProfile();
 
   useEffect(() => {
     const onNotificationSettingChanged = (event: Event) => setNotificationsEnabled((event as CustomEvent<{ enabled?: boolean }>).detail?.enabled !== false);
@@ -30,7 +26,11 @@ export default function PushNotificationManager() {
     if (!myProfile) return;
     if (!notificationsEnabled) {
       const token = localStorage.getItem("saki:fcm-token");
-      if (token) void removeFcmToken({ token }).catch(() => {}).finally(() => localStorage.removeItem("saki:fcm-token"));
+      if (token) {
+        supabase.from('fcm_tokens').delete().eq('token', token).then(() => {
+          localStorage.removeItem("saki:fcm-token");
+        });
+      }
       return;
     }
     let cancelled = false;
@@ -40,7 +40,11 @@ export default function PushNotificationManager() {
       const registration = await PushNotifications.addListener("registration", (token) => {
         if (cancelled || !token?.value) return;
         localStorage.setItem("saki:fcm-token", token.value);
-        saveFcmToken({ token: token.value, platform: Capacitor.getPlatform() }).catch((err) =>
+        supabase.from('fcm_tokens').upsert({
+          user_id: myProfile.user_id,
+          token: token.value,
+          platform: Capacitor.getPlatform()
+        }).catch((err) =>
           console.error("Failed to save FCM token:", err),
         );
       });
@@ -74,28 +78,8 @@ export default function PushNotificationManager() {
     };
 
     const registerWebPush = async () => {
-      if (!vapidKey || !("serviceWorker" in navigator) || !("PushManager" in window)) return;
-      try {
-        const swRegistration = await navigator.serviceWorker.ready;
-        let subscription = await swRegistration.pushManager.getSubscription();
-        if (!subscription) {
-          subscription = await swRegistration.pushManager.subscribe({
-            userVisibleOnly: true,
-            applicationServerKey: vapidKey,
-          });
-        }
-        const subJson = subscription.toJSON();
-        if (subJson.endpoint && subJson.keys?.p256dh && subJson.keys?.auth) {
-          await saveWebSubscription({
-            endpoint: subJson.endpoint,
-            p256dh: subJson.keys.p256dh,
-            auth: subJson.keys.auth,
-            userAgent: navigator.userAgent,
-          });
-        }
-      } catch (err) {
-        console.warn("Web push registration failed:", err);
-      }
+      // Web push migration pending VAPID key from Supabase Edge Function
+      return;
     };
 
     const run = Capacitor.isNativePlatform() ? registerNativePush : registerWebPush;
@@ -104,7 +88,7 @@ export default function PushNotificationManager() {
       cancelled = true;
       cleanup();
     };
-  }, [myProfile?._id, vapidKey, notificationsEnabled, removeFcmToken]);
+  }, [myProfile?.id, notificationsEnabled]);
 
   return null;
 }

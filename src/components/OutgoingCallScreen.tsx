@@ -1,19 +1,15 @@
 // @ts-nocheck
-import { useEffect, useRef } from "react";
-import { useMutation } from "convex/react";
-import { api } from "../../convex/_generated/api";
-import { Id } from "../../convex/_generated/dataModel";
+import { useEffect } from "react";
+import { supabase } from "../lib/supabaseClient";
 
 interface Props {
-  callId: Id<"videoCalls">;
+  callId: string;
   receiverName: string;
   receiverAvatarUrl?: string;
   onCancel: () => void;
 }
 
 export default function OutgoingCallScreen({ callId, receiverName, receiverAvatarUrl, onCancel }: Props) {
-  const declineCall = useMutation(api.videoCalls.declineCall);
-
   useEffect(() => {
     // صوت اتصال
     try {
@@ -36,7 +32,9 @@ export default function OutgoingCallScreen({ callId, receiverName, receiverAvata
   }, []);
 
   const handleCancel = async () => {
-    try { await declineCall({ callId }); } catch (_) {}
+    try { 
+      await supabase.from('video_calls').update({ status: 'declined' }).eq('id', callId);
+    } catch (_) {}
     onCancel();
   };
 

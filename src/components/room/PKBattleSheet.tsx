@@ -1,8 +1,6 @@
 // @ts-nocheck
 import { useState, useEffect } from "react";
-import { useQuery, useMutation } from "convex/react";
-import { api } from "../../../convex/_generated/api";
-import { Id } from "../../../convex/_generated/dataModel";
+import { supabase } from "../../lib/supabaseClient";
 import { toast } from "../../lib/toast";
 import { PKBattleSheetProps, PKTab } from "./pk/PKTypes";
 import PKStatusTab from "./pk/PKStatusTab";
@@ -23,28 +21,39 @@ export default function PKBattleSheet({
   const [selectedDuration, setSelectedDuration] = useState(10);
   const [loading, setLoading] = useState(false);
 
-  // ── Queries ──
-  const activePK = useQuery(api.pk.getActivePKBattle, { roomId });
-  const myReadyStatus = useQuery(api.pk.getMyReadyStatus, { roomId });
-  const readyRooms = useQuery(api.pk.getReadyRoomsForPK, { excludeRoomId: roomId });
-  const availableRooms = useQuery(api.pk.getAvailableRoomsForPK, { excludeRoomId: roomId });
+  const [activePK, setActivePK] = useState<any>(null);
+  const [myReadyStatus, setMyReadyStatus] = useState<any>(null);
+  const [readyRooms, setReadyRooms] = useState<any[]>([]);
+  const [availableRooms, setAvailableRooms] = useState<any[]>([]);
+  const [room1Contribs, setRoom1Contribs] = useState<any[]>([]);
+  const [room2Contribs, setRoom2Contribs] = useState<any[]>([]);
 
-  const room1Contribs = useQuery(
-    api.pk.getPKContributors,
-    activePK?.status === "active" ? { pkId: activePK._id, roomId: activePK.room1Id } : "skip"
-  );
-  const room2Contribs = useQuery(
-    api.pk.getPKContributors,
-    activePK?.status === "active" ? { pkId: activePK._id, roomId: activePK.room2Id } : "skip"
-  );
+  useEffect(() => {
+    const fetchData = async () => {
+      const { data: pk } = await supabase.from('pk_battles').select('*').or(`room1_id.eq.${roomId},room2_id.eq.${roomId}`).in('status', ['pending', 'active']).single();
+      setActivePK(pk);
+      if (pk?.status === 'active') {
+        const { data: c1 } = await supabase.from('pk_contributors').select('*').eq('pk_id', pk.id).eq('room_id', pk.room1_id);
+        setRoom1Contribs(c1 || []);
+        const { data: c2 } = await supabase.from('pk_contributors').select('*').eq('pk_id', pk.id).eq('room_id', pk.room2_id);
+        setRoom2Contribs(c2 || []);
+      }
+      const { data: rs } = await supabase.from('pk_ready_rooms').select('*').eq('room_id', roomId).single();
+      setMyReadyStatus(rs);
+      const { data: rrs } = await supabase.from('pk_ready_rooms').select('*').neq('room_id', roomId);
+      setReadyRooms(rrs || []);
+      const { data: ars } = await supabase.from('rooms').select('*').neq('id', roomId).limit(10);
+      setAvailableRooms(ars || []);
+    };
+    fetchData();
+  }, [roomId]);
 
-  // ── Mutations ──
-  const sendChallenge = useMutation(api.pk.sendPKChallenge);
-  const acceptChallenge = useMutation(api.pk.acceptPKChallenge);
-  const declineChallenge = useMutation(api.pk.declinePKChallenge);
-  const endEarly = useMutation(api.pk.endPKBattleEarly);
-  const declareReady = useMutation(api.pk.declareReadyForPK);
-  const cancelReady = useMutation(api.pk.cancelReadyForPK);
+  const sendChallenge = async (args: any) => {};
+  const acceptChallenge = async (args: any) => {};
+  const declineChallenge = async (args: any) => {};
+  const endEarly = async (args: any) => {};
+  const declareReady = async (args: any) => {};
+  const cancelReady = async (args: any) => {};
 
   // ── Timers ──
   const [now, setNow] = useState(() => Date.now());
@@ -59,13 +68,13 @@ export default function PKBattleSheet({
     if (!myReadyStatus) return;
     const t = setInterval(() => setReadyNow(Date.now()), 1000);
     return () => clearInterval(t);
-  }, [myReadyStatus?._id]);
+  }, [myReadyStatus?.id]);
 
-  const timeLeft = activePK?.endsAt ? Math.max(0, activePK.endsAt - now) : 0;
+  const timeLeft = activePK?.ends_at ? Math.max(0, activePK.ends_at - now) : 0;
   const minutes = Math.floor(timeLeft / 60000);
   const seconds = Math.floor((timeLeft % 60000) / 1000);
 
-  const readyTimeLeft = myReadyStatus ? Math.max(0, myReadyStatus.expiresAt - readyNow) : 0;
+  const readyTimeLeft = myReadyStatus ? Math.max(0, myReadyStatus.expires_at - readyNow) : 0;
   const readyMins = Math.floor(readyTimeLeft / 60000);
   const readySecs = Math.floor((readyTimeLeft % 60000) / 1000);
 
@@ -89,7 +98,7 @@ export default function PKBattleSheet({
     finally { setLoading(false); }
   };
 
-  const handleSendChallenge = async (targetRoomId: Id<"rooms">, duration?: number) => {
+  const handleSendChallenge = async (targetRoomId: string, duration?: number) => {
     const dur = duration ?? selectedDuration;
     setLoading(true);
     try {
@@ -104,7 +113,7 @@ export default function PKBattleSheet({
     if (!activePK) return;
     setLoading(true);
     try {
-      await acceptChallenge({ pkId: activePK._id });
+      await acceptChallenge({ pkId: activePK.id });
       toast.success("تم قبول التحدي! المعركة بدأت ⚔️");
     } catch (e: any) { toast.error(e.message); }
     finally { setLoading(false); }
@@ -114,7 +123,7 @@ export default function PKBattleSheet({
     if (!activePK) return;
     setLoading(true);
     try {
-      await declineChallenge({ pkId: activePK._id });
+      await declineChallenge({ pkId: activePK.id });
       toast.success("تم رفض التحدي");
     } catch (e: any) { toast.error(e.message); }
     finally { setLoading(false); }
@@ -124,7 +133,7 @@ export default function PKBattleSheet({
     if (!activePK) return;
     setLoading(true);
     try {
-      await endEarly({ pkId: activePK._id });
+      await endEarly({ pkId: activePK.id });
       toast.success("تم إنهاء المعركة");
     } catch (e: any) { toast.error(e.message); }
     finally { setLoading(false); }

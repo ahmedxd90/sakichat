@@ -1,6 +1,6 @@
 import { useState, useRef } from "react";
-import { useMutation, useQuery } from "convex/react";
-import { api } from "../../convex/_generated/api";
+import { supabase } from "../lib/supabaseClient";
+import { useProfile } from "../components/ProfileManager";
 import { toast } from "../lib/toast";
 import { ARAB_COUNTRIES } from "../data/countries";
 
@@ -9,9 +9,7 @@ interface EditProfilePageProps {
 }
 
 export default function EditProfilePage({ onBack }: EditProfilePageProps) {
-  const profile = useQuery(api.profiles.getMyProfile);
-  const updateProfile = useMutation(api.profiles.updateProfile);
-  const generateAvatarUploadUrl = useMutation(api.profiles.generateAvatarUploadUrl);
+  const { profile, refreshProfile } = useProfile();
 
   const [name, setName] = useState("");
   const [bio, setBio] = useState("");
@@ -30,8 +28,8 @@ export default function EditProfilePage({ onBack }: EditProfilePageProps) {
     setInitialized(true);
   }
 
-  const isVip = profile?.isVip ?? false;
-  const vipLevel = profile?.vipLevel ?? 0;
+  const isVip = profile?.is_vip ?? false;
+  const vipLevel = profile?.vip_level ?? 0;
   const canUploadGif = isVip && vipLevel >= 8;
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -54,25 +52,27 @@ export default function EditProfilePage({ onBack }: EditProfilePageProps) {
 
   const handleSave = async () => {
     if (!name.trim()) return toast.error("أدخل اسمك");
+    if (!profile) return;
     setLoading(true);
     try {
-      let avatarStorageId = undefined;
+      let avatarUrl = profile.avatar_url;
       if (selectedFile) {
-        const uploadUrl = await generateAvatarUploadUrl();
-        const result = await fetch(uploadUrl, {
-          method: "POST",
-          headers: { "Content-Type": selectedFile.type },
-          body: selectedFile,
-        });
-        if (!result.ok) throw new Error("فشل رفع الصورة");
-        const { storageId } = await result.json();
-        avatarStorageId = storageId;
+        const fileExt = selectedFile.name.split('.').pop();
+        const fileName = `${profile.user_id}-avatar-${Math.random()}.${fileExt}`;
+        const { data, error: uploadError } = await supabase.storage.from('avatars').upload(fileName, selectedFile);
+        if (uploadError) throw uploadError;
+        const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(data.path);
+        avatarUrl = publicUrl;
       }
-      await updateProfile({
+      const { error: updateError } = await supabase.from('profiles').update({
         name: name.trim(),
         bio: bio.trim(),
-        avatarStorageId,
-      });
+        avatar_url: avatarUrl,
+      }).eq('user_id', profile.user_id);
+      
+      if (updateError) throw updateError;
+      
+      await refreshProfile();
       toast.success("تم تحديث الملف الشخصي ✅");
       onBack();
     } catch (e: any) {
@@ -82,7 +82,7 @@ export default function EditProfilePage({ onBack }: EditProfilePageProps) {
     }
   };
 
-  const currentAvatar = avatarPreview || profile?.avatarUrl;
+  const currentAvatar = avatarPreview || profile?.avatar_url;
   const gender = profile?.gender;
   const defaultAvatar = gender === "female"
     ? "https://api.dicebear.com/7.x/avataaars/svg?seed=female&backgroundColor=b6e3f4"

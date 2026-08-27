@@ -2,7 +2,6 @@
 // كل رتبة من 1 إلى 6 تستخدم التدرج والوهج الحقيقيين من convex/aristocracy.ts.
 // @ts-nocheck
 import React from "react";
-import { ARISTOCRACY_RANKS } from "../../convex/aristocracy";
 
 const LOCAL_RANK_ICONS: Record<number, string> = {
   1: "/assets/aristocracy/general.png",

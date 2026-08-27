@@ -1,8 +1,6 @@
 // @ts-nocheck
 import { useState, useEffect, useRef, useCallback } from "react";
-import { useQuery, useMutation } from "convex/react";
-import { api } from "../../convex/_generated/api";
-import { Id } from "../../convex/_generated/dataModel";
+import { supabase } from "../lib/supabaseClient";
 import UserAvatar from "../components/UserAvatar";
 import { useAgoraVideoLive } from "../hooks/useAgoraVideoLive";
 import { useHardwareBack } from "../hooks/useHardwareBack";
@@ -14,7 +12,7 @@ import { AristocracyBadge, AristocracyName, getAristocracyChatBubbleStyle, getAr
 import { ARAB_COUNTRIES } from "../data/countries";
 
 interface VideoLivePageProps {
-  livestreamId: Id<"livestreams">;
+  livestreamId: string;
   role: "host" | "audience";
   onBack: () => void;
 }
@@ -81,18 +79,34 @@ function ChatBubble({ msg, onAvatarClick }: { msg: any; onAvatarClick?: (msg: an
 
 // ── Live User Profile Sheet ───────────────────────────────────────
 function LiveUserProfileSheet({ user, isHost, livestreamId, liveBans, liveChatMutes, onClose, onSendGift }: any) {
-  const banUser = useMutation(api.livestreams.banLiveViewer);
-  const unbanUser = useMutation(api.livestreams.unbanLiveViewer);
-  const muteUser = useMutation(api.livestreams.muteLiveChat);
-  const unmuteUser = useMutation(api.livestreams.unmuteLiveChat);
-  const kickUser = useMutation(api.livestreams.kickLiveViewer);
-  const followUser = useMutation(api.social.followUser);
-  const isFollowingQuery = useQuery(api.social.isFollowing, user?.userId ? { targetUserId: user.userId } : "skip");
+  const [isFollowing, setIsFollowing] = useState(false);
+  useEffect(() => {
+    if (user?.user_id) {
+      supabase.from('social_follows').select('*').eq('target_user_id', user.user_id).single().then(({ data }) => setIsFollowing(!!data));
+    }
+  }, [user?.user_id]);
+
+  const banUser = async (args: any) => {
+    await supabase.from('live_bans').insert({ livestream_id: args.livestreamId, user_id: args.targetUserId });
+  };
+  const unbanUser = async (args: any) => {
+    await supabase.from('live_bans').delete().eq('livestream_id', args.livestreamId).eq('user_id', args.targetUserId);
+  };
+  const muteUser = async (args: any) => {
+    await supabase.from('live_chat_mutes').insert({ livestream_id: args.livestreamId, user_id: args.targetUserId });
+  };
+  const unmuteUser = async (args: any) => {
+    await supabase.from('live_chat_mutes').delete().eq('livestream_id', args.livestreamId).eq('user_id', args.targetUserId);
+  };
+  const kickUser = async (args: any) => {};
+  const followUser = async (args: any) => {
+    await supabase.from('social_follows').insert({ target_user_id: args.targetUserId });
+    setIsFollowing(true);
+    return true;
+  };
   const [loading, setLoading] = useState<string | null>(null);
-  const [localFollowing, setLocalFollowing] = useState<boolean | null>(null);
-  const isFollowing = localFollowing !== null ? localFollowing : (isFollowingQuery ?? false);
-  const isBanned = liveBans?.some((b: any) => b.userId === user?.userId);
-  const isMuted = liveChatMutes?.some((m: any) => m.userId === user?.userId);
+  const isBanned = liveBans?.some((b: any) => b.user_id === user?.user_id);
+  const isMuted = liveChatMutes?.some((m: any) => m.user_id === user?.user_id);
   const profile = user?.profile ?? user;
   const vipLevel = profile?.vipLevel;
   const aristocracyLevel = profile?.aristocracyLevel;
@@ -307,7 +321,7 @@ function LiveChat({ messages, onAvatarClick }: any) {
   return (
     <div className="px-3 pb-2 max-h-52 overflow-y-auto flex flex-col gap-0.5 scrollbar-hide">
       {(messages ?? []).slice().reverse().map((msg: any) => (
-        <ChatBubble key={msg._id} msg={msg} onAvatarClick={onAvatarClick} />
+        <ChatBubble key={msg.id} msg={msg} onAvatarClick={onAvatarClick} />
       ))}
       <div ref={chatEndRef} />
     </div>
@@ -363,7 +377,7 @@ function CoHostGrid({ coHosts, agora, role, myUserId, onRemove }: any) {
     <div className="absolute bottom-36 left-0 right-0 z-10 px-3">
       <div className="flex gap-2 justify-center">
         {coHosts.slice(0, 5).map((ch: any) => (
-          <div key={ch._id} className="relative rounded-2xl overflow-hidden" style={{ width: 90, height: 120, background: "#111", border: "2px solid rgba(168,85,247,0.6)" }}>
+          <div key={ch.id} className="relative rounded-2xl overflow-hidden" style={{ width: 90, height: 120, background: "#111", border: "2px solid rgba(168,85,247,0.6)" }}>
             <div id={`cohost-video-${ch.userId}`} className="w-full h-full bg-gradient-to-br from-purple-900 to-black" />
             <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
               <UserAvatar userId={ch.userId} name={ch.userName} avatarUrl={ch.userAvatarUrl} size={36} className="border-2 border-purple-400" />
@@ -386,9 +400,20 @@ function DuetInviteSheet({ livestreamId, coHosts, onClose }: any) {
   const [searchSakiId, setSearchSakiId] = useState("");
   const [inviting, setInviting] = useState(false);
   const [msg, setMsg] = useState("");
-  const inviteCoHost = useMutation(api.liveCoHost.inviteCoHost);
-  const removeCoHost = useMutation(api.liveCoHost.removeCoHost);
-  const searchProfile = useQuery(api.profiles.getProfileBySakiId, searchSakiId.trim() ? { sakiId: searchSakiId.trim() } : "skip");
+  const inviteCoHost = async (args: any) => {
+    await supabase.from('live_cohost_invites').insert({ livestream_id: args.livestreamId, target_user_id: args.invitedUserId, status: 'pending' });
+  };
+  const removeCoHost = async (args: any) => {
+    await supabase.from('live_cohosts').delete().eq('livestream_id', args.livestreamId).eq('user_id', args.coHostUserId);
+  };
+  const [searchProfile, setSearchProfile] = useState<any>(null);
+  useEffect(() => {
+    if (searchSakiId.trim()) {
+      supabase.from('profiles').select('*').eq('saki_id', searchSakiId.trim()).single().then(({ data }) => setSearchProfile(data));
+    } else {
+      setSearchProfile(null);
+    }
+  }, [searchSakiId]);
   const handleInvite = async () => {
     if (!searchProfile) return;
     setInviting(true); setMsg("");
@@ -408,7 +433,7 @@ function DuetInviteSheet({ livestreamId, coHosts, onClose }: any) {
             <p className="text-purple-300 text-xs font-bold mb-2">الضيوف الحاليون ({coHosts.length}/5)</p>
             <div className="flex gap-2 flex-wrap">
               {coHosts.map((ch: any) => (
-                <div key={ch._id} className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-purple-900/60 border border-purple-500/40">
+                <div key={ch.id} className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-purple-900/60 border border-purple-500/40">
                   <UserAvatar userId={ch.userId} name={ch.userName} avatarUrl={ch.userAvatarUrl} size={20} />
                   <span className="text-white text-xs">{ch.userName}</span>
                   <button onClick={() => removeCoHost({ livestreamId, coHostUserId: ch.userId })} className="w-4 h-4 rounded-full bg-red-600/70 flex items-center justify-center">
@@ -462,39 +487,78 @@ function CoHostInvitePopup({ invite, onAccept, onReject }: any) {
 
 // ── Main Component ────────────────────────────────────────────────
 export default function VideoLivePage({ livestreamId, role: initialRole, onBack }: VideoLivePageProps) {
-  const stream = useQuery(api.livestreams.getLivestream, { livestreamId });
-  const activePk = useQuery(api.livePk.getActivePkForLivestream, { livestreamId });
-  const pendingPkInvites = useQuery(api.livePk.getPendingPkInvites) ?? [];
-  const availablePkStreams = useQuery(api.livestreams.getActiveLivestreams) ?? [];
-  const messages = useQuery(api.livestreams.getLiveMessages, { livestreamId });
-  const giftEvents = useQuery(api.livestreams.getLiveGiftEvents, { livestreamId });
-  const myProfile = useQuery(api.profiles.getMyProfile);
-  const coHosts = useQuery(api.liveCoHost.getCoHosts, { livestreamId }) ?? [];
-  const myCoHostInvite = useQuery(api.liveCoHost.getMyCoHostInvite, { livestreamId });
-  const myCoHostStatus = useQuery(api.liveCoHost.getMyCoHostStatus, { livestreamId });
-  const liveViewers = useQuery(api.livestreams.getLiveViewers, { livestreamId }) ?? [];
-  const liveBans = useQuery(api.livestreams.getLiveBans, { livestreamId }) ?? [];
-  const liveChatMutes = useQuery(api.livestreams.getLiveChatMutes, { livestreamId }) ?? [];
+  const [stream, setStream] = useState<any>(null);
+  const [activePk, setActivePk] = useState<any>(null);
+  const [pendingPkInvites, setPendingPkInvites] = useState<any[]>([]);
+  const [availablePkStreams, setAvailablePkStreams] = useState<any[]>([]);
+  const [messages, setMessages] = useState<any[]>([]);
+  const [giftEvents, setGiftEvents] = useState<any[]>([]);
+  const [myProfile, setMyProfile] = useState<any>(null);
+  const [coHosts, setCoHosts] = useState<any[]>([]);
+  const [myCoHostInvite, setMyCoHostInvite] = useState<any>(null);
+  const [myCoHostStatus, setMyCoHostStatus] = useState<any>(null);
+  const [liveViewers, setLiveViewers] = useState<any[]>([]);
+  const [liveBans, setLiveBans] = useState<any[]>([]);
+  const [liveChatMutes, setLiveChatMutes] = useState<any[]>([]);
 
-  const joinLivestreamViewer = useMutation(api.livestreams.joinLivestreamViewer);
-  const leaveLivestreamViewer = useMutation(api.livestreams.leaveLivestreamViewer);
-  const sendLike = useMutation(api.livestreams.sendLike);
-  const sendLiveMessage = useMutation(api.livestreams.sendLiveMessage);
-  const sendLiveCustomGift = useMutation(api.livestreams.sendLiveCustomGift);
-  const endLivestream = useMutation(api.livestreams.endLivestream);
-  const respondCoHostInvite = useMutation(api.liveCoHost.respondCoHostInvite);
-  const removeCoHost = useMutation(api.liveCoHost.removeCoHost);
-  const sendPkInvite = useMutation(api.livePk.sendPkInvite);
-  const respondToPkInvite = useMutation(api.livePk.respondToPkInvite);
-  const endPk = useMutation(api.livePk.endPk);
+  useEffect(() => {
+    const fetchData = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: me } = await supabase.from('profiles').select('*').eq('user_id', user.id).single();
+        setMyProfile(me);
+      }
+      const { data: ls } = await supabase.from('livestreams').select('*, hostProfile:profiles(*)').eq('id', livestreamId).single();
+      setStream(ls);
+    };
+    fetchData();
+  }, [livestreamId]);
+
+  const joinLivestreamViewer = async (args: any) => {
+    await supabase.from('live_viewers').insert({ livestream_id: args.livestreamId, user_id: myProfile.user_id });
+  };
+  const leaveLivestreamViewer = async (args: any) => {
+    await supabase.from('live_viewers').delete().eq('livestream_id', args.livestreamId).eq('user_id', myProfile.user_id);
+  };
+  const sendLike = async (args: any) => {
+    await supabase.rpc('increment_live_likes', { livestream_id: args.livestreamId });
+  };
+  const sendLiveMessage = async (args: any) => {
+    await supabase.from('live_messages').insert({ livestream_id: args.livestreamId, user_id: myProfile.user_id, content: args.content, type: 'text' });
+  };
+  const sendLiveCustomGift = async (args: any) => {
+    // Logic for gift
+  };
+  const endLivestream = async (args: any) => {
+    await supabase.from('livestreams').update({ is_live: false, ended_at: new Date().toISOString() }).eq('id', args.livestreamId);
+  };
+  const respondCoHostInvite = async (args: any) => {
+    await supabase.from('live_cohost_invites').update({ status: args.accept ? 'accepted' : 'rejected' }).eq('id', args.inviteId);
+  };
+  const removeCoHost = async (args: any) => {
+    await supabase.from('live_cohosts').delete().eq('livestream_id', args.livestreamId).eq('user_id', args.coHostUserId);
+  };
+  const sendPkInvite = async (args: any) => {
+    await supabase.from('live_pk_invites').insert({ inviter_stream_id: livestreamId, target_stream_id: args.targetStreamId, status: 'pending' });
+  };
+  const respondToPkInvite = async (args: any) => {
+    await supabase.from('live_pk_invites').update({ status: args.accept ? 'accepted' : 'rejected' }).eq('id', args.inviteId);
+  };
+  const endPk = async (args: any) => {
+    await supabase.from('live_pk_sessions').update({ status: 'ended', ended_at: new Date().toISOString() }).eq('id', args.sessionId);
+  };
 
   const isCoHost = !!myCoHostStatus;
   const effectiveRole = initialRole === "host" ? "host" : isCoHost ? "host" : "audience";
   const isHost = initialRole === "host";
 
   const [giftsCategory, setGiftsCategory] = useState("general");
-  const customGifts = useQuery(api.store.getCustomGifts, {}) ?? [];
-  const activeWeeklyEvent = useQuery(api.weeklyStar.getActiveEvent);
+  const [customGifts, setCustomGifts] = useState<any[]>([]);
+  const [activeWeeklyEvent, setActiveWeeklyEvent] = useState<any>(null);
+  useEffect(() => {
+    supabase.from('custom_gifts').select('*').eq('is_active', true).then(({ data }) => setCustomGifts(data || []));
+    supabase.from('weekly_star_events').select('*').eq('status', 'active').maybeSingle().then(({ data }) => setActiveWeeklyEvent(data));
+  }, []);
 
   const [chatInput, setChatInput] = useState("");
   const [showGifts, setShowGifts] = useState(false);
@@ -518,9 +582,16 @@ export default function VideoLivePage({ livestreamId, role: initialRole, onBack 
   const [showQuantityMenu, setShowQuantityMenu] = useState(false);
 
   const opponentStreamId = activePk ? (activePk.streamAId === livestreamId ? activePk.streamBId : activePk.streamAId) : null;
-  const opponentStream = useQuery(api.livestreams.getLivestream, opponentStreamId ? { livestreamId: opponentStreamId } : "skip");
+  const [opponentStream, setOpponentStream] = useState<any>(null);
+  
+  useEffect(() => {
+    if (opponentStreamId) {
+      supabase.from('livestreams').select('*, hostProfile:profiles(*)').eq('id', opponentStreamId).single().then(({ data }) => setOpponentStream(data));
+    }
+  }, [opponentStreamId]);
+
   const channelName = activePk?.channelName ?? stream?.channelName ?? "";
-  const agora = useAgoraVideoLive(channelName, myProfile?._id ?? stream?.hostId ?? "", effectiveRole, !!stream && !!channelName, initialRole === "host");
+  const agora = useAgoraVideoLive(channelName, myProfile?.id ?? stream?.hostId ?? "", effectiveRole, !!stream && !!channelName, initialRole === "host");
 
   // Join as viewer
   useEffect(() => {
@@ -560,17 +631,17 @@ export default function VideoLivePage({ livestreamId, role: initialRole, onBack 
     const event = { id, emoji: latest.giftEmoji, name: latest.giftName, imageUrl: latest.giftImageUrl, videoUrl: latest.giftVideoUrl, senderName: latest.senderName, receiverName: latest.receiverName || stream?.hostProfile?.name, coins: latest.giftCoins * (latest.quantity ?? 1), qty: latest.quantity ?? 1 };
     setFlyingEvents((prev) => [...prev, event]);
     setTimeout(() => setFlyingEvents((prev) => prev.filter((g) => g.id !== id)), 3000);
-  }, [giftEvents?.[0]?._id]);
+  }, [giftEvents?.[0]?.id]);
 
   useEffect(() => {
     const latestViewer = liveViewers[0];
-    if (!latestViewer || joinIdRef.current === latestViewer._id) return;
-    joinIdRef.current = latestViewer._id;
-    if (latestViewer.userId === myProfile?._id) return;
-    const id = `${latestViewer._id}-${Date.now()}`;
+    if (!latestViewer || joinIdRef.current === latestViewer.id) return;
+    joinIdRef.current = latestViewer.id;
+    if (latestViewer.userId === myProfile?.id) return;
+    const id = `${latestViewer.id}-${Date.now()}`;
     setJoinEvents((prev) => [...prev, { id, userId: latestViewer.userId, userName: latestViewer.userName, userAvatarUrl: latestViewer.userAvatarUrl }]);
     window.setTimeout(() => setJoinEvents((prev) => prev.filter((item) => item.id !== id)), 4000);
-  }, [liveViewers[0]?._id, myProfile?._id]);
+  }, [liveViewers[0]?.id, myProfile?.id]);
 
   // Tap screen for hearts
   const handleScreenTap = useCallback((e: React.MouseEvent) => {
@@ -605,7 +676,7 @@ export default function VideoLivePage({ livestreamId, role: initialRole, onBack 
   const handleSendGift = async () => {
     if (!selectedCustomGift) return;
     try {
-      await sendLiveCustomGift({ livestreamId, customGiftId: selectedCustomGift._id, quantity: giftQuantity });
+      await sendLiveCustomGift({ livestreamId, customGiftId: selectedCustomGift.id, quantity: giftQuantity });
       setShowGifts(false); setSelectedCustomGift(null); setGiftQuantity(1); setShowQuantityMenu(false); setGiftTargets([]); setGiftTarget(null);
     } catch (e: any) { alert(e.message ?? "فشل إرسال الهدية"); }
   };
@@ -618,7 +689,7 @@ export default function VideoLivePage({ livestreamId, role: initialRole, onBack 
   };
   const handleEndPk = async () => {
     if (!activePk) return;
-    try { await endPk({ sessionId: activePk._id }); } catch (e: any) { alert(e.message ?? "تعذر إنهاء تحدي PK"); }
+    try { await endPk({ sessionId: activePk.id }); } catch (e: any) { alert(e.message ?? "تعذر إنهاء تحدي PK"); }
   };
 
   const handleOpenGifts = () => {
@@ -639,7 +710,7 @@ export default function VideoLivePage({ livestreamId, role: initialRole, onBack 
 
   const handleEnd = async () => { await agora.leave(); await endLivestream({ livestreamId }); onBack(); };
   const handleAudienceLeave = async () => {
-    if (isCoHost) await removeCoHost({ livestreamId, coHostUserId: myProfile?._id ?? "" });
+    if (isCoHost) await removeCoHost({ livestreamId, coHostUserId: myProfile?.id ?? "" });
     await agora.leave(); onBack();
   };
 
@@ -728,7 +799,7 @@ export default function VideoLivePage({ livestreamId, role: initialRole, onBack 
 
       {/* Co-Host Grid */}
       {coHosts.length > 0 && (
-        <CoHostGrid coHosts={coHosts} agora={agora} role={initialRole} myUserId={myProfile?._id} onRemove={(uid: string) => removeCoHost({ livestreamId, coHostUserId: uid })} />
+        <CoHostGrid coHosts={coHosts} agora={agora} role={initialRole} myUserId={myProfile?.id} onRemove={(uid: string) => removeCoHost({ livestreamId, coHostUserId: uid })} />
       )}
 
       {/* Chat + Bottom Controls */}

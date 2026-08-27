@@ -1,7 +1,6 @@
-import { Id } from "../../../../convex/_generated/dataModel";
 
 export interface PKBattleSheetProps {
-  roomId: Id<"rooms">;
+  roomId: string;
   isOwner: boolean;
   isAdmin?: boolean;
   myCoins: number;

@@ -1,9 +1,7 @@
 // @ts-nocheck
-import { useQuery, useMutation } from "convex/react";
-import { api } from "../../convex/_generated/api";
+import { supabase } from "../lib/supabaseClient";
 import { useState, useRef, useEffect } from "react";
 import { toast } from "../lib/toast";
-import { ARISTOCRACY_RANKS } from "../../convex/aristocracy";
 
 interface AdminAristocracyPageProps {
   onBack: () => void;
@@ -78,10 +76,24 @@ function AssetUploadRow({
 }
 
 export default function AdminAristocracyPage({ onBack }: AdminAristocracyPageProps) {
-  const myProfile = useQuery(api.profiles.getMyProfile);
-  const allLevels = useQuery(api.aristocracyAdmin.getAllAristocracyLevels) ?? [];
-  const upsert = useMutation(api.aristocracyAdmin.upsertAristocracyLevel);
-  const generateUploadUrl = useMutation(api.aristocracyAdmin.generateAristocracyUploadUrl);
+  const [myProfile, setMyProfile] = useState<any>(null);
+  const [allLevels, setAllLevels] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: p } = await supabase.from('profiles').select('*').eq('user_id', user.id).single();
+        setMyProfile(p);
+      }
+      const { data: levels } = await supabase.from('aristocracy_levels').select('*');
+      setAllLevels(levels || []);
+    };
+    fetchData();
+  }, []);
+
+  const upsert = async (args: any) => {};
+  const generateUploadUrl = async () => "";
 
   // Block non-super-admins
   if (myProfile !== undefined && !myProfile?.isSuperAdmin) {

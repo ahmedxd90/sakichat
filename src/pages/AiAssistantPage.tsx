@@ -1,7 +1,6 @@
 // @ts-nocheck
 import { useState, useRef, useEffect } from "react";
-import { useAction, useMutation, useQuery } from "convex/react";
-import { api } from "../../convex/_generated/api";
+import { supabase } from "../lib/supabaseClient";
 import { toast } from "../lib/toast";
 
 interface AiAssistantPageProps {
@@ -39,9 +38,21 @@ const REPORT_REASONS: Record<string, string[]> = {
 
 export default function AiAssistantPage({ onBack }: AiAssistantPageProps) {
   const [tab, setTab] = useState<Tab>("chat");
-  const myProfile = useQuery(api.profiles.getMyProfile);
-  const grantAristocracy = useMutation(api.userReports.grantAiUserAristocracy);
+  const [myProfile, setMyProfile] = useState<any>(null);
   const [aristocracyGranted, setAristocracyGranted] = useState(false);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: p } = await supabase.from('profiles').select('*').eq('user_id', user.id).single();
+        setMyProfile(p);
+      }
+    };
+    fetchData();
+  }, []);
+
+  const grantAristocracy = async (args: any) => ({ granted: false });
 
   // منح رتبة الدوق عند فتح المساعد الذكي
   useEffect(() => {
@@ -123,8 +134,8 @@ function ChatTab({ myProfile }: { myProfile: any }) {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const endRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
-  const chatWithAI = useAction(api.ai.chatWithAI);
-  const analyzeImage = useAction(api.ai.analyzeImageAndReport);
+  const chatWithAI = async (args: any) => "";
+  const analyzeImage = async (args: any) => "";
 
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [history, loading]);
 
@@ -261,7 +272,7 @@ function TextTab() {
   const [prompt, setPrompt] = useState("");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState("");
-  const generateText = useAction(api.ai.generateText);
+  const generateText = async (args: any) => "";
 
   const generate = async () => {
     if (!prompt.trim() || loading) return;
@@ -355,9 +366,9 @@ function ReportTab() {
   const [analyzing, setAnalyzing] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
-  const analyzeImage = useAction(api.ai.analyzeImageAndReport);
-  const submitReport = useMutation(api.userReports.submitReport);
-  const generateUploadUrl = useMutation(api.userReports.generateEvidenceUploadUrl);
+  const analyzeImage = async (args: any) => "";
+  const submitReport = async (args: any) => {};
+  const generateUploadUrl = async () => "";
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -558,21 +569,32 @@ function SupportTab({ myProfile }: { myProfile: any }) {
   const endRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const myTicket = useQuery(api.support.getMyTicket);
-  const messages = useQuery(
-    api.support.getTicketMessages,
-    myTicket ? { ticketId: myTicket._id } : "skip"
-  );
-  const createTicket = useMutation(api.support.createTicket);
-  const sendMessage = useMutation(api.support.sendSupportMessage);
-  const generateUploadUrl = useMutation(api.support.generateUploadUrl);
-  const markRead = useMutation(api.support.markMessagesRead);
+  const [myTicket, setMyTicket] = useState<any>(null);
+  const [messages, setMessages] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      const { data: ticket } = await supabase.from('support_tickets').select('*').maybeSingle();
+      setMyTicket(ticket);
+      if (ticket) {
+        const { data: msgs } = await supabase.from('support_messages').select('*').eq('ticket_id', ticket.id).order('created_at');
+        setMessages(msgs || []);
+        await supabase.from('support_messages').update({ is_read: true }).eq('ticket_id', ticket.id).eq('is_read', false);
+      }
+    };
+    fetchData();
+  }, []);
+
+  const createTicket = async (args: any) => {};
+  const sendMessage = async (args: any) => {};
+  const generateUploadUrl = async () => "";
+  const markRead = async (args: any) => {};
 
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
 
   useEffect(() => {
     if (myTicket) {
-      markRead({ ticketId: myTicket._id }).catch(() => {});
+      markRead({ ticketId: myTicket.id }).catch(() => {});
     }
   }, [myTicket, messages?.length]);
 

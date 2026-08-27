@@ -1,6 +1,5 @@
-import React, { useRef, useState } from "react";
-import { useMutation, useQuery } from "convex/react";
-import { api } from "../../convex/_generated/api";
+import React, { useRef, useState, useEffect } from "react";
+import { supabase } from "../lib/supabaseClient";
 
 interface RechargeGiftPageProps { onBack: () => void; }
 
@@ -29,18 +28,38 @@ export default function RechargeGiftPage({ onBack }: RechargeGiftPageProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const bannerInputRef = useRef<HTMLInputElement>(null);
   const [form, setForm] = useState({ name: "هدية شحن لواء", minimumDollars: 100, frameItemId: "", entryItemId: "", giftId: "", giftQuantity: 1, aristocracyLevel: 1, aristocracyDays: 3, proLevel: 0, proDays: 0, customTitle: "", googlePlay: true, agent: true });
-  const myProfile = useQuery(api.profiles.getMyProfile);
-  const catalog = useQuery(api.rechargeGifts.getAdminCatalog);
-  const packages = useQuery(api.rechargeGifts.listPackages) ?? [];
-  const eligibility = useQuery(api.rechargeGifts.getMyEligibility);
-  const rechargeGiftSettings = useQuery(api.rechargeGifts.getSettings);
-  const adminPackages = useQuery(api.rechargeGifts.listAdminPackages);
-  const savePackage = useMutation(api.rechargeGifts.savePackage);
-  const claimPackage = useMutation(api.rechargeGifts.claimPackage);
-  const generateBannerUploadUrl = useMutation(api.rechargeGifts.generateBannerUploadUrl);
-  const saveBanner = useMutation(api.rechargeGifts.saveBanner);
-  const bannerUrl = bannerPreview ?? rechargeGiftSettings?.bannerUrl ?? DEFAULT_BANNER;
-  const rechargeAmount = (eligibility?.googlePlayDollars ?? 0) + (eligibility?.agentDollars ?? 0);
+  
+  const [myProfile, setMyProfile] = useState<any>(null);
+  const [catalog, setCatalog] = useState<any>(null);
+  const [packages, setPackages] = useState<any[]>([]);
+  const [eligibility, setEligibility] = useState<any>(null);
+  const [rechargeGiftSettings, setRechargeGiftSettings] = useState<any>(null);
+  const [adminPackages, setAdminPackages] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: p } = await supabase.from('profiles').select('*').eq('user_id', user.id).single();
+        setMyProfile(p);
+        const { data: elig } = await supabase.from('recharge_eligibility').select('*').eq('user_id', user.id).single();
+        setEligibility(elig);
+      }
+      const { data: pkgs } = await supabase.from('recharge_packages').select('*, frame:store_items(*), entry:store_items(*), gift:custom_gifts(*)').eq('is_active', true);
+      setPackages(pkgs || []);
+      const { data: sett } = await supabase.from('recharge_settings').select('*').single();
+      setRechargeGiftSettings(sett);
+    };
+    fetchData();
+  }, []);
+
+  const savePackage = async (args: any) => {};
+  const claimPackage = async (args: any) => {};
+  const generateBannerUploadUrl = async (args: any) => "";
+  const saveBanner = async (args: any) => {};
+
+  const bannerUrl = bannerPreview ?? rechargeGiftSettings?.banner_url ?? DEFAULT_BANNER;
+  const rechargeAmount = (eligibility?.google_play_dollars ?? 0) + (eligibility?.agent_dollars ?? 0);
   const submitPackage = async () => {
     if (!form.googlePlay && !form.agent) return;
     setSaving(true);
@@ -51,7 +70,7 @@ export default function RechargeGiftPage({ onBack }: RechargeGiftPageProps) {
     } finally { setSaving(false); }
   };
   const startNewPackage = () => { setEditingId(null); setForm({ name: "هدية شحن جديدة", minimumDollars: 100, frameItemId: "", entryItemId: "", giftId: "", giftQuantity: 1, aristocracyLevel: 0, aristocracyDays: 0, proLevel: 0, proDays: 0, customTitle: "", googlePlay: true, agent: true }); };
-  const editPackage = (pkg: any) => { setEditingId(String(pkg._id)); setForm({ name: pkg.name ?? "", minimumDollars: pkg.minimumDollars ?? 100, frameItemId: pkg.frameItemId ? String(pkg.frameItemId) : "", entryItemId: pkg.entryItemId ? String(pkg.entryItemId) : "", giftId: pkg.giftId ? String(pkg.giftId) : "", giftQuantity: pkg.giftQuantity ?? 1, aristocracyLevel: pkg.aristocracyLevel ?? 0, aristocracyDays: pkg.aristocracyDays ?? 0, proLevel: pkg.proLevel ?? 0, proDays: pkg.proDays ?? 0, customTitle: pkg.customTitle ?? "", googlePlay: pkg.acceptedSources?.includes("google_play") ?? true, agent: pkg.acceptedSources?.includes("agent") ?? true }); window.scrollTo({ top: 0, behavior: "smooth" }); };
+  const editPackage = (pkg: any) => { setEditingId(String(pkg.id)); setForm({ name: pkg.name ?? "", minimumDollars: pkg.minimum_dollars ?? 100, frameItemId: pkg.frame_item_id ? String(pkg.frame_item_id) : "", entryItemId: pkg.entry_item_id ? String(pkg.entry_item_id) : "", giftId: pkg.gift_id ? String(pkg.gift_id) : "", giftQuantity: pkg.gift_quantity ?? 1, aristocracyLevel: pkg.aristocracy_level ?? 0, aristocracyDays: pkg.aristocracy_days ?? 0, proLevel: pkg.pro_level ?? 0, proDays: pkg.pro_days ?? 0, customTitle: pkg.custom_title ?? "", googlePlay: pkg.accepted_sources?.includes("google_play") ?? true, agent: pkg.accepted_sources?.includes("agent") ?? true }); window.scrollTo({ top: 0, behavior: "smooth" }); };
   const uploadBanner = async (file?: File) => {
     if (!file) return;
     if (!file.type.startsWith("image/")) return;
@@ -86,7 +105,7 @@ export default function RechargeGiftPage({ onBack }: RechargeGiftPageProps) {
         <div className="grid grid-cols-2 gap-2"><Field label="مدة الأرستقراطية (أيام)"><input type="number" value={form.aristocracyDays} onChange={e => setForm({ ...form, aristocracyDays: Number(e.target.value) })} /></Field><Field label="مستوى PRO"><input type="number" value={form.proLevel} onChange={e => setForm({ ...form, proLevel: Number(e.target.value) })} /></Field></div>
         <Field label="مدة PRO (أيام)"><input type="number" value={form.proDays} onChange={e => setForm({ ...form, proDays: Number(e.target.value) })} /></Field>
         <button onClick={submitPackage} disabled={saving || catalog === undefined || !catalog?.allowed} className="w-full rounded-2xl bg-gradient-to-l from-amber-200 via-amber-400 to-orange-500 py-3 text-sm font-black text-[#4a0712] disabled:opacity-50">{saving ? "جارٍ حفظ الحزمة..." : editingId ? "حفظ التعديلات" : "حفظ وإضافة الحزمة"}</button>
-        <div className="space-y-2 pt-3"><h2 className="text-xs font-black text-amber-100">الحزم الحالية</h2>{adminPackages === undefined ? <div className="rounded-xl bg-white/5 p-3 text-xs text-white/55">جارٍ تحميل الحزم…</div> : adminPackages.length === 0 ? <div className="rounded-xl border border-dashed border-amber-200/20 p-3 text-xs text-white/50">لا توجد حزم بعد. أضف أول حزمة من النموذج أعلاه.</div> : adminPackages.map((pkg: any) => <button key={pkg._id} onClick={() => editPackage(pkg)} className="flex w-full items-center justify-between rounded-2xl border border-amber-200/20 bg-black/20 p-3 text-right"><div className="flex min-w-0 items-center gap-2">{(pkg.frame?.imageUrl || pkg.entry?.imageUrl || pkg.gift?.imageUrl) ? <img src={pkg.frame?.imageUrl || pkg.entry?.imageUrl || pkg.gift?.imageUrl} alt="" className="h-10 w-10 rounded-xl object-cover" /> : <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-300/15 text-amber-200">VIP</span>}<span className="min-w-0"><b className="block truncate text-xs text-amber-100">{pkg.name}</b><small className="text-[10px] text-white/55">${pkg.minimumDollars} · {pkg.isActive ? "نشطة" : "موقوفة"}</small></span></div><span className="text-[10px] font-black text-amber-200">تعديل</span></button>)}</div>
+        <div className="space-y-2 pt-3"><h2 className="text-xs font-black text-amber-100">الحزم الحالية</h2>{adminPackages === undefined ? <div className="rounded-xl bg-white/5 p-3 text-xs text-white/55">جارٍ تحميل الحزم…</div> : adminPackages.length === 0 ? <div className="rounded-xl border border-dashed border-amber-200/20 p-3 text-xs text-white/50">لا توجد حزم بعد. أضف أول حزمة من النموذج أعلاه.</div> : adminPackages.map((pkg: any) => <button key={pkg.id} onClick={() => editPackage(pkg)} className="flex w-full items-center justify-between rounded-2xl border border-amber-200/20 bg-black/20 p-3 text-right"><div className="flex min-w-0 items-center gap-2">{(pkg.frame?.imageUrl || pkg.entry?.imageUrl || pkg.gift?.imageUrl) ? <img src={pkg.frame?.imageUrl || pkg.entry?.imageUrl || pkg.gift?.imageUrl} alt="" className="h-10 w-10 rounded-xl object-cover" /> : <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-300/15 text-amber-200">VIP</span>}<span className="min-w-0"><b className="block truncate text-xs text-amber-100">{pkg.name}</b><small className="text-[10px] text-white/55">${pkg.minimum_dollars} · {pkg.is_active ? "نشطة" : "موقوفة"}</small></span></div><span className="text-[10px] font-black text-amber-200">تعديل</span></button>)}</div>
       </div>
     </div></div>
   );
@@ -107,17 +126,17 @@ export default function RechargeGiftPage({ onBack }: RechargeGiftPageProps) {
 
         <section className="space-y-3 px-4 pt-4">
           {packages.length === 0 ? <div className="rounded-3xl border border-dashed border-amber-300/25 bg-black/15 p-7 text-center text-xs leading-6 text-amber-100/65">لا توجد حزم شحن نشطة حاليًا. سيظهر هنا كل ما ينشره السوبر أدمن من حزم ومكافآت وصور مصغرة.</div> : packages.map((pkg: any) => {
-            const packageClaimed = Boolean(eligibility?.claimedPackageIds?.some((id: any) => String(id) === String(pkg._id)));
-            const eligible = rechargeAmount >= pkg.minimumDollars;
-            return <div key={pkg._id} className="rounded-3xl border border-amber-300/55 bg-gradient-to-br from-[#6f0d21] via-[#420815] to-[#23040c] p-4 shadow-[0_12px_35px_rgba(0,0,0,.35),0_0_22px_rgba(245,158,11,.15)]">
-              <div className="mb-3 flex items-center justify-between"><span className="rounded-full border border-amber-300/45 bg-amber-300/15 px-3 py-1 text-[10px] font-black text-amber-100">{pkg.name}</span><strong className="text-xl text-amber-300">${pkg.minimumDollars}</strong></div>
+            const packageClaimed = Boolean(eligibility?.claimed_package_ids?.some((id: any) => String(id) === String(pkg.id)));
+            const eligible = rechargeAmount >= pkg.minimum_dollars;
+            return <div key={pkg.id} className="rounded-3xl border border-amber-300/55 bg-gradient-to-br from-[#6f0d21] via-[#420815] to-[#23040c] p-4 shadow-[0_12px_35px_rgba(0,0,0,.35),0_0_22px_rgba(245,158,11,.15)]">
+              <div className="mb-3 flex items-center justify-between"><span className="rounded-full border border-amber-300/45 bg-amber-300/15 px-3 py-1 text-[10px] font-black text-amber-100">{pkg.name}</span><strong className="text-xl text-amber-300">${pkg.minimum_dollars}</strong></div>
               <div className="grid grid-cols-3 gap-2 border-t border-amber-200/15 pt-4">
-                <RewardThumb fallback="frame" item={pkg.frame} label="إطار متحرك" duration={`${pkg.proDays ?? 3} أيام`} />
-                <RewardThumb fallback="entry" item={pkg.entry} label="دخولية" duration={`${pkg.proDays ?? 3} أيام`} />
-                <RewardThumb fallback="rank" item={pkg.gift ?? (pkg.aristocracyLevel ? { name: `رتبة ${pkg.aristocracyLevel}` } : null)} label={pkg.gift?.name ?? "رتبة الأرستقراطية"} duration={pkg.aristocracyDays ? `${pkg.aristocracyDays} أيام` : "هدية"} />
+                <RewardThumb fallback="frame" item={pkg.frame} label="إطار متحرك" duration={`${pkg.pro_days ?? 3} أيام`} />
+                <RewardThumb fallback="entry" item={pkg.entry} label="دخولية" duration={`${pkg.pro_days ?? 3} أيام`} />
+                <RewardThumb fallback="rank" item={pkg.gift ?? (pkg.aristocracy_level ? { name: `رتبة ${pkg.aristocracy_level}` } : null)} label={pkg.gift?.name ?? "رتبة الأرستقراطية"} duration={pkg.aristocracy_days ? `${pkg.aristocracy_days} أيام` : "هدية"} />
               </div>
-              {pkg.customTitle && <p className="mt-3 text-center text-[10px] font-black text-amber-200">اللقب: {pkg.customTitle}</p>}
-              <button onClick={() => claimPackage({ packageId: pkg._id })} disabled={packageClaimed || !eligible} className={`mt-5 w-full rounded-2xl py-3 text-sm font-black transition ${packageClaimed ? "bg-emerald-500/25 text-emerald-200" : eligible ? "bg-gradient-to-l from-amber-200 via-amber-400 to-orange-500 text-[#4a0712] shadow-[0_0_22px_rgba(245,158,11,.35)]" : "bg-white/10 text-white/35"}`}>{packageClaimed ? "تم استلام المكافأة" : eligible ? "استلام المكافأة" : `اشحن $${pkg.minimumDollars} لفتح الاستلام`}</button>
+              {pkg.custom_title && <p className="mt-3 text-center text-[10px] font-black text-amber-200">اللقب: {pkg.custom_title}</p>}
+              <button onClick={() => claimPackage({ packageId: pkg.id })} disabled={packageClaimed || !eligible} className={`mt-5 w-full rounded-2xl py-3 text-sm font-black transition ${packageClaimed ? "bg-emerald-500/25 text-emerald-200" : eligible ? "bg-gradient-to-l from-amber-200 via-amber-400 to-orange-500 text-[#4a0712] shadow-[0_0_22px_rgba(245,158,11,.35)]" : "bg-white/10 text-white/35"}`}>{packageClaimed ? "تم استلام المكافأة" : eligible ? "استلام المكافأة" : `اشحن $${pkg.minimum_dollars} لفتح الاستلام`}</button>
             </div>;
           })}
         </section>

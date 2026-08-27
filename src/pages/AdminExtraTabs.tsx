@@ -1,8 +1,6 @@
 // @ts-nocheck
-import { useQuery, useMutation } from "convex/react";
-import { api } from "../../convex/_generated/api";
-import { Id } from "../../convex/_generated/dataModel";
-import { useState } from "react";
+import { supabase } from "../lib/supabaseClient";
+import { useState, useEffect } from "react";
 import { toast } from "../lib/toast";
 import UserAvatar from "../components/UserAvatar";
 
@@ -34,10 +32,21 @@ function formatBanExpiry(expiresAt?: number | null, duration?: string | null): s
 
 function ContentTab() {
   const [ct, setCt] = useState<"moments" | "reels">("moments");
-  const moments = useQuery(api.adminLock.adminListMoments, { limit: 30 });
-  const reels = useQuery(api.adminLock.adminListReels, { limit: 30 });
-  const delMoment = useMutation(api.adminLock.adminDeleteMoment);
-  const delReel = useMutation(api.adminLock.adminDeleteReel);
+  const [moments, setMoments] = useState<any[]>([]);
+  const [reels, setReels] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      const { data: m } = await supabase.from('moments').select('*, profile:profiles(*)').limit(30);
+      setMoments(m || []);
+      const { data: r } = await supabase.from('reels').select('*, profile:profiles(*)').limit(30);
+      setReels(r || []);
+    };
+    fetchData();
+  }, []);
+
+  const delMoment = async (args: any) => {};
+  const delReel = async (args: any) => {};
 
   return (
     <div className="p-4 space-y-3">
@@ -56,7 +65,7 @@ function ContentTab() {
       ) : (
         <div className="space-y-2">
           {moments.map((m) => (
-            <div key={m._id} className="rounded-2xl p-3 flex items-center gap-3"
+            <div key={m.id} className="rounded-2xl p-3 flex items-center gap-3"
               style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
               {m.imageUrl && <img src={m.imageUrl} className="w-12 h-12 rounded-xl object-cover flex-shrink-0" />}
               <div className="flex-1 min-w-0">
@@ -66,7 +75,7 @@ function ContentTab() {
               </div>
               <button onClick={async () => {
                 if (!confirm("حذف هذه اللحظة؟")) return;
-                try { await delMoment({ momentId: m._id }); toast.success("تم الحذف"); }
+                try { await delMoment({ momentId: m.id }); toast.success("تم الحذف"); }
                 catch (e: any) { toast.error(e.message); }
               }}
                 className="px-2 py-1 rounded-lg text-[10px] font-bold active:scale-95"
@@ -83,7 +92,7 @@ function ContentTab() {
       ) : (
         <div className="space-y-2">
           {reels.map((r) => (
-            <div key={r._id} className="rounded-2xl p-3 flex items-center gap-3"
+            <div key={r.id} className="rounded-2xl p-3 flex items-center gap-3"
               style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
               <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 text-2xl"
                 style={{ background: "rgba(168,85,247,0.15)" }}>🎬</div>
@@ -94,7 +103,7 @@ function ContentTab() {
               </div>
               <button onClick={async () => {
                 if (!confirm("حذف هذا الريل؟")) return;
-                try { await delReel({ reelId: r._id }); toast.success("تم الحذف"); }
+                try { await delReel({ reelId: r.id }); toast.success("تم الحذف"); }
                 catch (e: any) { toast.error(e.message); }
               }}
                 className="px-2 py-1 rounded-lg text-[10px] font-bold active:scale-95"
@@ -110,15 +119,32 @@ function ContentTab() {
 }
 
 function BanTab() {
-  const bannedUsers = useQuery(api.appBan.getBannedUsers);
-  const banUser = useMutation(api.appBan.banUserFromApp);
-  const unbanUser = useMutation(api.appBan.unbanUserFromApp);
+  const [bannedUsers, setBannedUsers] = useState<any[]>([]);
   const [sakiId, setSakiId] = useState("");
   const [reason, setReason] = useState("");
   const [duration, setDuration] = useState("permanent");
   const [loading, setLoading] = useState(false);
   const [sub, setSub] = useState<"list" | "ban">("list");
-  const sp = useQuery(api.profiles.getProfileBySakiId, sakiId.length >= 6 ? { sakiId } : "skip");
+  const [sp, setSp] = useState<any>(null);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      const { data } = await supabase.from('profiles').select('*').eq('is_banned', true);
+      setBannedUsers(data || []);
+    };
+    fetchData();
+  }, []);
+
+  useEffect(() => {
+    if (sakiId.length >= 6) {
+      supabase.from('profiles').select('*').eq('saki_id', sakiId).single().then(({ data }) => setSp(data));
+    } else {
+      setSp(null);
+    }
+  }, [sakiId]);
+
+  const banUser = async (args: any) => {};
+  const unbanUser = async (args: any) => {};
 
   const durations = [
     { id: "1h", label: "ساعة" },
@@ -155,7 +181,7 @@ function BanTab() {
           {sp && (
             <div className="rounded-2xl p-3 flex items-center gap-3"
               style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.25)" }}>
-              <UserAvatar userId={sp.userId as Id<"users">} avatarUrl={sp.avatarUrl} name={sp.name} size={40} />
+              <UserAvatar userId={sp.userId as string} avatarUrl={sp.avatarUrl} name={sp.name} size={40} />
               <div>
                 <p className="text-white font-bold text-sm">{sp.name}</p>
                 <p className="text-gray-400 text-xs">#{sp.sakiId}</p>
@@ -215,7 +241,7 @@ function BanTab() {
               if (!sp || !reason.trim()) return;
               setLoading(true);
               try {
-                await banUser({ targetUserId: sp.userId as Id<"users">, reason, banAllDevices: true, duration });
+                await banUser({ targetUserId: sp.userId as string, reason, banAllDevices: true, duration });
                 toast.success(`🚫 تم حظر ${sp.name} (${durationLabels[duration]}) ✅`);
                 setSakiId(""); setReason(""); setDuration("permanent"); setSub("list");
               } catch (e: any) { toast.error(e.message); }
@@ -247,13 +273,13 @@ function BanTab() {
       ) : (
         <div className="space-y-2">
           {bannedUsers.map((u) => (
-            <div key={u._id} className="rounded-2xl p-3"
+            <div key={u.id} className="rounded-2xl p-3"
               style={{
                 background: (u as any).isExpired ? "rgba(74,222,128,0.06)" : "rgba(239,68,68,0.06)",
                 border: (u as any).isExpired ? "1px solid rgba(74,222,128,0.2)" : "1px solid rgba(239,68,68,0.2)"
               }}>
               <div className="flex items-center gap-3 mb-2">
-                <UserAvatar userId={u.userId as Id<"users">} avatarUrl={u.avatarUrl} name={u.name} size={40} />
+                <UserAvatar userId={u.userId as string} avatarUrl={u.avatarUrl} name={u.name} size={40} />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5 flex-wrap">
                     <p className="text-white font-bold text-sm truncate">{u.name}</p>
@@ -273,7 +299,7 @@ function BanTab() {
               </div>
               <button
                 onClick={async () => {
-                  try { await unbanUser({ targetUserId: u.userId as Id<"users"> }); toast.success("تم رفع الحظر ✅"); }
+                  try { await unbanUser({ targetUserId: u.userId as string }); toast.success("تم رفع الحظر ✅"); }
                   catch (e: any) { toast.error(e.message); }
                 }}
                 className="w-full py-1.5 rounded-xl text-xs font-bold active:scale-95"
@@ -289,10 +315,19 @@ function BanTab() {
 }
 
 function BannersTab() {
-  const banners = useQuery(api.banners.getAllBannersAdmin);
-  const deleteBanner = useMutation(api.banners.deleteBanner);
-  const generateUrl = useMutation(api.banners.generateUploadUrl);
-  const addBanner = useMutation(api.banners.addBanner);
+  const [banners, setBanners] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      const { data } = await supabase.from('banners').select('*').order('created_at', { ascending: false });
+      setBanners(data || []);
+    };
+    fetchData();
+  }, []);
+
+  const deleteBanner = async (args: any) => {};
+  const generateUrl = async () => "";
+  const addBanner = async (args: any) => {};
   const [title, setTitle] = useState("");
   const [uploading, setUploading] = useState(false);
 

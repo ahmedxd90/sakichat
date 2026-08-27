@@ -1,18 +1,20 @@
 // @ts-nocheck
 import { useEffect, useState } from "react";
-import { useQuery } from "convex/react";
-import { api } from "../../../convex/_generated/api";
-import { Id } from "../../../convex/_generated/dataModel";
+import { supabase } from "../../lib/supabaseClient";
 import { formatNumber } from "../../lib/formatNumber";
 
 interface InRoomPKResultsOverlayProps {
-  pkId: Id<"inRoomPKBattles">;
+  pkId: string;
   onClose: () => void;
 }
 
 export default function InRoomPKResultsOverlay({ pkId, onClose }: InRoomPKResultsOverlayProps) {
-  const contributors = useQuery(api.pkInRoom.getInRoomPKContributors, { pkId });
+  const [contributors, setContributors] = useState<any[]>([]);
   const [pk, setPk] = useState<any>(null);
+
+  useEffect(() => {
+    supabase.from('pk_contributors').select('*').eq('pk_id', pkId).then(({ data }) => setContributors(data || []));
+  }, [pkId]);
   const [showConfetti, setShowConfetti] = useState(false);
 
   // Get PK data from contributors query context
@@ -82,10 +84,10 @@ export default function InRoomPKResultsOverlay({ pkId, onClose }: InRoomPKResult
             <div className="rounded-2xl p-3" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
               <p className="text-white/60 text-xs font-bold mb-2 text-center">🏆 أبطال التحدي</p>
               {contributors.slice(0, 5).map((c: any, i: number) => (
-                <div key={c._id} className="flex items-center justify-between py-1">
+                <div key={c.id} className="flex items-center justify-between py-1">
                   <div className="flex items-center gap-2">
                     <span className="text-sm">{i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `${i + 1}.`}</span>
-                    <span className="text-white text-xs truncate max-w-[100px]">{c.userName}</span>
+                    <span className="text-white text-xs truncate max-w-[100px]">{c.user_name}</span>
                     <span className="text-[9px] px-1.5 py-0.5 rounded-full font-bold"
                       style={{ background: c.team === "team1" ? "rgba(239,68,68,0.2)" : "rgba(59,130,246,0.2)", color: c.team === "team1" ? "#ef4444" : "#3b82f6" }}>
                       {c.team === "team1" ? "🔴" : "🔵"}

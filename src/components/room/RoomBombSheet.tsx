@@ -1,11 +1,9 @@
 // @ts-nocheck
-import { useQuery } from "convex/react";
-import { api } from "../../../convex/_generated/api";
-import { Id } from "../../../convex/_generated/dataModel";
 import { useState, useEffect, useRef } from "react";
+import { supabase } from "../../lib/supabaseClient";
 
 interface RoomBombSheetProps {
-  roomId: Id<"rooms">;
+  roomId: string;
   onClose: () => void;
 }
 
@@ -139,20 +137,35 @@ function ExplosionRing({ color, delay }: { color: string; delay: number }) {
 export default function RoomBombSheet({ roomId, onClose }: RoomBombSheetProps) {
   const [selectedLevel, setSelectedLevel] = useState(1);
   const [activeTab, setActiveTab] = useState<"leaderboard" | "rewards" | "map">("leaderboard");
-  const bombState = useQuery(api.roomBomb.getRoomBombState, { roomId });
-  const leaderboard = useQuery(api.roomBomb.getRoomBombLeaderboard, { roomId, level: selectedLevel });
-  const allConfigs = useQuery(api.roomBomb.getAllLevelConfigs);
+  
+  const [bombState, setBombState] = useState<any>(null);
+  const [leaderboard, setLeaderboard] = useState<any[]>([]);
+  const [allConfigs, setAllConfigs] = useState<any[]>([]);
 
-  const currentLevel = bombState?.currentLevel ?? 1;
-  const totalCoins = bombState?.totalCoinsInLevel ?? 0;
+  useEffect(() => {
+    const fetchData = async () => {
+      const { data } = await supabase.from('room_bomb_state').select('*').eq('room_id', roomId).single();
+      setBombState(data);
+      const { data: configs } = await supabase.from('room_bomb_configs').select('*').order('level', { ascending: true });
+      setAllConfigs(configs || []);
+    };
+    fetchData();
+  }, [roomId]);
+
+  useEffect(() => {
+    supabase.from('room_bomb_leaderboard').select('*').eq('room_id', roomId).eq('level', selectedLevel).then(({ data }) => setLeaderboard(data || []));
+  }, [roomId, selectedLevel]);
+
+  const currentLevel = bombState?.current_level ?? 1;
+  const totalCoins = bombState?.total_coins_in_level ?? 0;
   const threshold = bombState?.threshold ?? 1_000_000;
-  const isExploding = bombState?.isExploding ?? false;
+  const isExploding = bombState?.is_exploding ?? false;
   const progress = Math.min((totalCoins / threshold) * 100, 100);
   const isDone = currentLevel > MAX_LEVEL;
 
   const lvlIdx = Math.min(currentLevel - 1, LEVEL_COLORS.length - 1);
   const lvlColor = LEVEL_COLORS[lvlIdx];
-  const currentCfg = bombState?.levelConfig;
+  const currentCfg = bombState.level_config;
 
   return (
     <div className="fixed inset-0 z-[70] flex flex-col justify-end" onClick={onClose}>
@@ -309,9 +322,9 @@ export default function RoomBombSheet({ roomId, onClose }: RoomBombSheetProps) {
             {!isDone && currentCfg && (
               <div className="mt-3 grid grid-cols-3 gap-2">
                 {[
-                  { label: "الأول", value: `VIP${currentCfg.firstVip}`, sub: `${currentCfg.firstVipDays} أيام`, color: "#fbbf24" },
-                  { label: "الثاني", value: formatCoins(currentCfg.secondCoins), sub: "عملة", color: "#9ca3af" },
-                  { label: "الثالث", value: formatCoins(currentCfg.thirdCoins), sub: "عملة", color: "#cd7c2f" },
+                  { label: "الأول", value: `VIP${currentCfg.first_vip}`, sub: `${currentCfg.first_vip_days} أيام`, color: "#fbbf24" },
+                  { label: "الثاني", value: formatCoins(currentCfg.second_coins), sub: "عملة", color: "#9ca3af" },
+                  { label: "الثالث", value: formatCoins(currentCfg.third_coins), sub: "عملة", color: "#cd7c2f" },
                 ].map((item, idx) => (
                   <div key={idx} className="rounded-xl p-2.5 text-center" style={{
                     background: `${item.color}12`,

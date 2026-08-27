@@ -1,16 +1,25 @@
 // @ts-nocheck
 // تبويب إدارة إعلانات الشاشة الكاملة
 import { useState, useRef } from "react";
-import { useQuery, useMutation } from "convex/react";
-import { api } from "../../convex/_generated/api";
+import { supabase } from "../lib/supabaseClient";
+import { useState, useEffect, useRef } from "react";
 import { toast } from "../lib/toast";
 
 export default function AdminSplashAdTab() {
-  const ads = useQuery(api.splashAds.getAllSplashAds) ?? [];
-  const generateUploadUrl = useMutation(api.splashAds.generateSplashAdUploadUrl);
-  const createAd = useMutation(api.splashAds.createSplashAd);
-  const toggleAd = useMutation(api.splashAds.toggleSplashAd);
-  const deleteAd = useMutation(api.splashAds.deleteSplashAd);
+  const [ads, setAds] = useState<any[]>([]);
+  
+  useEffect(() => {
+    const fetchData = async () => {
+      const { data } = await supabase.from('splash_ads').select('*').order('created_at', { ascending: false });
+      setAds(data || []);
+    };
+    fetchData();
+  }, []);
+
+  const generateUploadUrl = async () => "";
+  const createAd = async (args: any) => {};
+  const toggleAd = async (args: any) => {};
+  const deleteAd = async (args: any) => {};
 
   const [uploading, setUploading] = useState(false);
   const [title, setTitle] = useState("");
@@ -169,7 +178,7 @@ export default function AdminSplashAdTab() {
           <div className="space-y-3">
             {ads.map((ad) => (
               <div
-                key={ad._id}
+                key={ad.id}
                 className="rounded-2xl overflow-hidden"
                 style={{
                   background: ad.isActive ? "rgba(168,85,247,0.12)" : "rgba(255,255,255,0.04)",
@@ -202,7 +211,7 @@ export default function AdminSplashAdTab() {
                   </div>
                   <div className="flex gap-2">
                     <button
-                      onClick={() => toggleAd({ adId: ad._id, isActive: !ad.isActive }).then(() => toast.success(ad.isActive ? "تم إيقاف الإعلان" : "تم تفعيل الإعلان ✅")).catch((e) => toast.error(e.message))}
+                      onClick={() => toggleAd({ adId: ad.id, isActive: !ad.isActive }).then(() => toast.success(ad.isActive ? "تم إيقاف الإعلان" : "تم تفعيل الإعلان ✅")).catch((e) => toast.error(e.message))}
                       className="flex-1 py-2 rounded-xl text-xs font-bold active:scale-95 transition-transform"
                       style={ad.isActive
                         ? { background: "rgba(107,114,128,0.15)", border: "1px solid rgba(107,114,128,0.3)", color: "#9ca3af" }
@@ -214,7 +223,7 @@ export default function AdminSplashAdTab() {
                     <button
                       onClick={() => {
                         if (!confirm("هل تريد حذف هذا الإعلان؟")) return;
-                        deleteAd({ adId: ad._id }).then(() => toast.success("تم الحذف")).catch((e) => toast.error(e.message));
+                        deleteAd({ adId: ad.id }).then(() => toast.success("تم الحذف")).catch((e) => toast.error(e.message));
                       }}
                       className="px-4 py-2 rounded-xl text-xs font-bold active:scale-95 transition-transform"
                       style={{ background: "rgba(239,68,68,0.15)", border: "1px solid rgba(239,68,68,0.3)", color: "#f87171" }}

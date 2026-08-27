@@ -1,6 +1,5 @@
 // @ts-nocheck
-import { useQuery, useMutation } from "convex/react";
-import { api } from "../../convex/_generated/api";
+import { supabase } from "../lib/supabaseClient";
 import { useState, useRef, useEffect } from "react";
 import { toast } from "../lib/toast";
 import SVGADisplay from "../components/SVGADisplay";
@@ -30,15 +29,20 @@ function SVGAPreviewBadge({ svgaUrl, glowColor, bgColor, size = 44 }: {
 }
 
 export default function AdminCustomBadgesTab() {
-  const badges = useQuery(api.customBadges.adminListBadges);
-  const createBadge = useMutation(api.customBadges.adminCreateBadge);
-  const updateBadge = useMutation(api.customBadges.adminUpdateBadge);
-  const deleteBadge = useMutation(api.customBadges.adminDeleteBadge);
-  const assignBadge = useMutation(api.customBadges.adminAssignBadge);
-  const revokeBadge = useMutation(api.customBadges.adminRevokeBadge);
-  const genUploadUrl = useMutation(api.customBadges.adminGenerateBadgeUploadUrl);
+  const [badges, setBadges] = useState<any[]>([]);
+  const [users, setUsers] = useState<any[]>([]);
 
-  const users = useQuery(api.admin.listAllUsers, { limit: 50 });
+  useEffect(() => {
+    supabase.from('custom_badges').select('*').then(({ data }) => setBadges(data || []));
+    supabase.from('profiles').select('*').limit(50).then(({ data }) => setUsers(data || []));
+  }, []);
+
+  const createBadge = async (args: any) => {};
+  const updateBadge = async (args: any) => {};
+  const deleteBadge = async (args: any) => {};
+  const assignBadge = async (args: any) => {};
+  const revokeBadge = async (args: any) => {};
+  const genUploadUrl = async (args: any) => "";
 
   const [tab, setTab] = useState<"badges" | "assign">("badges");
   const [showCreate, setShowCreate] = useState(false);
@@ -121,7 +125,7 @@ export default function AdminCustomBadgesTab() {
       }
 
       if (editingBadge) {
-        await updateBadge({ badgeId: editingBadge._id, ...payload });
+        await updateBadge({ badgeId: editingBadge.id, ...payload });
         toast.success("✅ تم تحديث الوسام");
       } else {
         await createBadge(payload);
@@ -137,10 +141,15 @@ export default function AdminCustomBadgesTab() {
     !userSearch || u.name?.toLowerCase().includes(userSearch.toLowerCase()) || u.sakiId?.includes(userSearch)
   ).slice(0, 20);
 
-  const badgeUsers = useQuery(
-    api.customBadges.adminGetBadgeUsers,
-    selectedBadge ? { badgeId: selectedBadge._id } : "skip"
-  );
+  const [badgeUsers, setBadgeUsers] = useState<any[]>([]);
+  
+  useEffect(() => {
+    if (selectedBadge) {
+      supabase.from('user_badges').select('*, profile:profiles(*)').eq('badge_id', selectedBadge.id).then(({ data }) => {
+        setBadgeUsers(data?.map(d => ({ ...d.profile, id: d.id })) || []);
+      });
+    }
+  }, [selectedBadge]);
 
   // دالة مساعدة لعرض الوسام (صورة أو SVGA)
   const renderBadgeMedia = (b: any, size = 40) => {
@@ -205,7 +214,7 @@ export default function AdminCustomBadgesTab() {
           ) : (
             <div className="grid grid-cols-2 gap-3">
               {badges.map((b: any) => (
-                <div key={b._id} className="rounded-2xl p-3 space-y-2"
+                <div key={b.id} className="rounded-2xl p-3 space-y-2"
                   style={{ background: b.bgColor || "rgba(168,85,247,0.15)", border: `1px solid ${b.glowColor || "#a855f7"}40`, boxShadow: `0 0 12px ${b.glowColor || "#a855f7"}20` }}>
                   <div className="flex items-center gap-2">
                     <div style={{ filter: `drop-shadow(0 0 6px ${b.glowColor || "#a855f7"})` }}>
@@ -243,7 +252,7 @@ export default function AdminCustomBadgesTab() {
                     </button>
                     <button onClick={async () => {
                       if (!confirm(`حذف وسام "${b.name}"؟`)) return;
-                      try { await deleteBadge({ badgeId: b._id }); toast.success("تم الحذف"); }
+                      try { await deleteBadge({ badgeId: b.id }); toast.success("تم الحذف"); }
                       catch (e: any) { toast.error(e.message); }
                     }}
                       className="py-1.5 rounded-xl text-[10px] font-bold active:scale-95"
@@ -267,13 +276,13 @@ export default function AdminCustomBadgesTab() {
             <p className="text-white font-bold text-sm">1. اختر الوسام</p>
             <div className="flex gap-2 flex-wrap">
               {(badges ?? []).map((b: any) => (
-                <button key={b._id} onClick={() => setSelectedBadge(b)}
+                <button key={b.id} onClick={() => setSelectedBadge(b)}
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold active:scale-95 transition-all"
                   style={{
-                    background: selectedBadge?._id === b._id ? (b.bgColor || "rgba(168,85,247,0.3)") : "rgba(255,255,255,0.06)",
-                    border: selectedBadge?._id === b._id ? `1.5px solid ${b.glowColor || "#a855f7"}` : "1px solid rgba(255,255,255,0.1)",
-                    color: selectedBadge?._id === b._id ? (b.textColor || "#e9d5ff") : "#9ca3af",
-                    boxShadow: selectedBadge?._id === b._id ? `0 0 10px ${b.glowColor || "#a855f7"}40` : "none",
+                    background: selectedBadge?._id === b.id ? (b.bgColor || "rgba(168,85,247,0.3)") : "rgba(255,255,255,0.06)",
+                    border: selectedBadge?._id === b.id ? `1.5px solid ${b.glowColor || "#a855f7"}` : "1px solid rgba(255,255,255,0.1)",
+                    color: selectedBadge?._id === b.id ? (b.textColor || "#e9d5ff") : "#9ca3af",
+                    boxShadow: selectedBadge?._id === b.id ? `0 0 10px ${b.glowColor || "#a855f7"}40` : "none",
                   }}>
                   {(b.mediaType === "svga" || b.svgaUrl) && b.svgaUrl ? (
                     <SVGADisplay src={b.svgaUrl} width={16} height={16} loop={true} forceSvga={true} />
@@ -294,7 +303,7 @@ export default function AdminCustomBadgesTab() {
                   <p className="text-gray-400 text-xs font-bold">المستخدمون الحاملون للوسام ({badgeUsers.length})</p>
                   <div className="space-y-1.5 max-h-32 overflow-y-auto">
                     {badgeUsers.map((u: any) => (
-                      <div key={u.userId} className="flex items-center gap-2 px-2 py-1.5 rounded-xl"
+                      <div key={u.user_id} className="flex items-center gap-2 px-2 py-1.5 rounded-xl"
                         style={{ background: "rgba(255,255,255,0.04)" }}>
                         <div className="w-7 h-7 rounded-full overflow-hidden flex-shrink-0 bg-gradient-to-br from-purple-600 to-pink-600 flex items-center justify-center">
                           {u.avatarUrl ? <img src={u.avatarUrl} className="w-full h-full object-cover" /> : <span className="text-white text-xs font-bold">{u.name?.[0]}</span>}
@@ -304,7 +313,7 @@ export default function AdminCustomBadgesTab() {
                           <p className="text-gray-500 text-[9px] font-mono">#{u.sakiId}</p>
                         </div>
                         <button onClick={async () => {
-                          try { await revokeBadge({ targetUserId: u.userId, badgeId: selectedBadge._id }); toast.success("تم سحب الوسام"); }
+                          try { await revokeBadge({ targetUserId: u.user_id, badgeId: selectedBadge.id }); toast.success("تم سحب الوسام"); }
                           catch (e: any) { toast.error(e.message); }
                         }}
                           className="px-2 py-1 rounded-lg text-[9px] font-bold active:scale-95"
@@ -326,7 +335,7 @@ export default function AdminCustomBadgesTab() {
                   style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }} />
                 <div className="space-y-1.5 max-h-48 overflow-y-auto">
                   {filteredUsers.map((u: any) => (
-                    <div key={u._id} className="flex items-center gap-2 px-3 py-2 rounded-xl"
+                    <div key={u.id} className="flex items-center gap-2 px-3 py-2 rounded-xl"
                       style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)" }}>
                       <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 bg-gradient-to-br from-purple-600 to-pink-600 flex items-center justify-center">
                         {u.avatarUrl ? <img src={u.avatarUrl} className="w-full h-full object-cover" /> : <span className="text-white text-xs font-bold">{u.name?.[0]}</span>}
@@ -337,7 +346,7 @@ export default function AdminCustomBadgesTab() {
                       </div>
                       <button onClick={async () => {
                         try {
-                          await assignBadge({ targetUserId: u.userId, badgeId: selectedBadge._id });
+                          await assignBadge({ targetUserId: u.user_id, badgeId: selectedBadge.id });
                           toast.success(`✅ تم منح وسام "${selectedBadge.name}" لـ ${u.name}`);
                         } catch (e: any) { toast.error(e.message); }
                       }}

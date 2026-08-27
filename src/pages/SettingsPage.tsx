@@ -1,10 +1,10 @@
-import { api } from "../../convex/_generated/api";
-import { useAuthActions } from "@convex-dev/auth/react";
-import { useQuery, useMutation } from "convex/react";
 import { Capacitor } from "@capacitor/core";
 import { App as CapacitorApp } from "@capacitor/app";
 import { useState, useCallback, useEffect } from "react";
 import { toast } from "../lib/toast";
+import { supabase } from "../lib/supabaseClient";
+import { useSupabase } from "../contexts/SupabaseContext";
+import { useProfile } from "../components/ProfileManager";
 
 interface SettingsPageProps {
   onBack: () => void;
@@ -12,7 +12,7 @@ interface SettingsPageProps {
 
 type UpdateStatus = "idle" | "checking" | "found" | "notfound" | "updating";
 
-const APP_VERSION = "1.0.102";
+const APP_VERSION = "1.1.3";
 
 function ArrowIcon({ direction = "left" }: { direction?: "left" | "right" }) {
   return (
@@ -75,16 +75,10 @@ function SettingsGroup({ children }: { children: React.ReactNode }) {
 }
 
 export default function SettingsPage({ onBack }: SettingsPageProps) {
-  const loggedInUser = useQuery(api.auth.loggedInUser);
-  const profile = useQuery(api.profiles.getMyProfile);
-  // لا نستدعي الدالة الجديدة قبل نشرها على Convex حتى لا يحوّل غيابها خطأ إعدادات إلى ErrorBoundary.
-  // ستُفعّل تلقائيًا بعد نشر chatBlocks:listMyBlockedUsers في بيئة الإنتاج.
-  const blockedUsers = useQuery(api.chatBlocks.listMyBlockedUsers, "skip");
-  const { signOut, signIn } = useAuthActions();
-  const unblockUser = useMutation(api.chatBlocks.unblockUser);
-  const deleteDirectMessages = useMutation(api.messages.deleteMyDirectMessages);
-  const removeFcmToken = useMutation(api.fcmSubscriptions.removeFcmToken);
-
+  const { user } = useSupabase();
+  const { profile, refreshProfile } = useProfile();
+  const [blockedUsers, setBlockedUsers] = useState<any[]>([]);
+  
   const [showAccount, setShowAccount] = useState(false);
   const [showEmailForm, setShowEmailForm] = useState(false);
   const [showPasswordForm, setShowPasswordForm] = useState(false);
@@ -163,7 +157,8 @@ export default function SettingsPage({ onBack }: SettingsPageProps) {
 
     setEmailLoading(true);
     try {
-      await signIn("password", { email, flow: "email-verification" } as any);
+      const { error } = await supabase.auth.updateUser({ email });
+      if (error) throw error;
       toast.success("تم إرسال رابط التحقق إلى بريدك الجديد");
       setShowEmailForm(false);
       setNewEmail("");
@@ -175,7 +170,7 @@ export default function SettingsPage({ onBack }: SettingsPageProps) {
   };
 
   const handlePasswordChange = async () => {
-    if (!currentPassword || !newPassword || !confirmPassword) {
+    if (!newPassword || !confirmPassword) {
       toast.error("يرجى ملء جميع الحقول");
       return;
     }
@@ -183,19 +178,15 @@ export default function SettingsPage({ onBack }: SettingsPageProps) {
       toast.error("كلمة المرور الجديدة غير متطابقة");
       return;
     }
-    if (newPassword.length < 8) {
-      toast.error("كلمة المرور يجب أن تكون 8 أحرف على الأقل");
+    if (newPassword.length < 6) {
+      toast.error("كلمة المرور يجب أن تكون 6 أحرف على الأقل");
       return;
     }
 
     setPasswordLoading(true);
     try {
-      await signIn("password", {
-        email: loggedInUser?.email ?? "",
-        password: currentPassword,
-        newPassword,
-        flow: "reset-verification",
-      } as any);
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      if (error) throw error;
       toast.success("تم تغيير كلمة المرور بنجاح");
       setShowPasswordForm(false);
       setCurrentPassword("");
@@ -267,22 +258,26 @@ export default function SettingsPage({ onBack }: SettingsPageProps) {
   const handleDeleteChats = async () => {
     if (!window.confirm("سيتم حذف جميع سجلات الدردشة الخاصة بك نهائيًا. هل تريد المتابعة؟")) return;
     try {
-      const result = await deleteDirectMessages({});
-      toast.success(`تم حذف ${result.deleted} رسالة من الدردشة الخاصة`);
+      const { error } = await supabase
+        .from('messages')
+        .delete()
+        .or(`sender_id.eq.${user?.id},receiver_id.eq.${user?.id}`);
+      if (error) throw error;
+      toast.success("تم حذف سجلات الدردشة الخاصة");
     } catch (error: any) { toast.error(error?.message || "تعذر حذف سجلات الدردشة"); }
   };
 
   const handleSignOut = async () => {
     setSigningOut(true);
     try {
-      await signOut();
+      await supabase.auth.signOut();
     } catch {
       setSigningOut(false);
       toast.error("تعذر تسجيل الخروج، حاول مرة أخرى");
     }
   };
 
-  const accountEmail = loggedInUser?.email ?? "غير محدد";
+  const accountEmail = user?.email ?? "غير محدد";
   const updateLabel = updateStatus === "found"
     ? "يوجد تحديث جديد"
     : updateStatus === "checking"

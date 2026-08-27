@@ -51,5 +51,14 @@
 - [x] تحديد السبب: `App.tsx` يستدعي `useQuery` و`useMutation` من Convex، بينما `main.tsx` كان يركب App دون `ConvexProvider`.
 - [x] إعادة إضافة `ConvexProvider` باستخدام العميل الموجود في `src/lib/convexClient.ts`، مع الإبقاء على `SupabaseProvider`، وتحديث رقم الإصدار إلى 1.1.3.
 - [x] تشغيل فحص TypeScript بعد التعديل.
-- [ ] بناء Android والتحقق من نجاح الحزمة.
-- [ ] إصدار APK جديد وإرسال رابط مباشر للمستخدم.
+- [x] بناء Android والتحقق من نجاح الحزمة في GitHub Actions.
+- [x] إصدار APK جديد v1.1.3 وإرسال رابط مباشر للمستخدم.
+
+## المرحلة 6: الإزالة الكاملة لـ Convex والاعتماد على Supabase
+- [ ] جرد كافة مراجع `convex/react` و `api.*` في ملفات المشروع.
+- [ ] تحليل خطأ `signIn` undefined في ملف `pasted_content_2.txt` (يرجح أنه استدعاء لـ `useAuthActions` من Convex خارج مزوده أو بعد إزالته).
+- [ ] تحويل كافة استدعاءات `useQuery` و `useMutation` في `App.tsx` و `LoginPage` و `RegisterPage` و `RoomPage` إلى Supabase.
+- [ ] إزالة `ConvexProvider` نهائياً من `main.tsx`.
+- [ ] حذف ملفات `convex/` و `src/lib/convexClient.ts`.
+- [ ] تحديث `package.json` وإزالة حزم Convex.
+- [ ] بناء Android v1.1.4 وتسليم النسخة النهائية.

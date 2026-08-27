@@ -1,6 +1,5 @@
 import { useState, useRef } from "react";
-import { useMutation } from "convex/react";
-import { api } from "../../convex/_generated/api";
+import { supabase } from "../lib/supabaseClient";
 import { toast } from "../lib/toast";
 
 interface CreateStoryPageProps {
@@ -26,8 +25,8 @@ const TEXT_BACKGROUNDS = [
 type StoryType = "image" | "video" | "text";
 
 export default function CreateStoryPage({ onBack, onSuccess }: CreateStoryPageProps) {
-  const createStory = useMutation(api.stories.createStory);
-  const generateUploadUrl = useMutation(api.stories.generateStoryUploadUrl);
+  const createStory = async (args: any) => {};
+  const generateUploadUrl = async () => "";
 
   const [storyType, setStoryType] = useState<StoryType>("image");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);

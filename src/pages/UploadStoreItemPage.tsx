@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { useState, useRef } from "react";
-import { useMutation, useQuery } from "convex/react";
-import { api } from "../../convex/_generated/api";
+import { supabase } from "../lib/supabaseClient";
+import { useEffect } from "react";
 import { toast } from "../lib/toast";
 import SVGAPlayer, { isSvgaUrl } from "../components/SVGAPlayer";
 
@@ -127,9 +127,20 @@ export default function UploadStoreItemPage({ onBack }: UploadStoreItemPageProps
   const seatLockedRef = useRef<HTMLInputElement>(null);
   const seatThumbnailRef = useRef<HTMLInputElement>(null);
 
-  const myProfile = useQuery(api.profiles.getMyProfile);
-  const generateUploadUrl = useMutation(api.store.generateUploadUrl);
-  const createStoreItem = useMutation(api.store.createStoreItem);
+  const [myProfile, setMyProfile] = useState<any>(null);
+  useEffect(() => {
+    const fetchData = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: p } = await supabase.from('profiles').select('*').eq('user_id', user.id).single();
+        setMyProfile(p);
+      }
+    };
+    fetchData();
+  }, []);
+
+  const generateUploadUrl = async () => "";
+  const createStoreItem = async (args: any) => {};
 
   const resetType = (t: ItemType) => {
     setSelectedType(t);

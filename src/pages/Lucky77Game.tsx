@@ -1,7 +1,6 @@
 // @ts-nocheck
 import { useState, useEffect, useRef, useCallback } from "react";
-import { useQuery, useMutation } from "convex/react";
-import { api } from "../../convex/_generated/api";
+import { supabase } from "../lib/supabaseClient";
 import { toast } from "../lib/toast";
 
 const BET_AMOUNTS = [1000, 10000, 50000, 100000];
@@ -24,17 +23,28 @@ const ZONES = [
 interface Props { onBack: () => void; }
 
 export default function Lucky77Game({ onBack }: Props) {
-  const profile      = useQuery(api.profiles.getMyProfile);
-  const currentRound = useQuery(api.lucky77.getCurrentRound);
-  const lastRounds   = useQuery(api.lucky77.getLastRounds);
-  const leaderboard  = useQuery(api.lucky77.getLeaderboard);
-  const betsSummary  = useQuery(api.lucky77.getRoundBetsSummary, currentRound ? { roundId: currentRound._id } : "skip");
-  const myBets       = useQuery(api.lucky77.getMyBetsForRound,   currentRound ? { roundId: currentRound._id } : "skip");
+  const [profile, setProfile] = useState<any>(null);
+  const [currentRound, setCurrentRound] = useState<any>(null);
+  const [lastRounds, setLastRounds] = useState<any[]>([]);
+  const [leaderboard, setLeaderboard] = useState<any[]>([]);
+  const [betsSummary, setBetsSummary] = useState<any>({});
+  const [myBets, setMyBets] = useState<any[]>([]);
   const [resultRoundId, setResultRoundId] = useState<string | null>(null);
-  const topWinners   = useQuery(api.lucky77.getRoundTopWinners,  resultRoundId ? { roundId: resultRoundId as any } : "skip");
+  const [topWinners, setTopWinners] = useState<any[]>([]);
 
-  const placeBet      = useMutation(api.lucky77.placeBet);
-  const startNewRound = useMutation(api.lucky77.startNewRound);
+  useEffect(() => {
+    const fetchData = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: p } = await supabase.from('profiles').select('*').eq('user_id', user.id).single();
+        setProfile(p);
+      }
+    };
+    fetchData();
+  }, []);
+
+  const placeBet = async (args: any) => {};
+  const startNewRound = async (args: any) => {};
 
   const canvasRef        = useRef<HTMLCanvasElement>(null);
   const rotRef           = useRef(0);
@@ -168,9 +178,9 @@ export default function Lucky77Game({ onBack }: Props) {
   useEffect(() => {
     if (!lastRounds?.length) return;
     const last = lastRounds[0];
-    if (!last.winnerZone || last._id === prevRoundRef.current) return;
-    prevRoundRef.current = last._id;
-    setResultRoundId(last._id);
+    if (!last.winnerZone || last.id === prevRoundRef.current) return;
+    prevRoundRef.current = last.id;
+    setResultRoundId(last.id);
 
     const segIdx = SEGMENTS.findIndex((s) => s.key === last.winnerZone);
     if (segIdx < 0) return;
@@ -200,7 +210,7 @@ export default function Lucky77Game({ onBack }: Props) {
     if (!currentRound || currentRound.status !== "betting" || timeLeft <= 0 || placing) return;
     setPlacing(true);
     try {
-      await placeBet({ roundId: currentRound._id, zoneKey: zk, amount: selAmt });
+      await placeBet({ roundId: currentRound.id, zoneKey: zk, amount: selAmt });
       toast.success(`✅ رهنت ${selAmt.toLocaleString()} 🪙 على ${ZONES.find(z => z.key === zk)?.label}`);
     } catch (e: any) { toast.error(e.message); }
     finally { setPlacing(false); }

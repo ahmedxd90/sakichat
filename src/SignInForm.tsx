@@ -1,10 +1,9 @@
 "use client";
-import { useAuthActions } from "@convex-dev/auth/react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { supabase } from "./lib/supabaseClient";
 
 export function SignInForm() {
-  const { signIn } = useAuthActions();
   const [flow, setFlow] = useState<"signIn" | "signUp">("signIn");
   const [submitting, setSubmitting] = useState(false);
 
@@ -12,24 +11,26 @@ export function SignInForm() {
     <div className="w-full">
       <form
         className="flex flex-col gap-form-field"
-        onSubmit={(e) => {
+        onSubmit={async (e) => {
           e.preventDefault();
           setSubmitting(true);
           const formData = new FormData(e.target as HTMLFormElement);
-          formData.set("flow", flow);
-          void signIn("password", formData).catch((error) => {
-            let toastTitle = "";
-            if (error.message.includes("Invalid password")) {
-              toastTitle = "Invalid password. Please try again.";
+          const email = formData.get("email") as string;
+          const password = formData.get("password") as string;
+
+          try {
+            if (flow === "signIn") {
+              const { error } = await supabase.auth.signInWithPassword({ email, password });
+              if (error) throw error;
             } else {
-              toastTitle =
-                flow === "signIn"
-                  ? "Could not sign in, did you mean to sign up?"
-                  : "Could not sign up, did you mean to sign in?";
+              const { error } = await supabase.auth.signUp({ email, password });
+              if (error) throw error;
+              toast.success("Signup successful! Please check your email.");
             }
-            toast.error(toastTitle);
+          } catch (error: any) {
+            toast.error(error.message);
             setSubmitting(false);
-          });
+          }
         }}
       >
         <input
@@ -69,7 +70,10 @@ export function SignInForm() {
         <span className="mx-4 text-secondary">or</span>
         <hr className="my-4 grow border-gray-200" />
       </div>
-      <button className="auth-button" onClick={() => void signIn("anonymous")}>
+      <button className="auth-button" onClick={async () => {
+        const { error } = await supabase.auth.signInAnonymously();
+        if (error) toast.error(error.message);
+      }}>
         Sign in anonymously
       </button>
     </div>

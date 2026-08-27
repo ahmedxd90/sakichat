@@ -1,7 +1,6 @@
 // @ts-nocheck
 import { useState, useRef, useEffect } from "react";
-import { useAction, useMutation } from "convex/react";
-import { api } from "../../convex/_generated/api";
+import { supabase } from "../lib/supabaseClient";
 import { toast } from "../lib/toast";
 
 interface AiChatPanelProps {
@@ -27,7 +26,9 @@ export default function AiChatPanel({ onClose, chatWithAI, enableImageAnalysis =
   const [showReportModal, setShowReportModal] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
-  const analyzeImage = useAction(api.ai.analyzeImageAndReport);
+  const analyzeImage = async (args: any) => {
+    return "تحليل الصورة غير متاح حالياً في نسخة Supabase.";
+  };
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -215,7 +216,20 @@ function ReportModal({ onClose, analyzeImage }: { onClose: () => void; analyzeIm
   const [analyzing, setAnalyzing] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
-  const reportBySakiId = useMutation(api.userReports.reportBySakiId);
+  const reportBySakiId = async (args: any) => {
+    const { data: reporter } = await supabase.auth.getUser();
+    const { data: reported } = await supabase.from('profiles').select('id, name').eq('saki_id', args.sakiId).single();
+    if (!reported) throw new Error("المستخدم غير موجود");
+    const { error } = await supabase.from('user_reports').insert({
+      reporter_id: reporter.user?.id,
+      reported_id: reported.id,
+      reason: args.reason,
+      details: args.details,
+      ai_analysis: args.aiAnalysis
+    });
+    if (error) throw error;
+    return { reportedName: reported.name };
+  };
 
   const handleImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];

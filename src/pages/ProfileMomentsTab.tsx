@@ -1,9 +1,7 @@
 // @ts-nocheck
-import { useQuery, useMutation } from "convex/react";
-import { api } from "../../convex/_generated/api";
-import { useState } from "react";
+import { supabase } from "../lib/supabaseClient";
+import { useState, useEffect } from "react";
 import { toast } from "../lib/toast";
-import { Id } from "../../convex/_generated/dataModel";
 import UserAvatar from "../components/UserAvatar";
 import { AristocracyName, getAristocracyConfig, AristocracyBadge } from "../components/AristocracyBadge";
 import { getVipConfig, VipBadge } from "../components/VipBadge";
@@ -103,8 +101,16 @@ function ImageViewer({ images, initialIdx, onClose }: { images: string[], initia
 }
 
 function ProfileCommentsSection({ momentId, myProfile }: { momentId: any; myProfile: any }) {
-  const comments = useQuery(api.moments.getComments, { momentId });
-  const addComment = useMutation(api.moments.addComment);
+  const [comments, setComments] = useState<any[]>([]);
+  useEffect(() => {
+    const fetchData = async () => {
+      const { data } = await supabase.from('moment_comments').select('*, profile:profiles(*)').eq('moment_id', momentId);
+      setComments(data || []);
+    };
+    fetchData();
+  }, [momentId]);
+
+  const addComment = async (args: any) => {};
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
   const handleAdd = async () => {
@@ -122,7 +128,7 @@ function ProfileCommentsSection({ momentId, myProfile }: { momentId: any; myProf
           : comments.length === 0
             ? <p className="text-gray-400 text-[10px] text-center py-2 font-bold">لا توجد تعليقات بعد 💬</p>
             : comments.map((c: any) => (
-              <div key={c._id} className="flex gap-2">
+              <div key={c.id} className="flex gap-2">
                 <div className="flex-shrink-0">
                   <UserAvatar userId={c.userId} avatarUrl={c.profile?.avatarUrl} name={c.profile?.name} size={28} isVip={c.profile?.isVip} vipLevel={c.profile?.vipLevel} isSuperAdmin={c.profile?.isSuperAdmin} />
                 </div>
@@ -151,10 +157,18 @@ function ProfileCommentsSection({ momentId, myProfile }: { momentId: any; myProf
 }
 
 export default function ProfileMomentsTab({ userId, canViewFull, myProfile, accentColor }: {
-  userId: Id<"users">; canViewFull: boolean; myProfile: any; accentColor: string;
+  userId: string; canViewFull: boolean; myProfile: any; accentColor: string;
 }) {
-  const moments = useQuery(api.momentsExtra.getUserMomentsWithProfile, { userId });
-  const likeMoment = useMutation(api.moments.likeMoment);
+  const [moments, setMoments] = useState<any[]>([]);
+  useEffect(() => {
+    const fetchData = async () => {
+      const { data } = await supabase.from('moments').select('*, profile:profiles(*)').eq('user_id', userId);
+      setMoments(data || []);
+    };
+    fetchData();
+  }, [userId]);
+
+  const likeMoment = async (args: any) => {};
   const [openComments, setOpenComments] = useState<any>(null);
   const [viewerData, setViewerData] = useState<{ images: string[], idx: number } | null>(null);
 
@@ -194,11 +208,11 @@ export default function ProfileMomentsTab({ userId, canViewFull, myProfile, acce
         }
 
         const handleLike = async () => {
-          try { await likeMoment({ momentId: moment._id }); } catch (e: any) { toast.error(e.message); }
+          try { await likeMoment({ momentId: moment.id }); } catch (e: any) { toast.error(e.message); }
         };
 
         return (
-          <article key={moment._id} className="bg-white rounded-[24px] p-4 shadow-sm border border-gray-100 animate-in fade-in slide-in-from-bottom-2 duration-500">
+          <article key={moment.id} className="bg-white rounded-[24px] p-4 shadow-sm border border-gray-100 animate-in fade-in slide-in-from-bottom-2 duration-500">
             {/* Header */}
             <div className="flex items-center gap-3 mb-3">
               <UserAvatar userId={moment.userId} avatarUrl={moment.profile?.avatarUrl} name={moment.profile?.name} size={40} isVip={moment.profile?.isVip} vipLevel={moment.profile?.vipLevel} isSuperAdmin={moment.profile?.isSuperAdmin} />
@@ -245,16 +259,16 @@ export default function ProfileMomentsTab({ userId, canViewFull, myProfile, acce
                 <span className={`text-xs font-black ${isLiked ? "text-red-500" : "text-gray-500"}`}>{moment.likes || 0}</span>
               </button>
               
-              <button onClick={() => setOpenComments(openComments === moment._id ? null : moment._id)} className="flex items-center gap-1.5 active:scale-90 transition-transform">
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${openComments === moment._id ? "bg-cyan-50 text-cyan-500" : "bg-gray-50 text-gray-400"}`}>
+              <button onClick={() => setOpenComments(openComments === moment.id ? null : moment.id)} className="flex items-center gap-1.5 active:scale-90 transition-transform">
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${openComments === moment.id ? "bg-cyan-50 text-cyan-500" : "bg-gray-50 text-gray-400"}`}>
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z"/></svg>
                 </div>
-                <span className={`text-xs font-black ${openComments === moment._id ? "text-cyan-500" : "text-gray-500"}`}>{moment.commentsCount || 0}</span>
+                <span className={`text-xs font-black ${openComments === moment.id ? "text-cyan-500" : "text-gray-500"}`}>{moment.commentsCount || 0}</span>
               </button>
             </div>
             
-            {openComments === moment._id && (
-              <ProfileCommentsSection momentId={moment._id} myProfile={myProfile} />
+            {openComments === moment.id && (
+              <ProfileCommentsSection momentId={moment.id} myProfile={myProfile} />
             )}
           </article>
         );

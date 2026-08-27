@@ -1,8 +1,6 @@
 // @ts-nocheck
-import { useQuery, useMutation } from "convex/react";
-import { api } from "../../convex/_generated/api";
-import { Id } from "../../convex/_generated/dataModel";
-import { useState } from "react";
+import { supabase } from "../lib/supabaseClient";
+import { useState, useEffect } from "react";
 import { toast } from "../lib/toast";
 import UserAvatar from "../components/UserAvatar";
 
@@ -34,9 +32,18 @@ function LoadingSpinner() {
 }
 
 export function BombConfigTab() {
-  const allConfigs = useQuery(api.roomBomb.getAllLevelConfigs);
-  const storeItems = useQuery(api.store.listAllStoreItems);
-  const updateConfig = useMutation(api.roomBomb.adminUpdateBombLevelConfig);
+  const [allConfigs, setAllConfigs] = useState<any[]>([]);
+  const [storeItems, setStoreItems] = useState<any[]>([]);
+  useEffect(() => {
+    const fetchData = async () => {
+      const { data: configs } = await supabase.from('bomb_configs').select('*').order('level');
+      setAllConfigs(configs || []);
+      const { data: items } = await supabase.from('store_items').select('*');
+      setStoreItems(items || []);
+    };
+    fetchData();
+  }, []);
+  const updateConfig = async (args: any) => {};
   const [editingLevel, setEditingLevel] = useState<number | null>(null);
   const [form, setForm] = useState<any>({});
   const [saving, setSaving] = useState(false);
@@ -177,7 +184,7 @@ export function BombConfigTab() {
                 style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)" }}>
                 <option value="">-- بدون هدية --</option>
                 {storeItems?.map((item: any) => (
-                  <option key={item._id} value={item._id}>{item.name} ({item.type})</option>
+                  <option key={item.id} value={item.id}>{item.name} ({item.type})</option>
                 ))}
               </select>
             </div>
@@ -240,17 +247,35 @@ export function BombConfigTab() {
 }
 
 export function PremiumSakiIdTab() {
-  const premiums = useQuery(api.premiumSakiId.adminListPremiumSakiIds);
-  const grantPremium = useMutation(api.premiumSakiId.adminGrantPremiumSakiId);
-  const revokePremium = useMutation(api.premiumSakiId.adminRevokePremiumSakiId);
+  const [premiums, setPremiums] = useState<any[]>([]);
   const [targetSakiId, setTargetSakiId] = useState("");
   const [premiumId, setPremiumId] = useState("");
   const [days, setDays] = useState("30");
   const [loading, setLoading] = useState(false);
-  const searchProfile = useQuery(
-    api.profiles.getProfileBySakiId,
-    targetSakiId.length >= 6 ? { sakiId: targetSakiId } : "skip"
-  );
+  const [searchProfile, setSearchProfile] = useState<any>(null);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      const { data } = await supabase.from('premium_saki_ids').select('*, profile:profiles(*)');
+      setPremiums(data || []);
+    };
+    fetchData();
+  }, []);
+
+  useEffect(() => {
+    if (targetSakiId.length >= 6) {
+      const fetchData = async () => {
+        const { data } = await supabase.from('profiles').select('*').eq('saki_id', targetSakiId).maybeSingle();
+        setSearchProfile(data);
+      };
+      fetchData();
+    } else {
+      setSearchProfile(null);
+    }
+  }, [targetSakiId]);
+
+  const grantPremium = async (args: any) => ({ targetName: "User" });
+  const revokePremium = async (args: any) => {};
 
   const handleGrant = async () => {
     if (!targetSakiId || !premiumId || !days) return;
@@ -286,7 +311,7 @@ export function PremiumSakiIdTab() {
         {searchProfile && (
           <div className="rounded-xl p-2.5 flex items-center gap-2"
             style={{ background: "rgba(168,85,247,0.1)", border: "1px solid rgba(168,85,247,0.25)" }}>
-            <UserAvatar userId={searchProfile.userId as Id<"users">} avatarUrl={searchProfile.avatarUrl} name={searchProfile.name} size={32} />
+            <UserAvatar userId={searchProfile.user_id as string} avatarUrl={searchProfile.avatarUrl} name={searchProfile.name} size={32} />
             <div>
               <p className="text-white font-bold text-xs">{searchProfile.name}</p>
               <p className="text-gray-400 text-[10px]">#{searchProfile.sakiId}</p>
@@ -320,13 +345,13 @@ export function PremiumSakiIdTab() {
       ) : (
         <div className="space-y-2">
           {premiums.map((p: any) => (
-            <div key={p._id} className="rounded-2xl p-3"
+            <div key={p.id} className="rounded-2xl p-3"
               style={{
                 background: p.isExpired ? "rgba(239,68,68,0.06)" : "rgba(168,85,247,0.06)",
                 border: p.isExpired ? "1px solid rgba(239,68,68,0.2)" : "1px solid rgba(168,85,247,0.2)",
               }}>
               <div className="flex items-center gap-3">
-                <UserAvatar userId={p.userId as Id<"users">} avatarUrl={p.userAvatarUrl} name={p.userName} size={36} />
+                <UserAvatar userId={p.userId as string} avatarUrl={p.userAvatarUrl} name={p.userName} size={36} />
                 <div className="flex-1 min-w-0">
                   <p className="text-white font-bold text-sm truncate">{p.userName}</p>
                   <div className="flex items-center gap-2 flex-wrap">

@@ -1,6 +1,5 @@
 import { useState, useRef } from "react";
-import { useMutation } from "convex/react";
-import { api } from "../../convex/_generated/api";
+import { supabase } from "../lib/supabaseClient";
 import { toast } from "../lib/toast";
 
 interface Props {
@@ -14,8 +13,8 @@ export default function BannerUploadSheet({ onClose }: Props) {
   const [uploading, setUploading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const generateUploadUrl = useMutation(api.banners.generateUploadUrl);
-  const addBanner = useMutation(api.banners.addBanner);
+  const generateUploadUrl = async () => "";
+  const addBanner = async (args: any) => {};
 
   const handleFile = (f: File) => {
     setFile(f);

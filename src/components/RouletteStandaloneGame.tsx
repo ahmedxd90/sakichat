@@ -1,7 +1,6 @@
 // @ts-nocheck
 import { useState, useRef, useEffect, useCallback } from "react";
-import { useQuery, useMutation } from "convex/react";
-import { api } from "../../convex/_generated/api";
+import { supabase } from "../lib/supabaseClient";
 import { toast } from "../lib/toast";
 
 const RED_NUMBERS = [1,3,5,7,9,12,14,16,18,19,21,23,25,27,30,32,34,36];
@@ -378,7 +377,16 @@ function ResultPopup({ round, myBets, topWinners, onClose }: {
 
 // ── Leaderboard Sheet ──
 function LeaderboardSheet({ onClose }: { onClose: () => void }) {
-  const lb = useQuery(api.rouletteStandalone.getDailyLeaderboard);
+  const [lb, setLb] = useState<any[]>([]);
+  
+  useEffect(() => {
+    const fetchLb = async () => {
+      const { data } = await supabase.from('roulette_daily_leaderboard').select('*, profiles(name, avatar_url)').order('today_won', { ascending: false }).limit(20);
+      setLb(data || []);
+    };
+    fetchLb();
+  }, []);
+
   const medals = ["#ffd700", "#c0c0c0", "#cd7f32"];
   return (
     <div className="fixed inset-0 z-[600] flex flex-col justify-end" style={{ background: "rgba(0,0,0,0.7)", backdropFilter: "blur(6px)" }} onClick={onClose}>
@@ -432,22 +440,44 @@ function LeaderboardSheet({ onClose }: { onClose: () => void }) {
 
 // ── Main Game ──
 export default function RouletteStandaloneGame({ onBack }: { onBack: () => void }) {
-  const myProfile = useQuery(api.profiles.getMyProfile);
-  const activeRound = useQuery(api.rouletteStandalone.getActiveRound);
-  const myBets = useQuery(
-    api.rouletteStandalone.getMyBetsForRound,
-    activeRound ? { roundId: activeRound._id } : "skip"
-  );
-  const recentRounds = useQuery(api.rouletteStandalone.getRecentRounds);
-  const topWinners = useQuery(
-    api.rouletteStandalone.getRoundTopWinners,
-    activeRound?.status === "finished" ? { roundId: activeRound._id } : "skip"
-  );
-
-  const ensureRound = useMutation(api.rouletteStandalone.ensureRoundExists);
-  const placeBetMut = useMutation(api.rouletteStandalone.placeBet);
-
+  const [myProfile, setMyProfile] = useState<any>(null);
+  const [activeRound, setActiveRound] = useState<any>(null);
+  const [myBets, setMyBets] = useState<any[]>([]);
+  const [recentRounds, setRecentRounds] = useState<any[]>([]);
+  const [topWinners, setTopWinners] = useState<any[]>([]);
   const [selectedChip, setSelectedChip] = useState(1000);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: p } = await supabase.from('profiles').select('*').eq('user_id', user.id).single();
+        setMyProfile(p);
+      }
+
+      const fetchRound = async () => {
+        const { data: round } = await supabase.from('roulette_rounds').select('*').order('created_at', { ascending: false }).limit(1).single();
+        setActiveRound(round);
+        
+        if (round) {
+          const { data: bets } = await supabase.from('roulette_bets').select('*').eq('round_id', round.id).eq('user_id', user?.id);
+          setMyBets(bets || []);
+          
+          if (round.status === 'finished') {
+            const { data: winners } = await supabase.from('roulette_winners').select('*, profiles(name, avatar_url)').eq('round_id', round.id).order('payout', { ascending: false }).limit(3);
+            setTopWinners(winners || []);
+          }
+        }
+        
+        const { data: recent } = await supabase.from('roulette_rounds').select('*').eq('status', 'finished').order('created_at', { ascending: false }).limit(10);
+        setRecentRounds(recent || []);
+      };
+      fetchRound();
+      const sub = supabase.channel('roulette_main').on('postgres_changes', { event: '*', schema: 'public', table: 'roulette_rounds' }, fetchRound).subscribe();
+      return () => { sub.unsubscribe(); };
+    };
+    fetchData();
+  }, []);
   const [spinning, setSpinning] = useState(false);
   const [showResult, setShowResult] = useState(false);
   const [showLB, setShowLB] = useState(false);
@@ -468,13 +498,13 @@ export default function RouletteStandaloneGame({ onBack }: { onBack: () => void 
   useEffect(() => {
     if (!activeRound || activeRound.status !== "betting") { setTimeLeft(0); return; }
     const update = () => {
-      const left = Math.max(0, Math.ceil((activeRound.bettingEndsAt - Date.now()) / 1000));
+      const left = Math.max(0, Math.ceil((new Date(activeRound.betting_ends_at).getTime() - Date.now()) / 1000));
       setTimeLeft(left);
     };
     update();
     const t = setInterval(update, 200);
     return () => clearInterval(t);
-  }, [activeRound?.bettingEndsAt, activeRound?.status]);
+  }, [activeRound?.betting_ends_at, activeRound?.status]);
 
   // Track spinning state
   useEffect(() => {
@@ -487,16 +517,16 @@ export default function RouletteStandaloneGame({ onBack }: { onBack: () => void 
 
   // Show result when round finishes
   useEffect(() => {
-    if (activeRound?.status === "finished" && activeRound._id !== lastFinishedId) {
-      setLastFinishedId(activeRound._id);
+    if (activeRound?.status === "finished" && activeRound.id !== lastFinishedId) {
+      setLastFinishedId(activeRound.id);
       setResultRound(activeRound);
       setResultBets(myBets ?? []);
       setResultWinners(topWinners ?? []);
       setTimeout(() => setShowResult(true), 500);
     }
-  }, [activeRound?.status, activeRound?._id, myBets, topWinners]);
+  }, [activeRound?.status, activeRound?.id, myBets, topWinners]);
 
-  const handleBet = async (betType: string, betValue: string) => {
+  const handleBet = async (bet_type: string, bet_value: string) => {
     if (!activeRound || activeRound.status !== "betting") {
       toast.error("لا يمكن الرهان الآن");
       return;
@@ -504,7 +534,14 @@ export default function RouletteStandaloneGame({ onBack }: { onBack: () => void 
     if (timeLeft <= 0) { toast.error("انتهى وقت الرهان"); return; }
     if (coins < selectedChip) { toast.error("رصيدك غير كافٍ"); return; }
     try {
-      await placeBetMut({ roundId: activeRound._id, betType, betValue, amount: selectedChip });
+      const { error } = await supabase.from('roulette_bets').insert({
+        round_id: activeRound.id,
+        user_id: myProfile.user_id,
+        bet_type,
+        bet_value,
+        amount: selectedChip
+      });
+      if (error) throw error;
     } catch (e: any) { toast.error(e.message); }
   };
 
@@ -512,14 +549,14 @@ export default function RouletteStandaloneGame({ onBack }: { onBack: () => void 
   const myBetsMap: Record<string, number> = {};
   if (myBets) {
     for (const b of myBets) {
-      myBetsMap[`${b.betType}_${b.betValue}`] = (myBetsMap[`${b.betType}_${b.betValue}`] ?? 0) + b.amount;
+      myBetsMap[`${b.bet_type}_${b.bet_value}`] = (myBetsMap[`${b.bet_type}_${b.bet_value}`] ?? 0) + b.amount;
     }
   }
   const totalBet = Object.values(myBetsMap).reduce((a, b) => a + b, 0);
 
   const isBetting = activeRound?.status === "betting" && timeLeft > 0;
   const isSpinning = activeRound?.status === "spinning";
-  const winNum = activeRound?.winNumber;
+  const winNum = activeRound?.win_number;
   const winCol = winNum !== undefined ? getColor(winNum) : null;
   const colHex = winCol === "red" ? "#ef4444" : winCol === "green" ? "#22c55e" : "#9ca3af";
 
@@ -655,13 +692,13 @@ export default function RouletteStandaloneGame({ onBack }: { onBack: () => void 
                   <span className="text-gray-700 text-[9px]">لا توجد نتائج</span>
                 )}
                 {recentRounds?.slice(0, 10).map((r, i) => {
-                  if (r.winNumber === undefined) return null;
-                  const c = getColor(r.winNumber);
+                  if (r.win_number === undefined) return null;
+                  const c = getColor(r.win_number);
                   const bg = c === "red" ? "#b91c1c" : c === "green" ? "#15803d" : "#1f2937";
                   return (
                     <div key={i} className="w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-black text-white flex-shrink-0"
                       style={{ background: bg, border: "1px solid rgba(255,255,255,0.15)" }}>
-                      {r.winNumber}
+                      {r.win_number}
                     </div>
                   );
                 })}

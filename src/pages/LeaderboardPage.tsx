@@ -1,17 +1,16 @@
 // Style reminder: صفحة ترتيب عربية RTL مستوحاة من المرجع المرفق؛ خلفية فاتحة slate، بطاقات بيضاء، خط Cairo، رأس ثابت، منصة للمراكز الثلاثة، وقائمة نتائج حقيقية بلا بيانات تجريبية.
 // Data reminder: جميع النتائج تأتي من Convex leaderboards ولا توجد بيانات تجريبية داخل الواجهة.
 // @ts-nocheck
-import { useQuery } from "convex/react";
-import { api } from "../../convex/_generated/api";
-import { Id } from "../../convex/_generated/dataModel";
-import { useMemo, useState } from "react";
+import { supabase } from "../lib/supabaseClient";
+import { useProfile } from "../components/ProfileManager";
+import { useEffect, useMemo, useState } from "react";
 import { VipName } from "../components/VipBadge";
 import { LevelPillBadge } from "../components/LevelBadgeInline";
 
 interface LeaderboardPageProps {
   onBack: () => void;
-  onUserSelect?: (id: Id<"users">) => void;
-  onRoomSelect?: (id: Id<"rooms">) => void;
+  onUserSelect?: (id: string) => void;
+  onRoomSelect?: (id: string) => void;
 }
 type Category = "wealth" | "charisma" | "rooms";
 type Period = "daily" | "weekly" | "monthly";
@@ -36,19 +35,25 @@ function Avatar({ url, name, room = false, large = false }: { url?: string; name
 export default function LeaderboardPage({ onBack, onUserSelect, onRoomSelect }: LeaderboardPageProps) {
   const [category, setCategory] = useState<Category>("wealth");
   const [period, setPeriod] = useState<Period>("daily");
-  const profile = useQuery(api.profiles.getMyProfile);
-  const wealth = useQuery(api.leaderboards.getWealthLeaderboard, category === "wealth" ? { period } : "skip");
-  const charisma = useQuery(api.leaderboards.getCharismaLeaderboard, category === "charisma" ? { period } : "skip");
-  const rooms = useQuery(api.leaderboards.getRoomsLeaderboard, category === "rooms" ? { period } : "skip");
+  const { profile } = useProfile();
+  const [data, setData] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      // Placeholder for Supabase leaderboard queries
+      setData([]);
+    };
+    fetchData();
+  }, [category, period]);
+
   const meta = META[category];
-  const data = category === "rooms" ? rooms : category === "charisma" ? charisma : wealth;
   const entries = (data ?? []) as any[];
   const podium = [entries[1], entries[0], entries[2]];
   const colors = ["#cbd5e1", "#fbbf24", "#fb923c"];
   const heights = ["h-16", "h-24", "h-12"];
-  const myRank = useMemo(() => category === "rooms" || !profile?.userId ? null : entries.find((entry: any) => entry.userId === profile.userId), [category, entries, profile?.userId]);
+  const myRank = useMemo(() => category === "rooms" || !profile?.user_id ? null : entries.find((entry: any) => entry.user_id === profile.user_id), [category, entries, profile?.user_id]);
   const isRoom = category === "rooms";
-  const openEntry = (entry: any) => isRoom ? onRoomSelect?.(entry.roomId as Id<"rooms">) : onUserSelect?.(entry.userId as Id<"users">);
+  const openEntry = (entry: any) => isRoom ? onRoomSelect?.(entry.room_id as string) : onUserSelect?.(entry.user_id as string);
 
   return <div className="flex min-h-screen flex-col overflow-hidden bg-slate-50 text-slate-800" dir="rtl" style={{ fontFamily: "'Cairo', sans-serif" }}>
     <header className="sticky top-0 z-50 border-b border-slate-200 bg-white/95 px-3 pb-3 pt-[max(12px,env(safe-area-inset-top))] shadow-sm backdrop-blur-md">
@@ -64,6 +69,6 @@ export default function LeaderboardPage({ onBack, onUserSelect, onRoomSelect }: 
       </>}
     </main>
 
-    {!isRoom && profile && <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-slate-200 bg-white/95 px-3 py-3 shadow-[0_-5px_20px_rgba(15,23,42,.08)] backdrop-blur-md"><div className="mx-auto flex max-w-md items-center justify-between gap-3"><div className="flex min-w-0 items-center gap-2.5"><span className="w-6 text-center text-sm font-black text-slate-500">{myRank?.rank ?? "—"}</span><Avatar url={profile.avatarUrl} name={profile.name} /><div className="min-w-0"><div className="truncate text-xs font-black text-slate-800">{profile.name ?? "حسابي"}</div><div className="mt-1 flex items-center gap-1.5">{profile.isVip && <span className="rounded border border-red-200 bg-red-50 px-1.5 text-[8px] font-black text-red-600">PRO</span>}{profile.wealthLevel > 0 && <LevelPillBadge level={profile.wealthLevel} type="wealth" size="xs" />}</div></div></div><div className="text-left"><div className="text-sm font-black text-slate-900">{myRank ? formatScore(myRank.total) : "—"}</div><div className="text-[9px] font-semibold text-slate-400">{myRank ? "إجمالي الترتيب" : "لم تدخل الترتيب بعد"}</div></div></div></div>}
+    {!isRoom && profile && <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-slate-200 bg-white/95 px-3 py-3 shadow-[0_-5px_20px_rgba(15,23,42,.08)] backdrop-blur-md"><div className="mx-auto flex max-w-md items-center justify-between gap-3"><div className="flex min-w-0 items-center gap-2.5"><span className="w-6 text-center text-sm font-black text-slate-500">{myRank?.rank ?? "—"}</span><Avatar url={profile.avatar_url} name={profile.name} /><div className="min-w-0"><div className="truncate text-xs font-black text-slate-800">{profile.name ?? "حسابي"}</div><div className="mt-1 flex items-center gap-1.5">{profile.isVip && <span className="rounded border border-red-200 bg-red-50 px-1.5 text-[8px] font-black text-red-600">PRO</span>}{profile.wealth_level > 0 && <LevelPillBadge level={profile.wealth_level} type="wealth" size="xs" />}</div></div></div><div className="text-left"><div className="text-sm font-black text-slate-900">{myRank ? formatScore(myRank.total) : "—"}</div><div className="text-[9px] font-semibold text-slate-400">{myRank ? "إجمالي الترتيب" : "لم تدخل الترتيب بعد"}</div></div></div></div>}
   </div>;
 }

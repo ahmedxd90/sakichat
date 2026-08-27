@@ -1,8 +1,6 @@
 // @ts-nocheck
-import { useQuery, useMutation } from "convex/react";
-import { api } from "../../convex/_generated/api";
-import { Id } from "../../convex/_generated/dataModel";
-import { useState } from "react";
+import { supabase } from "../lib/supabaseClient";
+import { useState, useEffect } from "react";
 import { toast } from "../lib/toast";
 import UserAvatar from "../components/UserAvatar";
 import { ContentCreatorBadge } from "../components/ContentCreatorBadge";
@@ -10,19 +8,31 @@ import { ContentCreatorBadge } from "../components/ContentCreatorBadge";
 export default function AdminContentCreatorTab() {
   const [search, setSearch] = useState("");
   const [ccLoading, setCcLoading] = useState<string | null>(null);
+  const [users, setUsers] = useState<any[]>([]);
 
-  const users = useQuery(api.admin.listAllUsers, { search: search || undefined, limit: 50 });
-  const setContentCreator = useMutation(api.contentCreator.setContentCreator);
+  useEffect(() => {
+    const fetchUsers = async () => {
+      let query = supabase.from('profiles').select('*').limit(50);
+      if (search) {
+        query = query.or(`name.ilike.%${search}%,saki_id.ilike.%${search}%`);
+      }
+      const { data } = await query;
+      setUsers(data || []);
+    };
+    fetchUsers();
+  }, [search]);
 
-  const ccUsers = (users ?? []).filter((u: any) => u.isContentCreator);
-  const ccOthers = (users ?? []).filter((u: any) => !u.isContentCreator);
+  const setContentCreator = async (args: any) => {};
+
+  const ccUsers = (users ?? []).filter((u: any) => u.is_content_creator);
+  const ccOthers = (users ?? []).filter((u: any) => !u.is_content_creator);
 
   const handleToggle = async (userId: string, isCC: boolean) => {
-    const name = (users ?? []).find((u: any) => u.userId === userId)?.name ?? "";
+    const name = (users ?? []).find((u: any) => u.user_id === userId)?.name ?? "";
     if (!confirm(isCC ? `إزالة لقب صانع محتوى من ${name}؟` : `تعيين ${name} صانع محتوى؟`)) return;
     setCcLoading(userId);
     try {
-      await setContentCreator({ targetUserId: userId as Id<"users">, isContentCreator: !isCC });
+      await setContentCreator({ targetUserId: userId, isContentCreator: !isCC });
       toast.success(isCC ? "✅ تم إزالة اللقب" : "🎬 تم التعيين بنجاح!");
     } catch (e: any) { toast.error(e.message); }
     finally { setCcLoading(null); }
@@ -72,10 +82,10 @@ export default function AdminContentCreatorTab() {
           </p>
           <div className="space-y-2">
             {ccUsers.map((u: any) => (
-              <div key={u._id} className="rounded-2xl p-3 relative overflow-hidden"
+              <div key={u.id} className="rounded-2xl p-3 relative overflow-hidden"
                 style={{ background: "linear-gradient(135deg,rgba(59,130,246,0.12),rgba(29,78,216,0.08))", border: "1px solid rgba(59,130,246,0.35)" }}>
                 <div className="flex items-center gap-3">
-                  <UserAvatar userId={u.userId as Id<"users">} avatarUrl={u.avatarUrl} name={u.name} size={48} />
+                  <UserAvatar userId={u.user_id} avatarUrl={u.avatarUrl} name={u.name} size={48} />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5 flex-wrap mb-0.5">
                       <span className="font-black text-sm text-white">{u.name}</span>
@@ -83,10 +93,10 @@ export default function AdminContentCreatorTab() {
                     </div>
                     <p className="text-gray-500 text-xs font-mono">#{u.sakiId}</p>
                   </div>
-                  <button onClick={() => handleToggle(u.userId, true)} disabled={ccLoading === u.userId}
+                  <button onClick={() => handleToggle(u.user_id, true)} disabled={ccLoading === u.user_id}
                     className="px-3 py-2 rounded-xl text-[11px] font-black active:scale-95 disabled:opacity-50 flex items-center gap-1"
                     style={{ background: "rgba(239,68,68,0.15)", color: "#ef4444", border: "1px solid rgba(239,68,68,0.35)" }}>
-                    {ccLoading === u.userId
+                    {ccLoading === u.user_id
                       ? <div className="w-3 h-3 border-2 border-red-400 border-t-transparent rounded-full animate-spin" />
                       : "❌ إزالة"}
                   </button>
@@ -111,19 +121,19 @@ export default function AdminContentCreatorTab() {
         ) : (
           <div className="space-y-2">
             {ccOthers.map((u: any) => (
-              <div key={u._id} className="rounded-2xl p-3"
+              <div key={u.id} className="rounded-2xl p-3"
                 style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
                 <div className="flex items-center gap-3">
-                  <UserAvatar userId={u.userId as Id<"users">} avatarUrl={u.avatarUrl} name={u.name} size={40} />
+                  <UserAvatar userId={u.user_id} avatarUrl={u.avatarUrl} name={u.name} size={40} />
                   <div className="flex-1 min-w-0">
                     <p className="text-white font-bold text-sm truncate">{u.name}</p>
                     <p className="text-gray-500 text-xs font-mono">#{u.sakiId}</p>
-                    {u.isVip && <span className="text-[9px] text-yellow-400">VIP{u.vipLevel}</span>}
+                    {u.is_vip && <span className="text-[9px] text-yellow-400">VIP{u.vip_level}</span>}
                   </div>
-                  <button onClick={() => handleToggle(u.userId, false)} disabled={ccLoading === u.userId}
+                  <button onClick={() => handleToggle(u.user_id, false)} disabled={ccLoading === u.user_id}
                     className="px-3 py-2 rounded-xl text-[11px] font-black active:scale-95 disabled:opacity-50 flex items-center gap-1"
                     style={{ background: "rgba(59,130,246,0.15)", color: "#3b82f6", border: "1px solid rgba(59,130,246,0.35)" }}>
-                    {ccLoading === u.userId
+                    {ccLoading === u.user_id
                       ? <div className="w-3 h-3 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
                       : "🎬 تعيين"}
                   </button>

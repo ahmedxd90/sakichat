@@ -1,7 +1,7 @@
-import { useQuery } from "convex/react";
-import { api } from "../../convex/_generated/api";
+import { useState, useEffect } from "react";
 import { Page } from "../App";
 import { useLang } from "../hooks/useLang";
+import { supabase } from "../lib/supabaseClient";
 
 // Style reminder: Saki bottom navigation uses a clean white surface, cobalt-blue active state, real SVG icons, and restrained motion.
 type IconProps = { active: boolean };
@@ -26,8 +26,23 @@ export default function BottomNav({ currentPage, setCurrentPage }: {
   currentPage: Page;
   setCurrentPage: (p: Page) => void;
 }) {
-  const friendsCount = useQuery(api.friends.getPendingRequestsCount) ?? 0;
-  const msgUnread = useQuery(api.messages.getTotalUnreadCount) ?? 0;
+  const [friendsCount, setFriendsCount] = useState(0);
+  const [msgUnread, setMsgUnread] = useState(0);
+  
+  useEffect(() => {
+    const fetchBadges = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      
+      const { count: friends } = await supabase.from('friend_requests').select('*', { count: 'exact', head: true }).eq('receiver_id', user.id).eq('status', 'pending');
+      const { count: msgs } = await supabase.from('messages').select('*', { count: 'exact', head: true }).eq('receiver_id', user.id).eq('is_read', false);
+      
+      setFriendsCount(friends || 0);
+      setMsgUnread(msgs || 0);
+    };
+    fetchBadges();
+  }, []);
+
   const totalMsgBadge = msgUnread + friendsCount;
   const { tr } = useLang();
 

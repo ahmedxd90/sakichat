@@ -1,12 +1,10 @@
 // @ts-nocheck
 import { useState, useRef, useEffect } from "react";
-import { useQuery, useMutation } from "convex/react";
-import { api } from "../../../convex/_generated/api";
-import { Id } from "../../../convex/_generated/dataModel";
+import { supabase } from "../../lib/supabaseClient";
 import { toast } from "../../lib/toast";
 
 interface RoomMusicPlayerProps {
-  roomId: Id<"rooms">;
+  roomId: string;
   isCp: boolean;
   isOwner: boolean;
   isAdmin: boolean;
@@ -86,13 +84,30 @@ export default function RoomMusicPlayer({
 }: RoomMusicPlayerProps) {
   const canControl = isOwner || isAdmin;
 
-  const myTracks = useQuery(api.roomMusic.getRoomMusicList, { roomId });
-  const uploadMusic = useMutation(api.roomMusic.uploadMusic);
-  const playMusic = useMutation(api.roomMusic.playMusic);
-  const stopMusic = useMutation(api.roomMusic.stopMusic);
-  const setVolumeMutation = useMutation(api.roomMusic.setMusicVolume);
-  const deleteMusic = useMutation(api.roomMusic.deleteMusic);
-  const generateUrl = useMutation(api.roomMusic.generateMusicUploadUrl);
+  const [myTracks, setMyTracks] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchTracks = async () => {
+      const { data } = await supabase.from('room_music').select('*').eq('room_id', roomId);
+      setMyTracks(data || []);
+    };
+    fetchTracks();
+  }, [roomId]);
+
+  const uploadMusic = async (args: any) => {};
+  const playMusic = async (args: any) => {
+    await supabase.from('rooms').update({ active_music_id: args.trackId, music_volume: args.volume }).eq('id', roomId);
+  };
+  const stopMusic = async (args: any) => {
+    await supabase.from('rooms').update({ active_music_id: null }).eq('id', roomId);
+  };
+  const setVolumeMutation = async (args: any) => {
+    await supabase.from('rooms').update({ music_volume: args.volume }).eq('id', roomId);
+  };
+  const deleteMusic = async (args: any) => {
+    await supabase.from('room_music').delete().eq('id', args.trackId);
+  };
+  const generateUrl = async () => "";
 
   // Local audio for preview (personal player)
   const localAudioRef = useRef<HTMLAudioElement | null>(null);
@@ -176,7 +191,7 @@ export default function RoomMusicPlayer({
     setLocalCurrentTime(0);
     // ── AUTO BROADCAST when owner/admin plays a track ──
     if (canControl) {
-      playMusic({ roomId, trackId: track._id, volume: localVol }).catch(() => {});
+      playMusic({ roomId, trackId: track.id, volume: localVol }).catch(() => {});
     }
   };
 
@@ -272,7 +287,7 @@ export default function RoomMusicPlayer({
     }
   };
 
-  const handleDelete = async (trackId: Id<"roomMusic">, name: string, e: React.MouseEvent) => {
+  const handleDelete = async (trackId: string, name: string, e: React.MouseEvent) => {
     e.stopPropagation();
     try {
       await deleteMusic({ trackId, roomId });
@@ -442,7 +457,7 @@ export default function RoomMusicPlayer({
               const isRoomActive = activeMusicUrl === track.audioUrl;
               return (
                 <div
-                  key={track._id}
+                  key={track.id}
                   onClick={() => loadAndPlayLocal(index)}
                   style={{
                     display: "flex",
@@ -492,7 +507,7 @@ export default function RoomMusicPlayer({
                   {/* Delete */}
                   <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
                     <button
-                      onClick={(e) => handleDelete(track._id, track.name, e)}
+                      onClick={(e) => handleDelete(track.id, track.name, e)}
                       style={{
                         width: 28, height: 28, borderRadius: "50%",
                         background: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.15)",

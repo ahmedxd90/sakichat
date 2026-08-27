@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
-import { useMutation } from "convex/react";
-import { api } from "../../convex/_generated/api";
+import { supabase } from "../lib/supabaseClient";
 import { toast } from "../lib/toast";
 import confetti from "canvas-confetti";
 
@@ -124,7 +123,7 @@ function RewardCard({ reward, claimed }: { reward: Reward; claimed: boolean }) {
 }
 
 export default function NewUserWelcomePopup({ onClose }: NewUserWelcomePopupProps) {
-  const claimNewUserReward = useMutation(api.newUserRewards.claimNewUserReward);
+  const claimNewUserReward = async () => {};
   const [claiming, setClaiming] = useState(false);
   const [closing, setClosing] = useState(false);
   const [phase, setPhase] = useState<"welcome" | "claimed">("welcome");

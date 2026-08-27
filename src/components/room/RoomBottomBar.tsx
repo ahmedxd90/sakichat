@@ -1,6 +1,5 @@
 // @ts-nocheck
 import { useEffect, useState } from "react";
-import { Id } from "../../../convex/_generated/dataModel";
 import { Smile } from "lucide-react";
 
 interface RoomBottomBarProps {
@@ -14,7 +13,7 @@ interface RoomBottomBarProps {
   isSpeakerOff: boolean;
   messageText: string;
   inputRef: React.RefObject<HTMLInputElement>;
-  roomId: Id<"rooms">;
+  roomId: string;
   onToggleMute: () => void;
   onToggleSpeaker: () => void;
   onShowEmojiPicker: () => void;

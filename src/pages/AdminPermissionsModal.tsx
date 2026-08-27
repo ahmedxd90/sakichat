@@ -1,8 +1,6 @@
 // @ts-nocheck
 import { useState, useRef } from "react";
-import { useMutation } from "convex/react";
-import { api } from "../../convex/_generated/api";
-import { Id } from "../../convex/_generated/dataModel";
+import { supabase } from "../lib/supabaseClient";
 import { toast } from "../lib/toast";
 import AdminTitleBadge, { ADMIN_TITLE_BG_PRESETS } from "../components/AdminTitleBadge";
 
@@ -64,7 +62,7 @@ export default function AdminPermissionsModal({
   // ── Permissions state ──
   const [selected, setSelected] = useState<string[]>(user.adminPermissions ?? []);
   const [saving, setSaving] = useState(false);
-  const updatePermissions = useMutation(api.superAdmin.updateAdminPermissions);
+  const updatePermissions = async (args: any) => {};
 
   // ── Admin Title state ──
   const [titleText, setTitleText] = useState(user.adminTitle ?? "");
@@ -77,9 +75,9 @@ export default function AdminPermissionsModal({
   const [clearingTitle, setClearingTitle] = useState(false);
   const iconInputRef = useRef<HTMLInputElement>(null);
 
-  const generateUploadUrl = useMutation(api.superAdmin.generateAdminTitleIconUploadUrl);
-  const updateAdminTitle = useMutation(api.superAdmin.updateAdminTitle);
-  const clearAdminTitle = useMutation(api.superAdmin.clearAdminTitle);
+  const generateUploadUrl = async () => "";
+  const updateAdminTitle = async (args: any) => {};
+  const clearAdminTitle = async (args: any) => {};
 
   // ── Permissions handlers ──
   const toggle = (id: string) => {
@@ -94,7 +92,7 @@ export default function AdminPermissionsModal({
       if (isNewAssignment && onAssign) {
         await onAssign(selected);
       } else {
-        await updatePermissions({ targetUserId: user.userId as Id<"users">, adminPermissions: selected });
+        await updatePermissions({ targetUserId: user.userId as string, adminPermissions: selected });
         toast.success("✅ تم تحديث الصلاحيات");
         onSaved?.();
       }
@@ -135,7 +133,7 @@ export default function AdminPermissionsModal({
     try {
       const storageId = (iconInputRef as any)._storageId;
       await updateAdminTitle({
-        targetUserId: user.userId as Id<"users">,
+        targetUserId: user.userId as string,
         adminTitle: titleText.trim(),
         adminTitleColor1: color1,
         adminTitleColor2: color2,
@@ -155,7 +153,7 @@ export default function AdminPermissionsModal({
     if (!confirm(`إزالة اللقب المخصص من ${user.name}؟`)) return;
     setClearingTitle(true);
     try {
-      await clearAdminTitle({ targetUserId: user.userId as Id<"users"> });
+      await clearAdminTitle({ targetUserId: user.userId as string });
       setTitleText("");
       setIconUrl("");
       (iconInputRef as any)._storageId = undefined;

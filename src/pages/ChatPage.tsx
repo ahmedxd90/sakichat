@@ -1,8 +1,5 @@
 // @ts-nocheck
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { useQuery, useMutation, useAction } from "convex/react";
-import { api } from "../../convex/_generated/api";
-import { Id } from "../../convex/_generated/dataModel";
 import { VipFrame, VipName, VipBadge, getVipConfig } from "../components/VipBadge";
 import UserAvatar from "../components/UserAvatar";
 import { toast } from "../lib/toast";
@@ -11,11 +8,13 @@ import AiChatPanel from "../components/AiChatPanel";
 import SharedReelBubble from "../components/SharedReelBubble";
 import { useHardwareBack } from "../hooks/useHardwareBack";
 import { useLang } from "../hooks/useLang";
+import { supabase } from "../lib/supabaseClient";
+import { useProfile } from "../components/ProfileManager";
 
 interface ChatPageProps {
-  otherUserId: Id<"users">;
+  otherUserId: string;
   onBack: () => void;
-  onViewProfile?: (userId: Id<"users">) => void;
+  onViewProfile?: (userId: string) => void;
   onStartVideoCall?: (callId: any, channelName: string, otherName: string, otherAvatarUrl?: string) => void;
 }
 
@@ -52,22 +51,62 @@ function aristocracyBubble(level: number, isMe: boolean) {
 
 export default function ChatPage({ otherUserId, onBack, onViewProfile, onStartVideoCall }: ChatPageProps) {
   const { lang } = useLang();
-  const messages = useQuery(api.messages.getDirectMessages, { otherUserId });
-  const otherProfile = useQuery(api.profiles.getProfileByUserId, { userId: otherUserId });
-  const myProfile = useQuery(api.profiles.getMyProfile);
+  const { profile: myProfile } = useProfile();
+  const [messages, setMessages] = useState<any[]>([]);
+  const [otherProfile, setOtherProfile] = useState<any>(null);
+  const [isOtherTyping, setIsOtherTyping] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      const { data: profile } = await supabase.from('profiles').select('*').eq('user_id', otherUserId).single();
+      setOtherProfile(profile);
+      
+      const { data: msgs } = await supabase
+        .from('messages')
+        .select('*')
+        .or(`and(sender_id.eq.${myProfile?.user_id},receiver_id.eq.${otherUserId}),and(sender_id.eq.${otherUserId},receiver_id.eq.${myProfile?.user_id})`)
+        .order('created_at', { ascending: false })
+        .limit(50);
+      
+      setMessages((msgs || []).reverse());
+      setIsLoading(false);
+    };
+    if (myProfile) fetchData();
+
+    const channel = supabase.channel(`chat:${otherUserId}`)
+      .on('postgres_changes', { event: 'INSERT', table: 'messages' }, (payload) => {
+        const msg = payload.new;
+        if ((msg.sender_id === otherUserId && msg.receiver_id === myProfile?.user_id) || 
+            (msg.sender_id === myProfile?.user_id && msg.receiver_id === otherUserId)) {
+          setMessages(prev => [...prev, msg]);
+        }
+      })
+      .subscribe();
+    
+    return () => { supabase.removeChannel(channel); };
+  }, [otherUserId, myProfile]);
+
   const isPrivateOther = Boolean(otherProfile?.isPrivateProfile);
   const otherDisplayName = isPrivateOther ? "شخصي" : (otherProfile?.name ?? "...");
-  const blockStatus = useQuery(api.chatBlocks.getBlockStatus, { otherUserId });
-  const isOtherTyping = useQuery(api.typing.getTypingStatus, { otherUserId });
 
-  const sendMessage = useMutation(api.messages.sendDirectMessage);
-  const sendImage = useMutation(api.messages.sendDirectImage);
-  const sendVideo = useMutation(api.messages.sendDirectVideo);
-  const sendVoice = useMutation(api.messages.sendDirectVoice);
-  const submitReport = useMutation(api.userReports.reportBySakiId);
-  const markAsRead = useMutation(api.messages.markAsRead);
-  const generateUploadUrl = useMutation(api.messages.generateUploadUrl);
-  const setTyping = useMutation(api.typing.setTyping);
+  const sendMessage = async ({ receiverId, content }: any) => {
+    await supabase.from('messages').insert({
+      sender_id: myProfile?.user_id,
+      receiver_id: receiverId,
+      content: content,
+      type: 'text'
+    });
+  };
+  const markAsRead = async () => {
+    await supabase.from('messages').update({ is_read: true }).eq('sender_id', otherUserId).eq('receiver_id', myProfile?.user_id);
+  };
+  const setTyping = async ({ otherUserId, isTyping }: any) => {};
+  const generateUploadUrl = async () => "";
+  const sendImage = async ({ receiverId, imageStorageId }: any) => {};
+  const sendVideo = async ({ receiverId, videoStorageId }: any) => {};
+  const sendVoice = async ({ receiverId, voiceStorageId, voiceDuration }: any) => {};
+  const submitReport = async ({ sakiId, reason, details }: any) => {};
 
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
@@ -95,8 +134,8 @@ export default function ChatPage({ otherUserId, onBack, onViewProfile, onStartVi
   }, [messages]);
 
   useEffect(() => {
-    markAsRead({ otherUserId });
-  }, [otherUserId]);
+    if (myProfile) markAsRead();
+  }, [otherUserId, myProfile]);
 
   useEffect(() => {
     return () => {
@@ -244,25 +283,25 @@ export default function ChatPage({ otherUserId, onBack, onViewProfile, onStartVi
   };
 
   const renderMessage = (msg: any) => {
-    const isMe = msg.senderId === myProfile?.userId;
-    const timeStr = new Date(msg.createdAt).toLocaleTimeString("ar-SA", { hour: "2-digit", minute: "2-digit" });
-    const rawLevel = isMe ? (myProfile?.aristocracyLevel ?? 0) : (otherProfile?.aristocracyLevel ?? 0);
-    const expiresAt = isMe ? (myProfile?.aristocracyExpiresAt ?? 0) : (otherProfile?.aristocracyExpiresAt ?? 0);
+    const isMe = msg.sender_id === myProfile?.user_id;
+    const timeStr = new Date(msg.created_at).toLocaleTimeString("ar-SA", { hour: "2-digit", minute: "2-digit" });
+    const rawLevel = isMe ? (myProfile?.aristocracy_level ?? 0) : (otherProfile?.aristocracy_level ?? 0);
+    const expiresAt = isMe ? (myProfile?.aristocracy_expires_at ?? 0) : (otherProfile?.aristocracy_expires_at ?? 0);
     const activeLevel = rawLevel > 0 && (!expiresAt || expiresAt > Date.now()) ? rawLevel : 0;
 
     if (msg.type === "system") {
       return (
-        <div key={msg._id} className="flex justify-center my-4">
+        <div key={msg.id} className="flex justify-center my-4">
           <span className="system-msg-pill">{msg.content}</span>
         </div>
       );
     }
 
     return (
-      <div key={msg._id} className={`flex ${isMe ? "justify-end" : "justify-start"} items-start gap-2.5 mb-4`}>
+      <div key={msg.id} className={`flex ${isMe ? "justify-end" : "justify-start"} items-start gap-2.5 mb-4`}>
         {!isMe && (
           <div onClick={() => onViewProfile?.(otherUserId)} className="cursor-pointer">
-            <UserAvatar userId={otherUserId} avatarUrl={otherProfile?.avatarUrl} name={otherDisplayName} size={36} showFrame={!isPrivateOther} />
+            <UserAvatar userId={otherUserId} avatarUrl={otherProfile?.avatar_url} name={otherDisplayName} size={36} showFrame={!isPrivateOther} />
           </div>
         )}
         <div className={`flex flex-col space-y-1 max-w-[78%] ${isMe ? "items-end" : "items-start"}`}>
@@ -271,24 +310,24 @@ export default function ChatPage({ otherUserId, onBack, onViewProfile, onStartVi
           <div className={`bubble ${isMe ? "bubble-me" : "bubble-other"}`} style={aristocracyBubble(activeLevel, isMe)}>
             {msg.type === "text" && <p className="text-sm font-medium leading-relaxed">{msg.content}</p>}
             {msg.type === "image" && (
-              <a href={msg.imageUrl} target="_blank" rel="noreferrer" className="block relative overflow-hidden rounded-xl">
-                <img src={msg.imageUrl} alt="chat" className="max-h-60 max-w-full object-cover" loading="lazy" />
+              <a href={msg.image_url} target="_blank" rel="noreferrer" className="block relative overflow-hidden rounded-xl">
+                <img src={msg.image_url} alt="chat" className="max-h-60 max-w-full object-cover" loading="lazy" />
               </a>
             )}
             {msg.type === "video" && (
-              <video src={msg.videoUrl} controls playsInline preload="metadata" className="max-h-72 max-w-full rounded-xl bg-black" />
+              <video src={msg.video_url} controls playsInline preload="metadata" className="max-h-72 max-w-full rounded-xl bg-black" />
             )}
             {msg.type === "voice" && (
               <div className="flex items-center gap-3 min-w-[140px]">
                 <button 
-                  onClick={() => toggleVoicePlay(msg._id, msg.voiceUrl)}
+                  onClick={() => toggleVoicePlay(msg.id, msg.voice_url)}
                   className="voice-play-btn"
                 >
-                  <LineIcon name={playingVoice === msg._id ? "x" : "play"} className="w-4 h-4" />
+                  <LineIcon name={playingVoice === msg.id ? "x" : "play"} className="w-4 h-4" />
                 </button>
                 <div className="flex-1 space-y-1">
                   <div className="voice-progress-bg">
-                    <div className={`voice-progress-bar ${playingVoice === msg._id ? "animate-pulse" : ""}`} style={{ width: "60%" }}></div>
+                    <div className={`voice-progress-bar ${playingVoice === msg.id ? "animate-pulse" : ""}`} style={{ width: "60%" }}></div>
                   </div>
                   <span className="voice-duration">{Math.floor(msg.voiceDuration || msg.duration || 0)}s</span>
                 </div>
@@ -310,7 +349,7 @@ export default function ChatPage({ otherUserId, onBack, onViewProfile, onStartVi
           <LineIcon name="arrow-right" className="w-6 h-6" />
         </button>
         <div className="header-user-info" onClick={() => onViewProfile?.(otherUserId)}>
-          <UserAvatar userId={otherUserId} avatarUrl={otherProfile?.avatarUrl} name={otherDisplayName} size={40} showFrame={!isPrivateOther} />
+          <UserAvatar userId={otherUserId} avatarUrl={otherProfile?.avatar_url} name={otherDisplayName} size={40} showFrame={!isPrivateOther} />
           <div className="flex flex-col">
             <h3 className="header-user-name">{otherDisplayName}</h3>
             <span className="header-user-status">
@@ -332,13 +371,13 @@ export default function ChatPage({ otherUserId, onBack, onViewProfile, onStartVi
       <main className="chat-messages-area">
         {messages?.map((msg, idx) => {
           const prev = messages[idx - 1];
-          const showDate = !prev || new Date(msg.createdAt).toDateString() !== new Date(prev.createdAt).toDateString();
+          const showDate = !prev || new Date(msg.created_at).toDateString() !== new Date(prev.createdAt).toDateString();
           return (
-            <div key={msg._id}>
+            <div key={msg.id}>
               {showDate && (
                 <div className="flex justify-center my-6">
                   <span className="date-pill">
-                    {new Date(msg.createdAt).toLocaleDateString("ar-SA", { weekday: 'long', day: 'numeric', month: 'long' })}
+                    {new Date(msg.created_at).toLocaleDateString("ar-SA", { weekday: 'long', day: 'numeric', month: 'long' })}
                   </span>
                 </div>
               )}

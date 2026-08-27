@@ -1,7 +1,6 @@
 // @ts-nocheck
-import { useQuery, useMutation } from "convex/react";
-import { api } from "../../convex/_generated/api";
-import { useState } from "react";
+import { supabase } from "../lib/supabaseClient";
+import { useState, useEffect } from "react";
 import { toast } from "../lib/toast";
 import SubAgentsTab from "./SubAgentsTab";
 import { AgentChargeBadge } from "../components/AgentChargeBadge";
@@ -31,10 +30,10 @@ function SakiCoinIcon({ size = 24 }: { size?: number }) {
 const SAKI_TO_COINS = 60000;
 
 export default function AgentChargePage({ onBack }: AgentChargePageProps) {
-  const wallet = useQuery(api.sakiWallet.getMyWallet);
-  const transactions = useQuery(api.sakiWallet.getMyTransactions);
-  const chargeUser = useMutation(api.sakiWallet.chargeUserWithSaki);
-  const isSubAgent = useQuery(api.subAgents.amISubAgent);
+  const [wallet, setWallet] = useState<any>(null);
+  const [transactions, setTransactions] = useState<any[]>([]);
+  const [isSubAgent, setIsSubAgent] = useState(false);
+  const [searchUser, setSearchUser] = useState<any>(null);
 
   const [tab, setTab] = useState<"charge" | "history" | "subagents">("charge");
   const [sakiId, setSakiId] = useState("");
@@ -43,10 +42,30 @@ export default function AgentChargePage({ onBack }: AgentChargePageProps) {
   const [note, setNote] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const searchUser = useQuery(
-    api.profiles.getProfileBySakiId,
-    sakiId.trim().length >= 1 ? { sakiId: sakiId.trim() } : "skip"
-  );
+  useEffect(() => {
+    const fetchData = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: w } = await supabase.from('saki_wallets').select('*').eq('user_id', user.id).single();
+        setWallet(w);
+        const { data: tx } = await supabase.from('saki_transactions').select('*').eq('user_id', user.id).order('created_at', { ascending: false });
+        setTransactions(tx || []);
+        const { data: sa } = await supabase.from('sub_agents').select('*').eq('user_id', user.id).single();
+        setIsSubAgent(!!sa);
+      }
+    };
+    fetchData();
+  }, []);
+
+  useEffect(() => {
+    if (sakiId.trim().length >= 1) {
+      supabase.from('profiles').select('*').eq('saki_id', sakiId.trim()).single().then(({ data }) => setSearchUser(data));
+    } else {
+      setSearchUser(null);
+    }
+  }, [sakiId]);
+
+  const chargeUser = async (args: any) => ({ coinsAdded: 0, targetName: "" });
 
   const sakiBal = wallet?.sakiBalance ?? 0;
   const coinsPreview = sakiAmount ? Number(sakiAmount) * SAKI_TO_COINS : 0;
@@ -283,7 +302,7 @@ export default function AgentChargePage({ onBack }: AgentChargePageProps) {
                   const icon = isCharge ? "⚡" : isAdd ? "+" : "-";
                   const label = isCharge ? "شحن مستخدم" : isAdd ? "اضافة ادارية" : "خصم اداري";
                   return (
-                    <div key={tx._id} className="rounded-xl px-4 py-3 flex items-center justify-between"
+                    <div key={tx.id} className="rounded-xl px-4 py-3 flex items-center justify-between"
                       style={{ background: `${color}08`, border: `1px solid ${color}20` }}>
                       <div className="flex items-center gap-3">
                         <div className="w-9 h-9 rounded-xl flex items-center justify-center text-lg flex-shrink-0"

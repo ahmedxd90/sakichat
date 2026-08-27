@@ -1,11 +1,9 @@
 import { useState, useRef, useEffect } from "react";
-import { useQuery, useMutation } from "convex/react";
-import { api } from "../../convex/_generated/api";
-import { Id } from "../../convex/_generated/dataModel";
+import { supabase } from "../lib/supabaseClient";
 import { toast } from "sonner";
 
 interface RoomMusicSheetProps {
-  roomId: Id<"rooms">;
+  roomId: string;
   isOwner: boolean;
   activeMusicUrl?: string;
   activeMusicName?: string;
@@ -14,19 +12,21 @@ interface RoomMusicSheetProps {
 }
 
 export default function RoomMusicSheet({ roomId, isOwner, activeMusicUrl, activeMusicName, musicVolume, onClose }: RoomMusicSheetProps) {
-  const tracks = useQuery(api.roomMusic.getRoomMusicList, { roomId });
-  const uploadMusic = useMutation(api.roomMusic.uploadMusic);
-  const playMusic = useMutation(api.roomMusic.playMusic);
-  const stopMusic = useMutation(api.roomMusic.stopMusic);
-  const setVolume = useMutation(api.roomMusic.setMusicVolume);
-  const deleteMusic = useMutation(api.roomMusic.deleteMusic);
-  const generateUrl = useMutation(api.roomMusic.generateMusicUploadUrl);
-
+  const [tracks, setTracks] = useState<any[]>([]);
   const [uploading, setUploading] = useState(false);
   const [vol, setVol] = useState(musicVolume ?? 80);
-  const [playingId, setPlayingId] = useState<Id<"roomMusic"> | null>(null);
+  const [playingId, setPlayingId] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  const fetchTracks = async () => {
+    const { data } = await supabase.from('room_music').select('*').eq('room_id', roomId).order('created_at', { ascending: false });
+    setTracks(data || []);
+  };
+
+  useEffect(() => {
+    fetchTracks();
+  }, [roomId]);
 
   // Sync volume
   useEffect(() => { setVol(musicVolume ?? 80); }, [musicVolume]);
@@ -58,19 +58,40 @@ export default function RoomMusicSheet({ roomId, isOwner, activeMusicUrl, active
     if (file.size > 20 * 1024 * 1024) { toast.error("حجم الملف يجب أن يكون أقل من 20 ميجابايت"); return; }
     setUploading(true);
     try {
-      const uploadUrl = await generateUrl();
-      const res = await fetch(uploadUrl, { method: "POST", headers: { "Content-Type": file.type }, body: file });
-      const { storageId } = await res.json();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("يجب تسجيل الدخول");
+
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${roomId}-${Math.random()}.${fileExt}`;
+      const { data, error: uploadError } = await supabase.storage.from('room_music').upload(fileName, file);
+      if (uploadError) throw uploadError;
+      
+      const { data: { publicUrl } } = supabase.storage.from('room_music').getPublicUrl(data.path);
       const name = file.name.replace(/\.[^/.]+$/, "");
-      await uploadMusic({ roomId, name, audioStorageId: storageId });
+      
+      const { error } = await supabase.from('room_music').insert({
+        room_id: roomId,
+        name,
+        audio_url: publicUrl,
+        uploader_id: user.id
+      });
+      if (error) throw error;
+      
       toast.success("تم رفع الموسيقى ✅");
+      fetchTracks();
     } catch (e: any) { toast.error(e.message); }
     finally { setUploading(false); if (fileRef.current) fileRef.current.value = ""; }
   };
 
-  const handlePlay = async (trackId: Id<"roomMusic">) => {
+  const handlePlay = async (trackId: string) => {
     try {
-      await playMusic({ roomId, trackId, volume: vol });
+      const track = tracks.find(t => t.id === trackId);
+      if (!track) return;
+      await supabase.from('rooms').update({
+        active_music_url: track.audio_url,
+        active_music_name: track.name,
+        music_volume: vol
+      }).eq('id', roomId);
       setPlayingId(trackId);
       toast.success("تم تشغيل الموسيقى 🎵");
     } catch (e: any) { toast.error(e.message); }
@@ -78,7 +99,10 @@ export default function RoomMusicSheet({ roomId, isOwner, activeMusicUrl, active
 
   const handleStop = async () => {
     try {
-      await stopMusic({ roomId });
+      await supabase.from('rooms').update({
+        active_music_url: null,
+        active_music_name: null
+      }).eq('id', roomId);
       setPlayingId(null);
       toast.success("تم إيقاف الموسيقى");
     } catch (e: any) { toast.error(e.message); }
@@ -87,13 +111,19 @@ export default function RoomMusicSheet({ roomId, isOwner, activeMusicUrl, active
   const handleVolumeChange = async (v: number) => {
     setVol(v);
     if (audioRef.current) audioRef.current.volume = v / 100;
-    try { await setVolume({ roomId, volume: v }); } catch {}
+    try { await supabase.from('rooms').update({ music_volume: v }).eq('id', roomId); } catch {}
   };
 
-  const handleDelete = async (trackId: Id<"roomMusic">) => {
+  const handleDelete = async (trackId: string) => {
     try {
-      await deleteMusic({ trackId, roomId });
+      const track = tracks.find(t => t.id === trackId);
+      if (track) {
+        const path = track.audio_url.split('/').pop();
+        if (path) await supabase.storage.from('room_music').remove([path]);
+      }
+      await supabase.from('room_music').delete().eq('id', trackId);
       toast.success("تم حذف المقطع");
+      fetchTracks();
     } catch (e: any) { toast.error(e.message); }
   };
 
@@ -181,9 +211,9 @@ export default function RoomMusicSheet({ roomId, isOwner, activeMusicUrl, active
             </div>
           ) : (
             tracks.map((track) => {
-              const isActive = activeMusicUrl === track.audioUrl;
+              const isActive = activeMusicUrl === track.audio_url;
               return (
-                <div key={track._id} className="flex items-center gap-3 rounded-2xl px-3 py-3"
+                <div key={track.id} className="flex items-center gap-3 rounded-2xl px-3 py-3"
                   style={isActive
                     ? { background: "rgba(168,85,247,0.2)", border: "1px solid rgba(168,85,247,0.4)" }
                     : { background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
@@ -205,12 +235,12 @@ export default function RoomMusicSheet({ roomId, isOwner, activeMusicUrl, active
                           <svg width="10" height="10" viewBox="0 0 24 24" fill="#ef4444"><rect x="6" y="6" width="12" height="12" rx="1" /></svg>
                         </button>
                       ) : (
-                        <button onClick={() => handlePlay(track._id)} className="w-8 h-8 rounded-xl flex items-center justify-center"
+                        <button onClick={() => handlePlay(track.id)} className="w-8 h-8 rounded-xl flex items-center justify-center"
                           style={{ background: "linear-gradient(135deg,#7c3aed,#a855f7)" }}>
                           <svg width="10" height="10" viewBox="0 0 24 24" fill="white"><polygon points="6,3 20,12 6,21" /></svg>
                         </button>
                       )}
-                      <button onClick={() => handleDelete(track._id)} className="w-8 h-8 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center justify-center">
+                      <button onClick={() => handleDelete(track.id)} className="w-8 h-8 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center justify-center">
                         <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2"><polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14H6L5 6" /><path d="M10 11v6M14 11v6" /></svg>
                       </button>
                     </div>

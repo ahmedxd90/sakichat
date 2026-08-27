@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from "react";
-import { useAction } from "convex/react";
-import { api } from "../../convex/_generated/api";
+import { supabase } from "../lib/supabaseClient";
 import {
   joinAgoraGlobal,
   leaveAgoraGlobal,
@@ -41,8 +40,15 @@ export function useAgoraVoiceRoom(
   const [isConnecting, setIsConnecting] = useState(false);
   const [speakingUsers] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
-  const generateToken = useAction(api.agora.generateToken);
   const isLeavingRef = useRef(false);
+
+  const generateToken = async ({ channelName, uid }: { channelName: string; uid: string }) => {
+    const { data, error } = await supabase.functions.invoke('agora-token', {
+      body: { channelName, uid }
+    });
+    if (error) throw error;
+    return data.token;
+  };
 
   // Subscribe to global state changes
   useEffect(() => {

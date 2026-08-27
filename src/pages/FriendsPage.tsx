@@ -1,16 +1,15 @@
 // @ts-nocheck
 import React, { useState } from "react";
-import { useQuery, useMutation } from "convex/react";
-import { api } from "../../convex/_generated/api";
-import { Id } from "../../convex/_generated/dataModel";
+import { supabase } from "../lib/supabaseClient";
+import { useEffect } from "react";
 import { toast } from "../lib/toast";
 import UserAvatar from "../components/UserAvatar";
 import { VipBadge, VipName } from "../components/VipBadge";
 import { useHardwareBack } from "../hooks/useHardwareBack";
 
 interface FriendsPageProps {
-  onViewProfile: (userId: Id<"users">) => void;
-  onMessage: (userId: Id<"users">) => void;
+  onViewProfile: (userId: string) => void;
+  onMessage: (userId: string) => void;
   hideHeader?: boolean;
   onBack?: () => void;
 }
@@ -21,15 +20,28 @@ export default function FriendsPage({ onViewProfile, onMessage, hideHeader, onBa
   const [activeTab, setActiveTab] = useState<TabType>("friends");
   const [search, setSearch] = useState("");
 
-  const friends = useQuery(api.friends.getMyFriends);
-  const pendingRequests = useQuery(api.friends.getPendingRequests);
-  const pendingCount = useQuery(api.friends.getPendingRequestsCount) ?? 0;
-  const sentRequests = useQuery(api.friends.getMySentRequests);
+  const [friends, setFriends] = useState<any[]>([]);
+  const [pendingRequests, setPendingRequests] = useState<any[]>([]);
+  const [pendingCount, setPendingCount] = useState(0);
+  const [sentRequests, setSentRequests] = useState<any[]>([]);
 
-  const acceptRequest = useMutation(api.friends.acceptFriendRequest);
-  const rejectRequest = useMutation(api.friends.rejectFriendRequest);
-  const cancelRequest = useMutation(api.friends.cancelFriendRequest);
-  const removeFriend = useMutation(api.friends.removeFriend);
+  useEffect(() => {
+    const fetchData = async () => {
+      const { data: friendsData } = await supabase.from('friends').select('*, friend_profile:profiles(*)');
+      setFriends(friendsData || []);
+      const { data: requestsData } = await supabase.from('friend_requests').select('*, sender_profile:profiles(*)').eq('status', 'pending');
+      setPendingRequests(requestsData || []);
+      setPendingCount(requestsData?.length || 0);
+      const { data: sentData } = await supabase.from('friend_requests').select('*, receiver_profile:profiles(*)').eq('status', 'pending');
+      setSentRequests(sentData || []);
+    };
+    fetchData();
+  }, [activeTab]);
+
+  const acceptRequest = async (args: any) => {};
+  const rejectRequest = async (args: any) => {};
+  const cancelRequest = async (args: any) => {};
+  const removeFriend = async (args: any) => {};
 
   const [loadingId, setLoadingId] = useState<string | null>(null);
 
@@ -40,7 +52,7 @@ export default function FriendsPage({ onViewProfile, onMessage, hideHeader, onBa
   // زر الرجوع في الهاتف — فقط إذا كانت الصفحة مستقلة
   useHardwareBack(onBack ?? (() => {}), !!onBack && !hideHeader);
 
-  const handleAccept = async (requestId: Id<"friendRequests">) => {
+  const handleAccept = async (requestId: string) => {
     setLoadingId(requestId);
     try {
       await acceptRequest({ requestId });
@@ -49,7 +61,7 @@ export default function FriendsPage({ onViewProfile, onMessage, hideHeader, onBa
     finally { setLoadingId(null); }
   };
 
-  const handleReject = async (requestId: Id<"friendRequests">) => {
+  const handleReject = async (requestId: string) => {
     setLoadingId(requestId);
     try {
       await rejectRequest({ requestId });
@@ -58,7 +70,7 @@ export default function FriendsPage({ onViewProfile, onMessage, hideHeader, onBa
     finally { setLoadingId(null); }
   };
 
-  const handleCancel = async (targetUserId: Id<"users">) => {
+  const handleCancel = async (targetUserId: string) => {
     setLoadingId(targetUserId);
     try {
       await cancelRequest({ targetUserId });
@@ -67,7 +79,7 @@ export default function FriendsPage({ onViewProfile, onMessage, hideHeader, onBa
     finally { setLoadingId(null); }
   };
 
-  const handleRemove = async (friendUserId: Id<"users">) => {
+  const handleRemove = async (friendUserId: string) => {
     setLoadingId(friendUserId);
     try {
       await removeFriend({ friendUserId });
@@ -175,7 +187,7 @@ export default function FriendsPage({ onViewProfile, onMessage, hideHeader, onBa
               </div>
             ) : (
               filteredFriends.map((friend: any) => (
-                <FriendCard key={friend._id} profile={friend}
+                <FriendCard key={friend.id} profile={friend}
                   onViewProfile={() => onViewProfile(friend.userId)}
                   onMessage={() => onMessage(friend.userId)}
                   onRemove={() => handleRemove(friend.userId)}
@@ -204,7 +216,7 @@ export default function FriendsPage({ onViewProfile, onMessage, hideHeader, onBa
               </div>
             ) : (
               pendingRequests.map((req: any) => (
-                <div key={req._id} className="flex items-center gap-3 rounded-2xl p-3.5 bg-green-50 border border-green-100">
+                <div key={req.id} className="flex items-center gap-3 rounded-2xl p-3.5 bg-green-50 border border-green-100">
                   <button onClick={() => onViewProfile(req.senderId)} className="flex-shrink-0">
                     <UserAvatar userId={req.senderId} avatarUrl={req.senderProfile?.avatarUrl} name={req.senderProfile?.name} size={50} />
                   </button>
@@ -218,12 +230,12 @@ export default function FriendsPage({ onViewProfile, onMessage, hideHeader, onBa
                     <p className="text-gray-500 text-xs">يريد إضافتك كصديق</p>
                   </div>
                   <div className="flex gap-1.5 flex-shrink-0">
-                    <button onClick={() => handleAccept(req._id)} disabled={loadingId === req._id}
+                    <button onClick={() => handleAccept(req.id)} disabled={loadingId === req.id}
                       className="px-3 py-2 rounded-xl text-xs font-black text-white disabled:opacity-50 active:scale-95"
                       style={{ background: "linear-gradient(135deg, #10b981, #059669)" }}>
-                      {loadingId === req._id ? "..." : "قبول"}
+                      {loadingId === req.id ? "..." : "قبول"}
                     </button>
-                    <button onClick={() => handleReject(req._id)} disabled={loadingId === req._id}
+                    <button onClick={() => handleReject(req.id)} disabled={loadingId === req.id}
                       className="px-3 py-2 rounded-xl text-xs font-black disabled:opacity-50 active:scale-95 bg-red-50 border border-red-200 text-red-500">
                       ✕
                     </button>
@@ -253,7 +265,7 @@ export default function FriendsPage({ onViewProfile, onMessage, hideHeader, onBa
               </div>
             ) : (
               sentRequests.map((req: any) => (
-                <div key={req._id} className="flex items-center gap-3 rounded-2xl p-3.5 bg-amber-50 border border-amber-100">
+                <div key={req.id} className="flex items-center gap-3 rounded-2xl p-3.5 bg-amber-50 border border-amber-100">
                   <button onClick={() => onViewProfile(req.receiverId)} className="flex-shrink-0">
                     <UserAvatar userId={req.receiverId} avatarUrl={req.receiverProfile?.avatarUrl} name={req.receiverProfile?.name} size={50} />
                   </button>

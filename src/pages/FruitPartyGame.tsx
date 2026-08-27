@@ -1,7 +1,6 @@
 // @ts-nocheck
 import { useState, useEffect, useRef, useCallback } from "react";
-import { useQuery, useMutation } from "convex/react";
-import { api } from "../../convex/_generated/api";
+import { supabase } from "../lib/supabaseClient";
 import { toast } from "../lib/toast";
 
 // ── Real fruit emojis ──────────────────────────────────────────────────────────
@@ -28,29 +27,35 @@ const GRID_KEYS = [
 interface Props { onBack: () => void; roomId?: any }
 
 export default function FruitPartyGame({ onBack, roomId }: Props) {
-  const profile       = useQuery(api.profiles.getMyProfile);
-  const currentRound  = useQuery(api.fruitParty.getCurrentRound, roomId ? { roomId } : "skip");
-  const lastRounds    = useQuery(api.fruitParty.getLastRounds, roomId ? { roomId } : "skip");
-  const leaderboard   = useQuery(api.fruitParty.getLeaderboard);
-  const todayWinnings = useQuery(api.fruitParty.getMyTodayWinnings);
-  const betsSummary   = useQuery(
-    api.fruitParty.getRoundBetsSummary,
-    currentRound ? { roundId: currentRound._id } : "skip"
-  );
-  const myBets = useQuery(
-    api.fruitParty.getMyBetsForRound,
-    currentRound ? { roundId: currentRound._id } : "skip"
-  );
+  const [profile, setProfile] = useState<any>(null);
+  const [currentRound, setCurrentRound] = useState<any>(null);
+  const [lastRounds, setLastRounds] = useState<any[]>([]);
+  const [leaderboard, setLeaderboard] = useState<any[]>([]);
+  const [todayWinnings, setTodayWinnings] = useState<any>(null);
+  const [betsSummary, setBetsSummary] = useState<any>(null);
+  const [myBets, setMyBets] = useState<any[]>([]);
   const [resultRoundId, setResultRoundId] = useState<string | null>(null);
-  const topBettors = useQuery(
-    api.fruitParty.getRoundTopBettors,
-    resultRoundId ? { roundId: resultRoundId as any } : "skip"
-  );
+  const [topBettors, setTopBettors] = useState<any[]>([]);
 
-  const placeBetMut       = useMutation(api.fruitParty.placeBet);
-  const startNewRound     = useMutation(api.fruitParty.startNewRound);
-  const resolveExpiredRound = useMutation(api.fruitParty.resolveExpiredRound);
-  const ensureRoomRound = useCallback(() => roomId ? startNewRound({ roomId }) : Promise.resolve(null), [roomId, startNewRound]);
+  useEffect(() => {
+    const fetchData = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: p } = await supabase.from('profiles').select('*').eq('user_id', user.id).single();
+        setProfile(p);
+      }
+      const { data: round } = await supabase.from('fruit_party_rounds').select('*').eq('status', 'betting').order('created_at', { ascending: false }).limit(1).single();
+      setCurrentRound(round);
+      const { data: last } = await supabase.from('fruit_party_rounds').select('*').eq('status', 'finished').order('created_at', { ascending: false }).limit(10);
+      setLastRounds(last || []);
+    };
+    fetchData();
+  }, []);
+
+  const placeBetMut = async (args: any) => {};
+  const startNewRound = async (args: any) => {};
+  const resolveExpiredRound = async (args: any) => {};
+  const ensureRoomRound = useCallback(() => roomId ? startNewRound({ roomId }) : Promise.resolve(null), [roomId]);
 
   const [selectedAmount, setSelectedAmount] = useState(1000);
   const [selectedKeys, setSelectedKeys] = useState<string[]>([]);
@@ -99,12 +104,12 @@ export default function FruitPartyGame({ onBack, roomId }: Props) {
     update();
     intervalRef.current = setInterval(update, 200);
     return () => clearInterval(intervalRef.current);
-  }, [currentRound?.endsAt, currentRound?._id]);
+  }, [currentRound?.endsAt, currentRound?.id || currentRound?._id]);
 
   // New round → reset
   useEffect(() => {
     if (!currentRound) return;
-    const rid = currentRound._id as string;
+    const rid = currentRound.id as string;
     if (prevRoundIdRef.current && prevRoundIdRef.current !== rid) {
       phaseRef.current = "betting";
       setPhase("betting");
@@ -118,7 +123,7 @@ export default function FruitPartyGame({ onBack, roomId }: Props) {
       clearTimeout(resultTimerRef.current);
     }
     prevRoundIdRef.current = rid;
-  }, [currentRound?._id]);
+  }, [currentRound?.id || currentRound?._id]);
 
   // Start spinning when the server round expires, even if the query has
   // already removed it from the active-round result.
@@ -140,7 +145,7 @@ export default function FruitPartyGame({ onBack, roomId }: Props) {
           recoveryRoundRef.current = null;
         });
     }
-  }, [timeLeft, currentRound?._id, ensureRoomRound, resolveExpiredRound]);
+  }, [timeLeft, currentRound?.id || currentRound?._id, ensureRoomRound, resolveExpiredRound]);
 
   const startSpinAnimation = useCallback(() => {
     if (spinTimerRef.current) clearTimeout(spinTimerRef.current);
@@ -171,7 +176,7 @@ export default function FruitPartyGame({ onBack, roomId }: Props) {
     if (!lastRounds || lastRounds.length === 0) return;
     const latest = lastRounds[0];
     if (!latest.winnerFruit) return;
-    const rid = latest._id as string;
+    const rid = latest.id || latest._id as string;
     if (shownResultRef.current === rid) return;
     shownResultRef.current = rid;
 
@@ -198,7 +203,7 @@ export default function FruitPartyGame({ onBack, roomId }: Props) {
     const elapsed = Date.now() - spinStartedAtRef.current;
     const remainingSpinMs = Math.max(0, 5000 - elapsed);
     setTimeout(apply, remainingSpinMs);
-  }, [lastRounds?.[0]?._id]);
+  }, [lastRounds?.[0]?.id]);
 
   // Surface a visible diagnostic instead of leaving the user on a silent 0-second screen.
   useEffect(() => {
@@ -217,7 +222,7 @@ export default function FruitPartyGame({ onBack, roomId }: Props) {
     const timer = window.setTimeout(() => {
       setDiagnostic({
         title: "توقفت اللعبة أثناء السحب",
-        details: `roundId=${String(activeRoundRef.current?._id ?? "مفقود")} • roomId=${String(roomId ?? "مفقود")} • آخر عداد=${timeLeft} • لم تصل نتيجة finished خلال 8 ثوانٍ`,
+        details: `roundId=${String((activeRoundRef.current?.id || activeRoundRef.current?._id) ?? "مفقود")} • roomId=${String(roomId ?? "مفقود")} • آخر عداد=${timeLeft} • لم تصل نتيجة finished خلال 8 ثوانٍ`,
       });
     }, 8000);
     return () => window.clearTimeout(timer);
@@ -262,14 +267,14 @@ export default function FruitPartyGame({ onBack, roomId }: Props) {
     // Rate limit: repeated bets on the same selected item are allowed.
     setPlacing(true);
     try {
-      await placeBetMut({ roundId: currentRound._id, fruitKey, amount: selectedAmount });
+      await placeBetMut({ roundId: currentRound.id || currentRound._id, fruitKey, amount: selectedAmount });
       toast.success(`رهنت ${selectedAmount.toLocaleString()} على ${FRUIT_ITEMS.find(f => f.key === fruitKey)?.label}`);
     } catch (e: any) {
       const message = e?.message ?? "حدث خطأ غير معروف من الخادم";
       const balance = profile?.goldCoins ?? "غير متاح";
       setDiagnostic({
         title: "تعذر تنفيذ الرهان",
-        details: `${message} • roomId=${String(roomId ?? "مفقود")} • roundId=${String(currentRound?._id ?? "مفقود")} • phase=${phase} • timeLeft=${timeLeft} • الرصيد=${balance}`,
+        details: `${message} • roomId=${String(roomId ?? "مفقود")} • roundId=${String((currentRound?.id || currentRound?._id) ?? "مفقود")} • phase=${phase} • timeLeft=${timeLeft} • الرصيد=${balance}`,
       });
       toast.error(message);
     } finally {

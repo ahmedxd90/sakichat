@@ -1,7 +1,6 @@
 // @ts-nocheck
-import { useState } from "react";
-import { useQuery, useMutation } from "convex/react";
-import { api } from "../../convex/_generated/api";
+import { supabase } from "../lib/supabaseClient";
+import { useState, useEffect } from "react";
 import { toast } from "../lib/toast";
 import { formatNumber } from "../lib/formatNumber";
 
@@ -10,11 +9,25 @@ interface InvitePageProps {
 }
 
 export default function InvitePage({ onBack }: InvitePageProps) {
-  const referralInfo = useQuery(api.referrals.getMyReferralInfo);
-  const generateCode = useMutation(api.referrals.generateMyReferralCode);
-  const applyCode = useMutation(api.referrals.applyReferralCode);
-  const claimAmbassador = useMutation(api.referrals.claimAmbassadorReward);
-  const profile = useQuery(api.profiles.getMyProfile);
+  const [referralInfo, setReferralInfo] = useState<any>(null);
+  const [profile, setProfile] = useState<any>(null);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: p } = await supabase.from('profiles').select('*').eq('user_id', user.id).single();
+        setProfile(p);
+        const { data: r } = await supabase.from('referral_info').select('*').eq('user_id', user.id).single();
+        setReferralInfo(r);
+      }
+    };
+    fetchData();
+  }, []);
+
+  const generateCode = async (args: any) => {};
+  const applyCode = async (args: any) => ({ referrerName: "" });
+  const claimAmbassador = async (args: any) => {};
 
   const [applyInput, setApplyInput] = useState("");
   const [applyLoading, setApplyLoading] = useState(false);

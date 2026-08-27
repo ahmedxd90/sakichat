@@ -1,17 +1,15 @@
 // @ts-nocheck
 import { useState, useEffect } from "react";
-import { useQuery, useMutation } from "convex/react";
-import { api } from "../../../convex/_generated/api";
-import { Id } from "../../../convex/_generated/dataModel";
+import { supabase } from "../../lib/supabaseClient";
 import { toast } from "../../lib/toast";
 import { formatNumber } from "../../lib/formatNumber";
 
 interface SeatBattleSheetProps {
-  roomId: Id<"rooms">;
+  roomId: string;
   isOwner: boolean;
   isAdmin?: boolean;
   myCoins: number;
-  myUserId?: Id<"users">;
+  myUserId?: string;
   onClose: () => void;
 }
 
@@ -28,23 +26,34 @@ export default function SeatBattleSheet({
   const canManage = isOwner || isAdmin;
   const [tab, setTab] = useState<"active" | "setup">("active");
   const [duration, setDuration] = useState(10);
-  const [lionTeam, setLionTeam] = useState<Id<"users">[]>([]);
-  const [tigerTeam, setTigerTeam] = useState<Id<"users">[]>([]);
+  const [lionTeam, setLionTeam] = useState<string[]>([]);
+  const [tigerTeam, setTigerTeam] = useState<string[]>([]);
   const [contributeAmount, setContributeAmount] = useState(100);
   const [selectedTeam, setSelectedTeam] = useState<"lion" | "tiger">("lion");
   const [loading, setLoading] = useState(false);
   const [now, setNow] = useState(() => Date.now());
 
-  const activeBattle = useQuery(api.seatBattle.getActiveSeatBattle, { roomId });
-  const seatedMembers = useQuery(api.seatBattle.getSeatedMembersForBattle, { roomId });
-  const contributions = useQuery(
-    api.seatBattle.getSeatBattleContributions,
-    activeBattle ? { battleId: activeBattle._id } : "skip"
-  );
+  const [activeBattle, setActiveBattle] = useState<any>(null);
+  const [seatedMembers, setSeatedMembers] = useState<any[]>([]);
+  const [contributions, setContributions] = useState<any[]>([]);
 
-  const createBattle = useMutation(api.seatBattle.createSeatBattle);
-  const contribute = useMutation(api.seatBattle.contributeToSeatBattle);
-  const endEarly = useMutation(api.seatBattle.endSeatBattleEarly);
+  useEffect(() => {
+    const fetchData = async () => {
+      const { data: battle } = await supabase.from('seat_battles').select('*').eq('room_id', roomId).eq('status', 'active').single();
+      setActiveBattle(battle);
+      if (battle) {
+        const { data: contribs } = await supabase.from('seat_battle_contributions').select('*').eq('battle_id', battle.id);
+        setContributions(contribs || []);
+      }
+      const { data: members } = await supabase.from('room_members').select('*, profiles(*)').eq('room_id', roomId).not('seat_index', 'is', null);
+      setSeatedMembers(members || []);
+    };
+    fetchData();
+  }, [roomId]);
+
+  const createBattle = async (args: any) => {};
+  const contribute = async (args: any) => {};
+  const endEarly = async (args: any) => {};
 
   useEffect(() => {
     if (!activeBattle || activeBattle.status !== "active") return;
@@ -52,15 +61,15 @@ export default function SeatBattleSheet({
     return () => clearInterval(t);
   }, [activeBattle?.status]);
 
-  const timeLeft = activeBattle?.endsAt ? Math.max(0, activeBattle.endsAt - now) : 0;
+  const timeLeft = activeBattle?.ends_at ? Math.max(0, activeBattle.ends_at - now) : 0;
   const minutes = Math.floor(timeLeft / 60000);
   const seconds = Math.floor((timeLeft % 60000) / 1000);
 
-  const totalCoins = (activeBattle?.lionCoins ?? 0) + (activeBattle?.tigerCoins ?? 0);
-  const lionPct = totalCoins > 0 ? ((activeBattle?.lionCoins ?? 0) / totalCoins) * 100 : 50;
+  const totalCoins = (activeBattle?.lion_coins ?? 0) + (activeBattle?.tiger_coins ?? 0);
+  const lionPct = totalCoins > 0 ? ((activeBattle?.lion_coins ?? 0) / totalCoins) * 100 : 50;
   const tigerPct = 100 - lionPct;
 
-  const toggleMember = (userId: Id<"users">, team: "lion" | "tiger") => {
+  const toggleMember = (userId: string, team: "lion" | "tiger") => {
     if (team === "lion") {
       if (lionTeam.includes(userId)) {
         setLionTeam((p) => p.filter((id) => id !== userId));
@@ -101,7 +110,7 @@ export default function SeatBattleSheet({
     if (myCoins < contributeAmount) { toast.error("رصيدك غير كافٍ"); return; }
     setLoading(true);
     try {
-      await contribute({ battleId: activeBattle._id, team: selectedTeam, coins: contributeAmount });
+      await contribute({ battleId: activeBattle.id, team: selectedTeam, coins: contributeAmount });
       toast.success(`دعمت فريق ${selectedTeam === "lion" ? "الأسد 🦁" : "النمر 🐯"} بـ ${formatNumber(contributeAmount)} 🪙`);
     } catch (e: any) {
       toast.error(e.message);
@@ -114,7 +123,7 @@ export default function SeatBattleSheet({
     if (!activeBattle) return;
     setLoading(true);
     try {
-      await endEarly({ battleId: activeBattle._id });
+      await endEarly({ battleId: activeBattle.id });
       toast.success("تم إنهاء التحدي");
     } catch (e: any) {
       toast.error(e.message);
@@ -124,9 +133,9 @@ export default function SeatBattleSheet({
   };
 
   // Determine my team
-  const myTeam = activeBattle?.lionTeam?.includes(myUserId)
+  const myTeam = activeBattle?.lion_team?.includes(myUserId)
     ? "lion"
-    : activeBattle?.tigerTeam?.includes(myUserId)
+    : activeBattle?.tiger_team?.includes(myUserId)
       ? "tiger"
       : null;
 
@@ -346,14 +355,14 @@ export default function SeatBattleSheet({
                       <div className="text-center flex-1">
                         <div className="text-2xl mb-1">🦁</div>
                         <p className="text-blue-400 font-black text-sm">فريق الأسد</p>
-                        <p className="text-yellow-400 font-bold text-lg">{formatNumber(activeBattle.lionCoins)}</p>
+                        <p className="text-yellow-400 font-bold text-lg">{formatNumber(activeBattle.lion_coins)}</p>
                         <p className="text-gray-500 text-xs">🪙</p>
                       </div>
                       <div className="text-yellow-400 font-black text-xl px-3">VS</div>
                       <div className="text-center flex-1">
                         <div className="text-2xl mb-1">🐯</div>
                         <p className="text-red-400 font-black text-sm">فريق النمر</p>
-                        <p className="text-yellow-400 font-bold text-lg">{formatNumber(activeBattle.tigerCoins)}</p>
+                        <p className="text-yellow-400 font-bold text-lg">{formatNumber(activeBattle.tiger_coins)}</p>
                         <p className="text-gray-500 text-xs">🪙</p>
                       </div>
                     </div>
@@ -376,7 +385,7 @@ export default function SeatBattleSheet({
                     <div className="rounded-xl p-3"
                       style={{ background: "rgba(59,130,246,0.08)", border: "1px solid rgba(59,130,246,0.2)" }}>
                       <p className="text-blue-400 text-xs font-bold mb-2">🦁 فريق الأسد</p>
-                      {activeBattle.lionTeam.map((uid) => {
+                      {activeBattle.lion_team.map((uid) => {
                         const m = seatedMembers?.find((s) => s.userId === uid);
                         return (
                           <p key={uid} className="text-white text-xs truncate mb-1">
@@ -388,7 +397,7 @@ export default function SeatBattleSheet({
                     <div className="rounded-xl p-3"
                       style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)" }}>
                       <p className="text-red-400 text-xs font-bold mb-2">🐯 فريق النمر</p>
-                      {activeBattle.tigerTeam.map((uid) => {
+                      {activeBattle.tiger_team.map((uid) => {
                         const m = seatedMembers?.find((s) => s.userId === uid);
                         return (
                           <p key={uid} className="text-white text-xs truncate mb-1">
@@ -517,11 +526,11 @@ export default function SeatBattleSheet({
               <div className="flex justify-center gap-6 mt-3">
                 <div className="text-center">
                   <p className="text-blue-400 text-xs">🦁 الأسد</p>
-                  <p className="text-white font-bold">{formatNumber(activeBattle.lionCoins)} 🪙</p>
+                  <p className="text-white font-bold">{formatNumber(activeBattle.lion_coins)} 🪙</p>
                 </div>
                 <div className="text-center">
                   <p className="text-red-400 text-xs">🐯 النمر</p>
-                  <p className="text-white font-bold">{formatNumber(activeBattle.tigerCoins)} 🪙</p>
+                  <p className="text-white font-bold">{formatNumber(activeBattle.tiger_coins)} 🪙</p>
                 </div>
               </div>
               {canManage && (

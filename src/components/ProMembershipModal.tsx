@@ -1,20 +1,30 @@
 import { useState } from "react";
-import { useMutation } from "convex/react";
-import { api } from "../../convex/_generated/api";
+import { supabase } from "../lib/supabaseClient";
 import { toast } from "../lib/toast";
 
 export default function ProMembershipModal({ profile, onClose }: { profile: any; onClose: () => void }) {
-  const purchasePro = useMutation(api.adminExtra.purchasePro);
   const [durationDays, setDurationDays] = useState(30);
   const [loading, setLoading] = useState(false);
-  const isActive = Boolean(profile?.isPro && (profile?.proExpiresAt ?? 0) > Date.now());
-  const balance = profile?.goldCoins ?? 0;
+  const isActive = Boolean(profile?.is_pro && (profile?.pro_expires_at ?? 0) > Date.now());
+  const balance = profile?.gold_coins ?? 0;
   const canBuy = balance >= 2_000_000;
 
   const purchase = async () => {
     setLoading(true);
     try {
-      await purchasePro({ durationDays });
+      // In Supabase, we would call an RPC or update the profile directly
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("يجب تسجيل الدخول");
+      
+      const newExpiry = Date.now() + durationDays * 24 * 60 * 60 * 1000;
+      const { error } = await supabase.from('profiles').update({
+        is_pro: true,
+        pro_expires_at: newExpiry,
+        gold_coins: balance - 2_000_000
+      }).eq('id', user.id);
+
+      if (error) throw error;
+      
       toast.success("🚀 تم تفعيل عضوية PRO بنجاح");
       onClose();
     } catch (error: any) {

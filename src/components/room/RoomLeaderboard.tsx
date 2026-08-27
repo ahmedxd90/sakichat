@@ -1,5 +1,4 @@
 // @ts-nocheck
-import { Id } from "../../../convex/_generated/dataModel";
 import { VipFrame, VipName, VipBadge } from "../VipBadge";
 
 interface RoomLeaderboardProps {

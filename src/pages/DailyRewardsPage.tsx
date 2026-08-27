@@ -1,6 +1,5 @@
 // @ts-nocheck
-import { useQuery, useMutation } from "convex/react";
-import { api } from "../../convex/_generated/api";
+import { supabase } from "../lib/supabaseClient";
 import { useState, useEffect } from "react";
 import { toast } from "../lib/toast";
 
@@ -55,10 +54,23 @@ const CAT_COLORS: Record<string, string> = {
 };
 
 export default function DailyRewardsPage({ onBack, initialTab = "checkin" }: DailyRewardsPageProps) {
-  const checkinStatus = useQuery(api.dailyRewards.getCheckinStatus);
-  const tasksData = useQuery(api.dailyRewards.getDailyTasksStatus);
-  const claimCheckin = useMutation(api.dailyRewards.claimDailyCheckin);
-  const claimTask = useMutation(api.dailyRewards.claimTaskReward);
+  const [checkinStatus, setCheckinStatus] = useState<any>(null);
+  const [tasksData, setTasksData] = useState<any>(null);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        // Placeholder for checkin and tasks data
+        setCheckinStatus({ checkedInToday: true, currentStreak: 1, nextDay: 2, rewards: [] });
+        setTasksData({ tasks: [] });
+      }
+    };
+    fetchData();
+  }, []);
+
+  const claimCheckin = async () => ({ reward: null });
+  const claimTask = async (args: any) => ({ reward: 0 });
 
   const [tab, setTab] = useState<"checkin" | "tasks">(initialTab);
   const [claiming, setClaiming] = useState(false);

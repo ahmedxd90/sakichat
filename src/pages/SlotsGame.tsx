@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { useQuery, useMutation } from "convex/react";
-import { api } from "../../convex/_generated/api";
+import { supabase } from "../lib/supabaseClient";
+import { useEffect } from "react";
 import { toast } from "../lib/toast";
 
 const SLOT_SYMBOLS = [
@@ -18,10 +18,26 @@ const BET_AMOUNTS = [10, 50, 100, 500, 1000, 5000, 10000, 50000];
 interface Props { onBack: () => void }
 
 export default function SlotsGame({ onBack }: Props) {
-  const profile = useQuery(api.profiles.getMyProfile);
-  const history = useQuery(api.slots.getMySlotsHistory);
-  const leaderboard = useQuery(api.slots.getSlotsLeaderboard);
-  const pullSlots = useMutation(api.slots.pullSlots);
+  const [profile, setProfile] = useState<any>(null);
+  const [history, setHistory] = useState<any[]>([]);
+  const [leaderboard, setLeaderboard] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: p } = await supabase.from('profiles').select('*').eq('user_id', user.id).single();
+        setProfile(p);
+      }
+      const { data: h } = await supabase.from('slots_history').select('*').order('created_at', { ascending: false }).limit(20);
+      setHistory(h || []);
+      const { data: l } = await supabase.from('slots_leaderboard').select('*, profile:profiles(*)').order('total_win', { ascending: false }).limit(10);
+      setLeaderboard(l || []);
+    };
+    fetchData();
+  }, []);
+
+  const pullSlots = async (args: any) => ({ reels: [0, 0, 0], payout: 0, profit: 0, winType: "خسارة" });
 
   const [betAmount, setBetAmount] = useState(100);
   const [spinning, setSpinning] = useState(false);
@@ -207,7 +223,7 @@ export default function SlotsGame({ onBack }: Props) {
             ) : history.length === 0 ? (
               <p className="text-gray-600 text-sm text-center py-10">لا توجد سحبات سابقة</p>
             ) : (history as any[]).map((spin) => (
-              <div key={spin._id} className="flex items-center justify-between rounded-2xl px-4 py-3"
+              <div key={spin.id} className="flex items-center justify-between rounded-2xl px-4 py-3"
                 style={{ background: spin.profit > 0 ? "rgba(16,185,129,0.06)" : "rgba(255,255,255,0.03)", border: spin.profit > 0 ? "1px solid rgba(16,185,129,0.2)" : "1px solid rgba(255,255,255,0.06)" }}>
                 <div className="flex items-center gap-3">
                   <div className="flex gap-1">
@@ -237,7 +253,7 @@ export default function SlotsGame({ onBack }: Props) {
             {!leaderboard ? (
               <div className="flex justify-center py-10"><div className="w-8 h-8 border-2 border-yellow-500 border-t-transparent rounded-full animate-spin" /></div>
             ) : (leaderboard as any[]).map((entry, idx) => (
-              <div key={entry._id} className="flex items-center gap-3 rounded-2xl px-4 py-3"
+              <div key={entry.id} className="flex items-center gap-3 rounded-2xl px-4 py-3"
                 style={{ background: idx === 0 ? "rgba(251,191,36,0.08)" : "rgba(255,255,255,0.04)", border: idx === 0 ? "1px solid rgba(251,191,36,0.3)" : "1px solid rgba(255,255,255,0.07)" }}>
                 <span className="text-xl font-black w-7 text-center">{idx === 0 ? "🥇" : idx === 1 ? "🥈" : idx === 2 ? "🥉" : `${idx + 1}`}</span>
                 <div className="w-10 h-10 rounded-full overflow-hidden flex-shrink-0" style={{ background: "linear-gradient(135deg,#d97706,#f97316)" }}>

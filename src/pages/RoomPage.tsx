@@ -1,8 +1,5 @@
 // @ts-nocheck
-import { useQuery, useMutation } from "convex/react";
 import { Capacitor } from "@capacitor/core";
-import { api } from "../../convex/_generated/api";
-import { Id } from "../../convex/_generated/dataModel";
 import { useState, useEffect, useRef, useMemo, useCallback, memo, Component, type ReactNode } from "react";
 import RoomAccessGate from "../components/room/RoomAccessGate";
 import CpBackground from "../components/CpBackground";
@@ -10,8 +7,8 @@ import MusicBackground from "../components/MusicBackground";
 import AstronomyBackground from "../components/AstronomyBackground";
 import DesertBackground from "../components/DesertBackground";
 import PKRoomBackground from "../components/PKBackground_room";
-import usePresence from "@convex-dev/presence/react";
 import { useAgoraVoiceRoom } from "../hooks/useAgoraVoiceRoom";
+import { supabase } from "../lib/supabaseClient";
 
 import { useHardwareBack } from "../hooks/useHardwareBack";
 import { toast } from "../lib/toast";
@@ -128,11 +125,11 @@ class RoomRenderBoundary extends Component<{ children: ReactNode }, { error: Err
 }
 
 interface RoomPageProps {
-  roomId: Id<"rooms">;
+  roomId: string;
   onBack: () => void;
-  onBackgroundLeave?: (roomId: Id<"rooms">) => void;
-  onViewProfile?: (userId: Id<"users">) => void;
-  onMessage?: (userId: Id<"users">) => void;
+  onBackgroundLeave?: (roomId: string) => void;
+  onViewProfile?: (userId: string) => void;
+  onMessage?: (userId: string) => void;
   isSubPageOpen?: boolean;
 }
 
@@ -156,60 +153,74 @@ export default function RoomPage({ roomId, onBack, onBackgroundLeave, onViewProf
 }
 
 function RoomPageInner({ roomId, onBack, onBackgroundLeave, onViewProfile, onMessage, isSubPageOpen = false }: RoomPageProps) {
-  // تفعيل دعوات المقاعد فقط بعد نشر دوال Convex في نفس البيئة؛ يمنع ذلك انهيار الغرفة عند غيابها.
-  const seatInvitesEnabled = import.meta.env.VITE_ENABLE_SEAT_INVITES === "true";
-  const seatInvitesAvailable = seatInvitesEnabled && Boolean((api as any).seatInvites?.getMyPendingInvite && (api as any).seatInvites?.respondToSeatInvite);
-  // ── QUERIES ──
-  const room = useQuery(api.rooms.getRoom, { roomId });
-  const members = useQuery(api.roomMembersHelper.getRoomMembersEnhanced, { roomId });
-  const roomCpPairs = useQuery(api.cpHome.getRoomCpPairs, { roomId });
-  const [joinedAt] = useState(() => Date.now());
-  const adminLockStatus = useQuery(api.adminLock.getRoomAdminLockStatus, { roomId });
+  const [room, setRoom] = useState<any>(null);
+  const [members, setMembers] = useState<any[]>([]);
+  const [messages, setMessages] = useState<any[]>([]);
+  const [myProfile, setMyProfile] = useState<any>(null);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [latestGiftEvent, setLatestGiftEvent] = useState<any>(null);
+  const [latestEmojiEvent, setLatestEmojiEvent] = useState<any>(null);
+  const [latestEntryEvent, setLatestEntryEvent] = useState<any>(null);
+  const [activeLuckyBag, setActiveLuckyBag] = useState<any>(null);
+  const [activePK, setActivePK] = useState<any>(null);
+  const [customGifts, setCustomGifts] = useState<any[]>([]);
+  const [leaderboard, setLeaderboard] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const messages = useQuery(api.messages.getRoomMessages, { roomId, joinedAt });
-  const myProfile = useQuery(api.profiles.getMyProfile);
-  const userId = useQuery(api.presence.getUserId);
-  const latestGiftEvent = useQuery(api.rooms.getLatestGiftEvent, { roomId });
-  const latestEmojiEvent = useQuery(api.roomEmojis.getLatestRoomEmojiEvent, { roomId });
-  const latestEntryEvent = useQuery(api.rooms.getLatestEntryEvent, { roomId });
-  const activeLuckyBag = useQuery(api.luckyBag.getActiveLuckyBag, { roomId });
+  useEffect(() => {
+    const fetchData = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        setUserId(user.id);
+        const { data: profile } = await supabase.from('profiles').select('*').eq('user_id', user.id).single();
+        setMyProfile(profile);
+      }
+      
+      const { data: roomData } = await supabase.from('rooms').select('*').eq('id', roomId).single();
+      setRoom(roomData);
+      
+      const { data: membersData } = await supabase.from('room_members').select('*, profile:profiles(*)').eq('room_id', roomId);
+      setMembers(membersData || []);
+      
+      const { data: msgsData } = await supabase.from('room_messages').select('*').eq('room_id', roomId).order('created_at', { ascending: false }).limit(50);
+      setMessages((msgsData || []).reverse());
+      
+      setIsLoading(false);
+    };
+    fetchData();
 
-  // ── PK QUERY ──
-  const activePK = useQuery(api.pk.getActivePKBattle, { roomId });
-  const lastFinishedPK = useQuery(api.pk.getLastFinishedPKBattle, { roomId });
+    // Realtime subscriptions
+    const roomChannel = supabase.channel(`room:${roomId}`)
+      .on('postgres_changes', { event: '*', table: 'room_members', filter: `room_id=eq.${roomId}` }, (payload) => {
+        // Refresh members
+      })
+      .on('postgres_changes', { event: 'INSERT', table: 'room_messages', filter: `room_id=eq.${roomId}` }, (payload) => {
+        setMessages(prev => [...prev, payload.new]);
+      })
+      .subscribe();
 
-  // ── IN-ROOM PK (disabled) ──
-  const activeInRoomPK = null;
-  const lastFinishedInRoomPK = null;
+    return () => { supabase.removeChannel(roomChannel); };
+  }, [roomId]);
 
-  // ── UI STATE (moved up to fix usage before declaration) ──
   const [showGifts, setShowGifts] = useState(false);
   const [giftsCategory, setGiftsCategory] = useState("general");
-
-  const customGifts = useQuery(api.rooms.getCustomGifts,
-    showGifts ? { category: giftsCategory === "all" ? undefined : giftsCategory } : "skip"
-  );
-
   const [leaderboardPeriod, setLeaderboardPeriod] = useState<"daily" | "weekly" | "monthly">("daily");
   const [showLeaderboard, setShowLeaderboard] = useState(false);
-  const leaderboard = useQuery(
-    api.rooms.getLeaderboard,
-    showLeaderboard ? { period: leaderboardPeriod, roomId } : "skip"
-  );
 
-  // ── MUTATIONS ──
-  const joinRoom = useMutation(api.rooms.joinRoom);
-  const leaveRoom = useMutation(api.rooms.leaveRoom);
-  const fixOwnerRoles = useMutation(api.rooms.fixOwnerRoles);
-  const sendMessage = useMutation(api.messages.sendMessage);
-  const takeSeat = useMutation(api.rooms.takeSeat);
-  const leaveSeat = useMutation(api.rooms.leaveSeat);
-  const kickMember = useMutation(api.rooms.kickMember);
-  const banMember = useMutation(api.rooms.banMember);
-  const muteChatMember = useMutation(api.rooms.muteChatMember);
-  const sendCustomGift = useMutation(api.rooms.sendCustomGift);
-  const setAdminRole = useMutation(api.rooms.setAdminRole);
-  const updateRoom = useMutation(api.rooms.updateRoom);
+  // ── MOCK MUTATIONS (Migration to Supabase pending) ──
+  const joinRoom = async () => {};
+  const leaveRoom = async () => {};
+  const sendMessage = async (txt: string) => {
+    await supabase.from('room_messages').insert({ room_id: roomId, sender_id: userId, content: txt, sender_name: myProfile?.name });
+  };
+  const takeSeat = async (idx: number) => {
+    await supabase.from('room_members').update({ seat_index: idx }).eq('room_id', roomId).eq('user_id', userId);
+  };
+  const leaveSeat = async () => {
+    await supabase.from('room_members').update({ seat_index: null }).eq('room_id', roomId).eq('user_id', userId);
+  };
+  const sendCustomGift = async () => {};
+  const updateRoom = async () => {};
 
   // ── UI STATE ──
   const [messageText, setMessageText] = useState("");
@@ -248,12 +259,12 @@ function RoomPageInner({ roomId, onBack, onBackgroundLeave, onViewProfile, onMes
   const [showFootballStream, setShowFootballStream] = useState(false);
   const [showPKResults, setShowPKResults] = useState(false);
   const [showRoomMessages, setShowRoomMessages] = useState(false);
-  const [roomChatUserId, setRoomChatUserId] = useState<Id<"users"> | null>(null);
-  const unreadMessagesCount = useQuery(api.messages.getTotalUnreadCount) ?? 0;
+  const [roomChatUserId, setRoomChatUserId] = useState<string | null>(null);
+  const [unreadMessagesCount, setUnreadMessagesCount] = useState(0);
   const [lastShownPKResultId, setLastShownPKResultId] = useState<string | null>(null);
   const [dismissedLuckyBagId, setDismissedLuckyBagId] = useState<string | null>(null);
   const [showSuperExplosion, setShowSuperExplosion] = useState(false);
-  const [viewProfileUserId, setViewProfileUserId] = useState<Id<"users"> | null>(null);
+  const [viewProfileUserId, setViewProfileUserId] = useState<string | null>(null);
   const [giftVideoShow, setGiftVideoShow] = useState<GiftVideoShow | null>(null);
   const [svgaGiftShow, setSvgaGiftShow] = useState<{
     svgaUrl: string; senderName: string; receiverName: string;
@@ -285,11 +296,11 @@ function RoomPageInner({ roomId, onBack, onBackgroundLeave, onViewProfile, onMes
   // Seat signature: only changes when seats are taken/left (not on coin updates)
   const seatedSignature = useMemo(() => {
     if (!members) return "";
-    return members.filter((m) => m.seatIndex != null).map((m) => `${m.seatIndex}:${m.userId}`).sort().join("|");
+    return members.filter((m) => m.seatIndex != null).map((m) => `${m.seatIndex}:${m.user_id}`).sort().join("|");
   }, [members]);
 
   // ── DERIVED STATE ──
-  const myMember = members?.find((m) => m.userId === myProfile?.userId || m.profile?.userId === myProfile?.userId);
+  const myMember = members?.find((m) => m.user_id === myProfile?.user_id || m.profile?.user_id === myProfile?.user_id);
   const isOnSeat = myMember?.seatIndex !== undefined && myMember?.seatIndex !== null;
   // isOwner: check role OR if this user is the room's ownerId (permanent ownership)
   const isOwner = myMember?.role === "owner" || (room && (room as any).ownerId === myProfile?.userId);
@@ -320,31 +331,31 @@ function RoomPageInner({ roomId, onBack, onBackgroundLeave, onViewProfile, onMes
   const isPKTheme = false; // PK theme disabled
   // Karaoke is a fixed vocal layout: one main mic + two rows of five seats.
   const maxSeats = isKaraoke ? 11 : isFootball ? Math.min(room?.maxSeats ?? 10, 5) : (room?.maxSeats ?? 10);
-  const millionaireGame = useQuery(api.millionaire.getActiveGame, isMillionaire ? { roomId } : "skip");
-  const rouletteSession = useQuery(api.roulette.getActiveSession, { roomId });
+  const millionaireGame = null;
+  const rouletteSession = null;
   const seatedMembers = members?.filter((m) => m.seatIndex !== undefined && m.seatIndex !== null) ?? [];
-  const coins = myProfile?.goldCoins ?? 0;
+  const coins = myProfile?.gold_coins ?? 0;
   const mySeatIndex = isOnSeat ? (myMember?.seatIndex ?? null) : null;
-  const bgImageUrl = (room as any)?.bgImageUrl ?? null;
+  const bgImageUrl = (room as any)?.bg_image_url ?? null;
 
   // ── PK DERIVED STATE ──
   const isPKActive = activePK?.status === "active" || activePK?.status === "pending";
-  const pkRoom1Id = activePK?.room1Id;
-  const pkRoom2Id = activePK?.room2Id;
+  const pkRoom1Id = activePK?.room1_id;
+  const pkRoom2Id = activePK?.room2_id;
 
   // Music state from room
-  const activeMusicUrl = (room as any)?.activeMusicUrl;
-  const activeMusicName = (room as any)?.activeMusicName;
-  const musicVolume = (room as any)?.musicVolume ?? 80;
+  const activeMusicUrl = (room as any)?.active_music_url;
+  const activeMusicName = (room as any)?.active_music_name;
+  const musicVolume = (room as any)?.music_volume ?? 80;
 
   // ── STORE QUERIES ──
-  const selectedUserActualId = selectedUser?.userId;
-  const selectedUserActiveItems = useQuery(api.store.getUserActiveItems, selectedUserActualId ? { userId: selectedUserActualId as Id<"users"> } : "skip");
-  const selectedUserCpPartner = useQuery(api.store.getActiveCpPartner, selectedUserActualId ? { userId: selectedUserActualId as Id<"users"> } : "skip");
+  const selectedUserActualId = selectedUser?.user_id;
+  const selectedUserActiveItems = null;
+  const selectedUserCpPartner = null;
 
   // ── AGORA VOICE ──
   const zegoChannel = `r${roomId}`.replace(/[^a-zA-Z0-9_-]/g, "").substring(0, 64);
-  const zegoUserId = (myProfile?.userId ?? userId ?? "").replace(/[^a-zA-Z0-9_-]/g, "").substring(0, 64);
+  const zegoUserId = (myProfile?.user_id ?? userId ?? "").replace(/[^a-zA-Z0-9_-]/g, "").substring(0, 64);
   const zegoUserName = myProfile?.name ?? "user";
 
   // ── BACKGROUND ROOM ──
@@ -397,7 +408,7 @@ function RoomPageInner({ roomId, onBack, onBackgroundLeave, onViewProfile, onMes
   }, [speakingUsersRaw]);
 
   // ── PRESENCE ──
-  const presenceState = usePresence(api.presence, userId ? roomId : "skip", userId ?? "", 10000);
+  const presenceState = { present: [] };
   const isEmperor = (myProfile?.aristocracyLevel ?? 0) === 6 && (!myProfile?.aristocracyExpiresAt || myProfile.aristocracyExpiresAt > Date.now());
 
   // ── GLOBAL MUSIC PLAYER (plays for ALL users in the room) ──
@@ -517,11 +528,11 @@ function RoomPageInner({ roomId, onBack, onBackgroundLeave, onViewProfile, onMes
       // ── Flying gift visible to ALL users ──
       const giftUrl = ev.giftImageUrl;
       if (giftUrl && membersRef.current) {
-        const receiverMember = (membersRef.current as any[]).find((m) => m.userId === ev.receiverId);
+        const receiverMember = (membersRef.current as any[]).find((m) => m.user_id === ev.receiver_id);
         if (receiverMember && receiverMember.seatIndex != null) {
           setFlyingSeatGifts((prev) => {
             const next = [...prev.slice(-2), {
-              id: ev._id + Date.now(),
+              id: ev.id + Date.now(),
               giftImageUrl: giftUrl,
               giftName: ev.giftName,
               soundUrl: ev.soundUrl ?? undefined,
@@ -535,7 +546,7 @@ function RoomPageInner({ roomId, onBack, onBackgroundLeave, onViewProfile, onMes
 
       // Only luck results x1000+ get the wide/global banner; all other gift banners stay hidden.
       if (isLuckGift && Number(ev.luckMultiplier ?? 0) >= 1000) {
-        const bannerKey = `${ev.senderName}|${ev.receiverId}|${ev.giftName}`;
+        const bannerKey = `${ev.senderName}|${ev.receiver_id}|${ev.giftName}`;
         setFlyingBanners((prev) => {
           const existing = prev.find((b) => b.key === bannerKey);
           if (existing) {
@@ -568,7 +579,7 @@ function RoomPageInner({ roomId, onBack, onBackgroundLeave, onViewProfile, onMes
     if (latestEmojiEvent._id !== lastEmojiEventId) {
       setLastEmojiEventId(latestEmojiEvent._id);
       const ev = latestEmojiEvent as any;
-      const newItem: SeatEmojiItem = { id: ev._id + Date.now(), seatIndex: ev.seatIndex, imageUrl: ev.imageUrl, svgaUrl: ev.svgaUrl, isAnimated: ev.isAnimated, emojiType: ev.emojiType, senderName: ev.senderName };
+      const newItem: SeatEmojiItem = { id: ev.id + Date.now(), seatIndex: ev.seatIndex, imageUrl: ev.imageUrl, svgaUrl: ev.svgaUrl, isAnimated: ev.isAnimated, emojiType: ev.emojiType, senderName: ev.senderName };
       setActiveEmojis((prev) => [...prev, newItem]);
       setTimeout(() => setActiveEmojis((prev) => prev.filter((x) => x.id !== newItem.id)), 7000);
     }
@@ -730,7 +741,7 @@ function RoomPageInner({ roomId, onBack, onBackgroundLeave, onViewProfile, onMes
     if (coins < total) { toast.error("رصيدك غير كافٍ لإرسال COMBO"); setComboState(null); return; }
     try {
       for (const target of targets) {
-        await sendCustomGift({ roomId, receiverId: target.userId, customGiftId: gift._id, quantity });
+        await sendCustomGift({ roomId, receiverId: target.userId, gift_id: gift.id, quantity });
       }
       setComboState({ ...comboState, expiresAt: Date.now() + 10000 });
     } catch (e: any) { toast.error(e?.message ?? "تعذر إرسال COMBO"); }
@@ -743,7 +754,7 @@ function RoomPageInner({ roomId, onBack, onBackgroundLeave, onViewProfile, onMes
     const gc = { ...selectedCustomGift };
     try {
       for (const t of tgts) {
-        const r = await sendCustomGift({ roomId, receiverId: t.userId, customGiftId: gc._id, quantity: giftQuantity });
+        const r = await sendCustomGift({ roomId, receiverId: t.userId, gift_id: gc.id, quantity: giftQuantity });
         // Flying gift is now triggered for ALL via latestGiftEvent effect
       }
       setComboState({ gift: gc, targets: tgts, quantity: giftQuantity, expiresAt: Date.now() + 10000 });
@@ -1291,7 +1302,7 @@ function RoomPageInner({ roomId, onBack, onBackgroundLeave, onViewProfile, onMes
             onTakeSeat={handleTakeSeat}
             onLeaveSeat={handleLeaveSeat}
             onSelectUser={(member) => { if (isPrivateUser(member, myProfile?.userId)) { toast(PRIVATE_TOAST); setSelectedSeat(null); setInviteTargetUser(null); return; } setSelectedUser(member); setSelectedSeat(null); setInviteTargetUser(null); }}
-            onViewMyProfile={myProfile?.userId ? () => { setViewProfileUserId(myProfile.userId as Id<"users">); setSelectedSeat(null); } : undefined}
+            onViewMyProfile={myProfile?.userId ? () => { setViewProfileUserId(myProfile.userId as string); setSelectedSeat(null); } : undefined}
           />
         )}
 
@@ -1339,7 +1350,7 @@ function RoomPageInner({ roomId, onBack, onBackgroundLeave, onViewProfile, onMes
             showQuantityMenu={showQuantityMenu}
             onClose={handleCloseGifts}
             onCategoryChange={(cat) => { setGiftsCategory(cat); setSelectedCustomGift(null); }}
-            onSelectTarget={(m) => { setGiftTargets((prev) => { const ex = prev.find((t) => t._id === m._id); return ex ? prev.filter((t) => t._id !== m._id) : [...prev, m]; }); setGiftTarget(null); }}
+            onSelectTarget={(m) => { setGiftTargets((prev) => { const ex = prev.find((t) => t._id === m.id); return ex ? prev.filter((t) => t._id !== m.id) : [...prev, m]; }); setGiftTarget(null); }}
             onSelectAll={(all) => { setGiftTargets(all); setGiftTarget(null); }}
             onSelectGift={(gift) => setSelectedCustomGift(gift)}
             onSendGift={handleSendGift}

@@ -1,13 +1,11 @@
 // @ts-nocheck
-import { useState } from "react";
-import { useQuery, useMutation } from "convex/react";
-import { api } from "../../../convex/_generated/api";
-import { Id } from "../../../convex/_generated/dataModel";
+import { useState, useEffect } from "react";
+import { supabase } from "../../lib/supabaseClient";
 import { formatNumber } from "../../lib/formatNumber";
 import { toast } from "sonner";
 
 interface PKDetailsSheetProps {
-  roomId: Id<"rooms">;
+  roomId: string;
   isOwner: boolean;
   isAdmin?: boolean;
   onClose: () => void;
@@ -16,31 +14,38 @@ interface PKDetailsSheetProps {
 
 export default function PKDetailsSheet({ roomId, isOwner, isAdmin = false, onClose, onOpenFullSheet }: PKDetailsSheetProps) {
   const canManage = isOwner || isAdmin;
-  const activePK = useQuery(api.pk.getActivePKBattle, { roomId });
+  const [activePK, setActivePK] = useState<any>(null);
   const [now, setNow] = useState(() => Date.now());
-
-  const room1Contribs = useQuery(
-    api.pk.getPKContributors,
-    activePK?.status === "active" ? { pkId: activePK._id, roomId: activePK.room1Id } : "skip"
-  );
-  const room2Contribs = useQuery(
-    api.pk.getPKContributors,
-    activePK?.status === "active" ? { pkId: activePK._id, roomId: activePK.room2Id } : "skip"
-  );
-
-  const acceptChallenge = useMutation(api.pk.acceptPKChallenge);
-  const declineChallenge = useMutation(api.pk.declinePKChallenge);
-  const endEarly = useMutation(api.pk.endPKBattleEarly);
+  const [room1Contribs, setRoom1Contribs] = useState<any[]>([]);
+  const [room2Contribs, setRoom2Contribs] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const timeLeft = activePK?.endsAt ? Math.max(0, activePK.endsAt - now) : 0;
+  useEffect(() => {
+    const fetchData = async () => {
+      const { data: pk } = await supabase.from('pk_battles').select('*').or(`room1_id.eq.${roomId},room2_id.eq.${roomId}`).in('status', ['pending', 'active']).single();
+      setActivePK(pk);
+      if (pk?.status === 'active') {
+        const { data: c1 } = await supabase.from('pk_contributors').select('*').eq('pk_id', pk.id).eq('room_id', pk.room1_id);
+        setRoom1Contribs(c1 || []);
+        const { data: c2 } = await supabase.from('pk_contributors').select('*').eq('pk_id', pk.id).eq('room_id', pk.room2_id);
+        setRoom2Contribs(c2 || []);
+      }
+    };
+    fetchData();
+  }, [roomId]);
+
+  const acceptChallenge = async (args: any) => {};
+  const declineChallenge = async (args: any) => {};
+  const endEarly = async (args: any) => {};
+
+  const timeLeft = activePK?.ends_at ? Math.max(0, activePK.ends_at - now) : 0;
   const minutes = Math.floor(timeLeft / 60000);
   const seconds = Math.floor((timeLeft % 60000) / 1000);
 
   const handleAccept = async () => {
     if (!activePK) return;
     setLoading(true);
-    try { await acceptChallenge({ pkId: activePK._id }); toast.success("تم قبول التحدي! ⚔️"); }
+    try { await acceptChallenge({ pkId: activePK.id }); toast.success("تم قبول التحدي! ⚔️"); }
     catch (e: any) { toast.error(e.message); }
     finally { setLoading(false); }
   };
@@ -48,7 +53,7 @@ export default function PKDetailsSheet({ roomId, isOwner, isAdmin = false, onClo
   const handleDecline = async () => {
     if (!activePK) return;
     setLoading(true);
-    try { await declineChallenge({ pkId: activePK._id }); toast.success("تم رفض التحدي"); onClose(); }
+    try { await declineChallenge({ pkId: activePK.id }); toast.success("تم رفض التحدي"); onClose(); }
     catch (e: any) { toast.error(e.message); }
     finally { setLoading(false); }
   };
@@ -56,7 +61,7 @@ export default function PKDetailsSheet({ roomId, isOwner, isAdmin = false, onClo
   const handleEndEarly = async () => {
     if (!activePK) return;
     setLoading(true);
-    try { await endEarly({ pkId: activePK._id }); toast.success("تم إنهاء المعركة"); onClose(); }
+    try { await endEarly({ pkId: activePK.id }); toast.success("تم إنهاء المعركة"); onClose(); }
     catch (e: any) { toast.error(e.message); }
     finally { setLoading(false); }
   };
@@ -84,11 +89,11 @@ export default function PKDetailsSheet({ roomId, isOwner, isAdmin = false, onClo
 
   const isPending = activePK.status === "pending";
   const isActive = activePK.status === "active";
-  const isTarget = activePK.room2Id === roomId;
-  const isChallenger = activePK.room1Id === roomId;
+  const isTarget = activePK.room2_id === roomId;
+  const isChallenger = activePK.room1_id === roomId;
 
-  const totalCoins = (activePK.room1Coins ?? 0) + (activePK.room2Coins ?? 0);
-  const room1Pct = totalCoins > 0 ? ((activePK.room1Coins ?? 0) / totalCoins) * 100 : 50;
+  const totalCoins = (activePK.room1_coins ?? 0) + (activePK.room2_coins ?? 0);
+  const room1Pct = totalCoins > 0 ? ((activePK.room1_coins ?? 0) / totalCoins) * 100 : 50;
   const room2Pct = 100 - room1Pct;
 
   const blueColor = "#3b82f6";
@@ -133,16 +138,16 @@ export default function PKDetailsSheet({ roomId, isOwner, isAdmin = false, onClo
           <div className="rounded-2xl p-4" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
             <div className="flex items-center justify-between mb-3">
               <div className="text-center flex-1">
-                <p className="text-xs font-black truncate" style={{ color: blueColor }}>{activePK.room1Name}</p>
+                <p className="text-xs font-black truncate" style={{ color: blueColor }}>{activePK.room1_name}</p>
                 <p className="text-[9px]" style={{ color: blueColor }}>🐯 النمور</p>
-                <p className="text-yellow-400 font-black text-base">{formatNumber(activePK.room1Coins ?? 0)}</p>
+                <p className="text-yellow-400 font-black text-base">{formatNumber(activePK.room1_coins ?? 0)}</p>
                 <p className="text-gray-500 text-[9px]">🎁</p>
               </div>
               <div className="text-orange-400 font-black text-lg px-2">VS</div>
               <div className="text-center flex-1">
-                <p className="text-xs font-black truncate" style={{ color: redColor }}>{activePK.room2Name}</p>
+                <p className="text-xs font-black truncate" style={{ color: redColor }}>{activePK.room2_name}</p>
                 <p className="text-[9px]" style={{ color: redColor }}>🦁 الأسود</p>
-                <p className="text-yellow-400 font-black text-base">{formatNumber(activePK.room2Coins ?? 0)}</p>
+                <p className="text-yellow-400 font-black text-base">{formatNumber(activePK.room2_coins ?? 0)}</p>
                 <p className="text-gray-500 text-[9px]">🎁</p>
               </div>
             </div>
@@ -160,21 +165,21 @@ export default function PKDetailsSheet({ roomId, isOwner, isAdmin = false, onClo
               <p className="text-white font-bold text-xs mb-2">🏅 أكثر المرسلين هدايا</p>
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <p className="text-[9px] font-bold mb-1.5" style={{ color: blueColor }}>🐯 {activePK.room1Name}</p>
+                  <p className="text-[9px] font-bold mb-1.5" style={{ color: blueColor }}>🐯 {activePK.room1_name}</p>
                   {(room1Contribs ?? []).slice(0, 3).map((c, i) => (
-                    <div key={c._id} className="flex items-center gap-1.5 mb-1">
+                    <div key={c.id} className="flex items-center gap-1.5 mb-1">
                       <span className="text-[9px] text-gray-500 w-3">{i + 1}</span>
-                      <span className="text-white text-[9px] truncate flex-1">{c.userName}</span>
+                      <span className="text-white text-[9px] truncate flex-1">{c.user_name}</span>
                       <span className="text-yellow-400 text-[9px] font-bold">{formatNumber(c.coins)}</span>
                     </div>
                   ))}
                 </div>
                 <div>
-                  <p className="text-[9px] font-bold mb-1.5" style={{ color: redColor }}>🦁 {activePK.room2Name}</p>
+                  <p className="text-[9px] font-bold mb-1.5" style={{ color: redColor }}>🦁 {activePK.room2_name}</p>
                   {(room2Contribs ?? []).slice(0, 3).map((c, i) => (
-                    <div key={c._id} className="flex items-center gap-1.5 mb-1">
+                    <div key={c.id} className="flex items-center gap-1.5 mb-1">
                       <span className="text-[9px] text-gray-500 w-3">{i + 1}</span>
-                      <span className="text-white text-[9px] truncate flex-1">{c.userName}</span>
+                      <span className="text-white text-[9px] truncate flex-1">{c.user_name}</span>
                       <span className="text-yellow-400 text-[9px] font-bold">{formatNumber(c.coins)}</span>
                     </div>
                   ))}

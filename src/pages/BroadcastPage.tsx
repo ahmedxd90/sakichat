@@ -1,6 +1,5 @@
 // @ts-nocheck
-import { useQuery, useMutation } from "convex/react";
-import { api } from "../../convex/_generated/api";
+import { supabase } from "../lib/supabaseClient";
 import { useState, useRef, useEffect } from "react";
 import { toast } from "../lib/toast";
 
@@ -28,9 +27,29 @@ function getVipColor(level: number): string {
 }
 
 export default function BroadcastPage({ onBack }: BroadcastPageProps) {
-  const messages = useQuery(api.broadcast.getMessages) ?? [];
-  const sendMessage = useMutation(api.broadcast.sendMessage);
-  const profile = useQuery(api.profiles.getMyProfile);
+  const [messages, setMessages] = useState<any[]>([]);
+  const [profile, setProfile] = useState<any>(null);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      const { data: msgs } = await supabase.from('broadcast_messages').select('*').order('created_at', { ascending: true });
+      setMessages(msgs || []);
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: me } = await supabase.from('profiles').select('*').eq('user_id', user.id).single();
+        setProfile(me);
+      }
+    };
+    fetchData();
+
+    const channel = supabase.channel('broadcast_messages').on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'broadcast_messages' }, (payload) => {
+      setMessages(prev => [...prev, payload.new]);
+    }).subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, []);
+
+  const sendMessage = async (args: any) => {};
 
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
@@ -130,7 +149,7 @@ export default function BroadcastPage({ onBack }: BroadcastPageProps) {
         ) : (
           <div className="flex flex-col gap-3">
             {messages.map((msg: any) => (
-              <BroadcastCard key={msg._id} msg={msg} />
+              <BroadcastCard key={msg.id} msg={msg} />
             ))}
             <div ref={messagesEndRef} />
           </div>

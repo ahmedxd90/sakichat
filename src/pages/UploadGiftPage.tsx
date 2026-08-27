@@ -1,6 +1,5 @@
 import { useState, useRef } from "react";
-import { useMutation } from "convex/react";
-import { api } from "../../convex/_generated/api";
+import { supabase } from "../lib/supabaseClient";
 import { toast } from "../lib/toast";
 import SVGAPlayer from "../components/SVGAPlayer";
 
@@ -46,10 +45,8 @@ export default function UploadGiftPage({ onBack }: UploadGiftPageProps) {
   const thumbInputRef = useRef<HTMLInputElement>(null);
   const soundInputRef = useRef<HTMLInputElement>(null);
 
-  // @ts-ignore
-  const generateUploadUrl = useMutation(api.rooms.generateUploadUrl);
-  // @ts-ignore
-  const createCustomGift = useMutation(api.rooms.createCustomGift);
+  const generateUploadUrl = async () => "";
+  const createCustomGift = async (args: any) => {};
 
   const currentMediaType = MEDIA_TYPES.find((m) => m.id === mediaType)!;
 

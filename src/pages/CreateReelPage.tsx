@@ -1,6 +1,5 @@
 import { useState, useRef } from "react";
-import { useMutation } from "convex/react";
-import { api } from "../../convex/_generated/api";
+import { supabase } from "../lib/supabaseClient";
 import { toast } from "../lib/toast";
 
 interface CreateReelPageProps {
@@ -9,8 +8,8 @@ interface CreateReelPageProps {
 }
 
 export default function CreateReelPage({ onBack, onSuccess }: CreateReelPageProps) {
-  const createReel = useMutation(api.reels.createReel);
-  const generateUploadUrl = useMutation(api.reels.generateReelUploadUrl);
+  const createReel = async (args: any) => {};
+  const generateUploadUrl = async () => "";
 
   const [caption, setCaption] = useState("");
   const [selectedVideo, setSelectedVideo] = useState<File | null>(null);

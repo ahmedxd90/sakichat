@@ -1,17 +1,14 @@
 import { useState } from "react";
-import { useMutation } from "convex/react";
-import { api } from "../../convex/_generated/api";
-import { Id } from "../../convex/_generated/dataModel";
+import { supabase } from "../lib/supabaseClient";
 import { toast } from "sonner";
 
 interface RoomLockSheetProps {
-  roomId: Id<"rooms">;
+  roomId: string;
   isLocked: boolean;
   onClose: () => void;
 }
 
 export default function RoomLockSheet({ roomId, isLocked, onClose }: RoomLockSheetProps) {
-  const setRoomLock = useMutation(api.rooms.setRoomLock);
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -19,7 +16,8 @@ export default function RoomLockSheet({ roomId, isLocked, onClose }: RoomLockShe
     if (!/^\d{4}$/.test(password)) { toast.error("كلمة المرور يجب أن تكون 4 أرقام فقط"); return; }
     setLoading(true);
     try {
-      await setRoomLock({ roomId, password });
+      const { error } = await supabase.from('rooms').update({ password, is_locked: true }).eq('id', roomId);
+      if (error) throw error;
       toast.success("تم قفل الغرفة 🔒");
       onClose();
     } catch (e: any) { toast.error(e.message); }
@@ -29,7 +27,8 @@ export default function RoomLockSheet({ roomId, isLocked, onClose }: RoomLockShe
   const handleUnlock = async () => {
     setLoading(true);
     try {
-      await setRoomLock({ roomId, password: undefined });
+      const { error } = await supabase.from('rooms').update({ password: null, is_locked: false }).eq('id', roomId);
+      if (error) throw error;
       toast.success("تم فتح الغرفة 🔓");
       onClose();
     } catch (e: any) { toast.error(e.message); }

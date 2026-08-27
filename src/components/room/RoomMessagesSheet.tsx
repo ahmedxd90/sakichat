@@ -1,15 +1,13 @@
 // @ts-nocheck
-import { useQuery } from "convex/react";
-import { api } from "../../../convex/_generated/api";
 import { useState, useEffect, useRef } from "react";
-import { Id } from "../../../convex/_generated/dataModel";
+import { supabase } from "../../lib/supabaseClient";
 import { VipName, VipBadge } from "../VipBadge";
 import UserAvatar from "../UserAvatar";
 import LevelBadgeInline from "../LevelBadgeInline";
 
 interface RoomMessagesSheetProps {
   onClose: () => void;
-  onOpenChat: (userId: Id<"users">) => void;
+  onOpenChat: (userId: string) => void;
 }
 
 function formatTime(timestamp: number): string {
@@ -25,9 +23,19 @@ function formatTime(timestamp: number): string {
 }
 
 export default function RoomMessagesSheet({ onClose, onOpenChat }: RoomMessagesSheetProps) {
-  const conversations = useQuery(api.messages.getConversations);
-  const unreadCount = useQuery(api.messages.getTotalUnreadCount) ?? 0;
+  const [conversations, setConversations] = useState<any[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
   const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      const { data: convs } = await supabase.from('conversations').select('*, other_profile:profiles(*)').order('updated_at', { ascending: false });
+      setConversations(convs || []);
+      const { data: unread } = await supabase.from('messages').select('id', { count: 'exact' }).eq('is_read', false);
+      setUnreadCount(unread?.length || 0);
+    };
+    fetchData();
+  }, []);
 
   useEffect(() => {
     const t = setTimeout(() => setVisible(true), 20);
@@ -39,7 +47,7 @@ export default function RoomMessagesSheet({ onClose, onOpenChat }: RoomMessagesS
     setTimeout(onClose, 350);
   };
 
-  const handleOpenChat = (userId: Id<"users">) => {
+  const handleOpenChat = (userId: string) => {
     setVisible(false);
     setTimeout(() => onOpenChat(userId), 200);
   };
@@ -108,10 +116,10 @@ export default function RoomMessagesSheet({ onClose, onOpenChat }: RoomMessagesS
           ) : (
             <div className="space-y-1.5">
               {conversations.map((conv) => {
-                const isPrivate = Boolean(conv.otherProfile?.isPrivateProfile);
-                const displayName = isPrivate ? "شخصي" : (conv.otherProfile?.name ?? "مجهول");
-                const isVip = !isPrivate && (conv.otherProfile?.isVip ?? false);
-                const timeStr = formatTime(conv.createdAt);
+                const isPrivate = Boolean(conv.other_profile?.isPrivateProfile);
+                const displayName = isPrivate ? "شخصي" : (conv.other_profile?.name ?? "مجهول");
+                const isVip = !isPrivate && (conv.other_profile?.isVip ?? false);
+                const timeStr = formatTime(conv.created_at);
                 const preview =
                   conv.type === "image" ? "📷 صورة" :
                   conv.type === "voice" ? "🎤 رسالة صوتية" :
@@ -121,24 +129,24 @@ export default function RoomMessagesSheet({ onClose, onOpenChat }: RoomMessagesS
 
                 return (
                   <button
-                    key={conv.otherId}
-                    onClick={() => handleOpenChat(conv.otherId as Id<"users">)}
+                    key={conv.other_id}
+                    onClick={() => handleOpenChat(conv.other_id)}
                     className="w-full flex items-center gap-3 rounded-2xl p-3 active:scale-[0.98] transition-all text-right"
                     style={{
-                      background: conv.unreadCount > 0 ? "rgba(168,85,247,0.08)" : "rgba(255,255,255,0.04)",
-                      border: conv.unreadCount > 0 ? "1px solid rgba(168,85,247,0.2)" : "1px solid rgba(255,255,255,0.06)",
+                      background: conv.unread_count > 0 ? "rgba(168,85,247,0.08)" : "rgba(255,255,255,0.04)",
+                      border: conv.unread_count > 0 ? "1px solid rgba(168,85,247,0.2)" : "1px solid rgba(255,255,255,0.06)",
                     }}
                   >
                     {/* Avatar */}
                     <div className="flex-shrink-0 relative">
                       <UserAvatar
-                        userId={conv.otherId as Id<"users">}
-                        avatarUrl={conv.otherProfile?.avatarUrl}
-                        name={conv.otherProfile?.name}
+                        userId={conv.other_id}
+                        avatarUrl={conv.other_profile?.avatarUrl}
+                        name={conv.other_profile?.name}
                         size={46}
                         showFrame={!isPrivate}
                         showVipFrame={!isPrivate}
-                        vipLevel={conv.otherProfile?.vipLevel}
+                        vipLevel={conv.other_profile?.vipLevel}
                       />
                       <div className="absolute bottom-0 left-0 w-2.5 h-2.5 rounded-full border-2" style={{ borderColor: "#0a0515", background: "#4ade80" }} />
                     </div>
@@ -148,11 +156,11 @@ export default function RoomMessagesSheet({ onClose, onOpenChat }: RoomMessagesS
                       <div className="flex items-center justify-between gap-2 mb-0.5">
                         <div className="flex items-center gap-1 min-w-0">
                           {isVip ? (
-                            <VipName name={displayName} level={conv.otherProfile?.vipLevel} />
+                            <VipName name={displayName} level={conv.other_profile?.vipLevel} />
                           ) : (
                             <p className="text-white font-bold text-sm truncate">{displayName}</p>
                           )}
-                          {!isPrivate && isVip && <VipBadge size="sm" level={conv.otherProfile?.vipLevel} />}
+                          {!isPrivate && isVip && <VipBadge size="sm" level={conv.other_profile?.vipLevel} />}
                         </div>
                         <p className="text-gray-500 text-[10px] flex-shrink-0">{timeStr}</p>
                       </div>
@@ -160,9 +168,9 @@ export default function RoomMessagesSheet({ onClose, onOpenChat }: RoomMessagesS
                     </div>
 
                     {/* Unread badge */}
-                    {conv.unreadCount > 0 && (
+                    {conv.unread_count > 0 && (
                       <div className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: "linear-gradient(135deg,#a855f7,#ec4899)" }}>
-                        <span className="text-white text-[9px] font-black">{conv.unreadCount > 9 ? "9+" : conv.unreadCount}</span>
+                        <span className="text-white text-[9px] font-black">{conv.unread_count > 9 ? "9+" : conv.unread_count}</span>
                       </div>
                     )}
                   </button>

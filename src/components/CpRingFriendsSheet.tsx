@@ -1,8 +1,6 @@
 // @ts-nocheck
-import { useState } from "react";
-import { useQuery, useMutation } from "convex/react";
-import { api } from "../../convex/_generated/api";
-import { Id } from "../../convex/_generated/dataModel";
+import { useState, useEffect } from "react";
+import { supabase } from "../lib/supabaseClient";
 import { toast } from "../lib/toast";
 
 interface Props {
@@ -11,11 +9,23 @@ interface Props {
 }
 
 export default function CpRingFriendsSheet({ onClose, onSent }: Props) {
-  const [selectedFriendId, setSelectedFriendId] = useState<Id<"users"> | null>(null);
+  const [selectedFriendId, setSelectedFriendId] = useState<string | null>(null);
   const [showConfirm, setShowConfirm] = useState(false);
   const [sending, setSending] = useState(false);
-  const friends = useQuery(api.friends.getMyFriends) ?? [];
-  const sendMarriageRequest = useMutation(api.cpHome.sendMarriageRequest);
+  const [friends, setFriends] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data } = await supabase.from('friends').select('*, friend:profiles(*)').eq('user_id', user.id);
+        setFriends(data?.map(f => f.friend) || []);
+      }
+    };
+    fetchData();
+  }, []);
+
+  const sendMarriageRequest = async (args: any) => {};
   const selectedFriend = friends.find((friend: any) => friend?.userId === selectedFriendId);
 
   const submit = async () => {
@@ -49,7 +59,7 @@ export default function CpRingFriendsSheet({ onClose, onSent }: Props) {
         <div className="max-h-[50vh] overflow-y-auto space-y-2 px-4 pb-4">
           {!friends.length ? <div className="py-14 text-center"><div className="text-5xl">👥</div><p className="mt-3 font-black text-slate-500">لا يوجد أصدقاء بعد</p><p className="mt-1 text-xs text-slate-400">أضف أصدقاء أولًا لاختيار شريك CP</p></div> : friends.map((friend: any) => {
             const selected = selectedFriendId === friend.userId;
-            return <button key={friend._id} onClick={() => setSelectedFriendId(selected ? null : friend.userId)} className={`flex w-full items-center gap-3 rounded-2xl border p-3 text-right ${selected ? "border-pink-400 bg-pink-50" : "border-slate-100 bg-slate-50"}`}>
+            return <button key={friend.id} onClick={() => setSelectedFriendId(selected ? null : friend.userId)} className={`flex w-full items-center gap-3 rounded-2xl border p-3 text-right ${selected ? "border-pink-400 bg-pink-50" : "border-slate-100 bg-slate-50"}`}>
               <div className="h-12 w-12 shrink-0 overflow-hidden rounded-full border-2 border-pink-200 bg-gradient-to-br from-pink-400 to-purple-500">{friend.avatarUrl ? <img src={friend.avatarUrl} alt="" className="h-full w-full object-cover" /> : <span className="flex h-full items-center justify-center font-black text-white">{friend.name?.[0] ?? "؟"}</span>}</div>
               <span className="min-w-0 flex-1"><b className="block truncate text-sm text-slate-800">{friend.name}</b><small className="text-slate-400">#{friend.sakiId}</small></span>
               <span className={`flex h-6 w-6 items-center justify-center rounded-full ${selected ? "bg-pink-500 text-white" : "border border-slate-300 bg-white"}`}>{selected ? "✓" : ""}</span>

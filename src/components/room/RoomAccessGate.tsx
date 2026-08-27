@@ -2,12 +2,10 @@
 import { useState, useEffect, useRef } from "react";
 import { toast } from "../../lib/toast";
 import { Ban, LogOut, LockKeyhole, Mic2 } from "lucide-react";
-import { useQuery, useMutation } from "convex/react";
-import { api } from "../../../convex/_generated/api";
-import { Id } from "../../../convex/_generated/dataModel";
+import { supabase } from "../../lib/supabaseClient";
 
 interface RoomAccessGateProps {
-  roomId: Id<"rooms">;
+  roomId: string;
   onLeave: () => void;
   children: React.ReactNode;
 }
@@ -23,8 +21,7 @@ function getDurationLabel(dur: string): string {
 }
 
 // ── شاشة إدخال كلمة المرور ──
-function PasswordScreen({ roomId, onSuccess, onLeave }: { roomId: Id<"rooms">; onSuccess: () => void; onLeave: () => void }) {
-  const verifyPassword = useMutation(api.rooms.verifyRoomPassword);
+function PasswordScreen({ roomId, onSuccess, onLeave }: { roomId: string; onSuccess: () => void; onLeave: () => void }) {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -33,8 +30,8 @@ function PasswordScreen({ roomId, onSuccess, onLeave }: { roomId: Id<"rooms">; o
     setLoading(true);
     setError("");
     try {
-      const ok = await verifyPassword({ roomId, password: pass });
-      if (ok) {
+      const { data, error } = await supabase.from('rooms').select('password').eq('id', roomId).single();
+      if (data?.password === pass) {
         onSuccess();
       } else {
         setError("كلمة المرور غير صحيحة ❌");
@@ -155,9 +152,23 @@ function PasswordScreen({ roomId, onSuccess, onLeave }: { roomId: Id<"rooms">; o
 }
 
 export default function RoomAccessGate({ roomId, onLeave, children }: RoomAccessGateProps) {
-  const roomAccess = useQuery(api.roomAccess.checkRoomAccess, { roomId });
-  const lockStatus = useQuery(api.roomAccess.getRoomLockStatus, { roomId });
+  const [roomAccess, setRoomAccess] = useState<any>({ allowed: true });
+  const [lockStatus, setLockStatus] = useState<any>({ isLocked: false });
+  const [isLoading, setIsLoading] = useState(true);
   const evictionHandledRef = useRef(false);
+
+  useEffect(() => {
+    const checkAccess = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      const { data: room } = await supabase.from('rooms').select('*').eq('id', roomId).single();
+      
+      if (room) {
+        setLockStatus({ isLocked: !!room.password, isOwner: room.owner_id === user?.id });
+      }
+      setIsLoading(false);
+    };
+    checkAccess();
+  }, [roomId]);
 
   useEffect(() => {
     if (!roomAccess || roomAccess.allowed || evictionHandledRef.current) return;
@@ -179,7 +190,7 @@ export default function RoomAccessGate({ roomId, onLeave, children }: RoomAccess
     setPasswordVerified(true);
   };
 
-  if (roomAccess === undefined || lockStatus === undefined) {
+  if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center" dir="rtl"
         style={{ background: "linear-gradient(180deg,#0a0a14,#1a1200)" }}>

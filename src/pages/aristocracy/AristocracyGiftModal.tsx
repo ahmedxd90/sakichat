@@ -1,8 +1,8 @@
 // @ts-nocheck
 import { useState } from "react";
-import { useQuery } from "convex/react";
-import { api } from "../../../convex/_generated/api";
+import { supabase } from "../../lib/supabaseClient";
 import { toast } from "../../lib/toast";
+import { useEffect } from "react";
 import { Badge3D, RankName } from "./AristocracyBadge3D";
 
 interface GiftModalProps {
@@ -16,13 +16,21 @@ interface GiftModalProps {
 export default function AristocracyGiftModal({ rank, duration, price, onClose, onGift }: GiftModalProps) {
   const [sakiId, setSakiId] = useState("");
   const [sending, setSending] = useState(false);
-  const searchProfile = useQuery(api.profiles.getProfileBySakiId, sakiId.length >= 4 ? { sakiId } : "skip");
+  const [searchProfile, setSearchProfile] = useState<any>(null);
+
+  useEffect(() => {
+    if (sakiId.length >= 4) {
+      supabase.from('profiles').select('*').eq('saki_id', sakiId).single().then(({ data }) => setSearchProfile(data));
+    } else {
+      setSearchProfile(null);
+    }
+  }, [sakiId]);
 
   const handleGift = async () => {
     if (!searchProfile) return;
     setSending(true);
     try {
-      const result = await onGift({ targetUserId: searchProfile.userId, level: rank.level, durationDays: duration });
+      const result = await onGift({ targetUserId: searchProfile.user_id, level: rank.level, durationDays: duration });
       toast.success(`🎁 تم إهداء ${result.targetName} رتبة ${result.rank.nameAr}!`);
       onClose();
     } catch (e: any) {
@@ -82,8 +90,8 @@ export default function AristocracyGiftModal({ rank, duration, price, onClose, o
               style={{ background: "rgba(34,197,94,0.1)", border: "1px solid rgba(34,197,94,0.3)" }}
             >
               <div className="w-8 h-8 rounded-full overflow-hidden">
-                {searchProfile.avatarUrl
-                  ? <img src={searchProfile.avatarUrl} alt="" className="w-full h-full object-cover" />
+                {searchProfile.avatar_url
+                  ? <img src={searchProfile.avatar_url} alt="" className="w-full h-full object-cover" />
                   : <div className="w-full h-full bg-purple-500/30 flex items-center justify-center text-sm">{searchProfile.name?.[0]}</div>
                 }
               </div>

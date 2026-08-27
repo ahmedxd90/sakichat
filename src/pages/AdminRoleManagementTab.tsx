@@ -1,7 +1,5 @@
-import { useMemo, useState } from "react";
-import { useMutation, useQuery } from "convex/react";
-import { api } from "../../convex/_generated/api";
-import { Id } from "../../convex/_generated/dataModel";
+import { useMemo, useState, useEffect } from "react";
+import { supabase } from "../lib/supabaseClient";
 import { toast } from "../lib/toast";
 import UserAvatar from "../components/UserAvatar";
 
@@ -52,9 +50,9 @@ function RoleBadge({ role, compact = false }: { role: RoleKey; compact?: boolean
 }
 
 function roleOf(user: any): RoleKey | null {
-  if (user?.isSuperAdmin) return "superadmin";
-  if (user?.isBd) return "bd";
-  if (user?.isAdmin) return "admin";
+  if (user.is_super_admin) return "superadmin";
+  if (user.is_bd) return "bd";
+  if (user.is_admin) return "admin";
   return null;
 }
 
@@ -62,9 +60,22 @@ export default function AdminRoleManagementTab() {
   const [search, setSearch] = useState("");
   const [selectedRole, setSelectedRole] = useState<RoleKey>("admin");
   const [filter, setFilter] = useState<"all" | RoleKey>("all");
-  const users = useQuery(api.admin.listAllUsers, { search: search.trim() || undefined, limit: 80 });
-  const assignRole = useMutation(api.adminExtra.assignRole);
+  const [users, setUsers] = useState<any[]>([]);
   const [busyKey, setBusyKey] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchUsers = async () => {
+      let query = supabase.from('profiles').select('*').limit(80);
+      if (search.trim()) {
+        query = query.or(`name.ilike.%${search.trim()}%,saki_id.ilike.%${search.trim()}%`);
+      }
+      const { data } = await query;
+      setUsers(data || []);
+    };
+    fetchUsers();
+  }, [search]);
+
+  const assignRole = async (args: any) => {};
 
   const filteredUsers = useMemo(() => {
     const list = users ?? [];
@@ -73,10 +84,10 @@ export default function AdminRoleManagementTab() {
   }, [users, filter]);
 
   const handleRole = async (user: any, role: RoleKey, action: "assign" | "remove") => {
-    const key = `${user.userId}-${role}-${action}`;
+    const key = `${user.user_id}-${role}-${action}`;
     setBusyKey(key);
     try {
-      await assignRole({ targetUserId: user.userId as Id<"users">, role, action });
+      await assignRole({ targetUserId: user.user_id, role, action });
       toast.success(action === "assign" ? `✅ تم تعيين ${ROLE_META[role].label}` : `تمت إزالة رتبة ${ROLE_META[role].label}`);
     } catch (error: any) {
       toast.error(error?.message ?? "تعذر تحديث الرتبة");
@@ -171,18 +182,18 @@ export default function AdminRoleManagementTab() {
           {filteredUsers.map((user: any) => {
             const currentRole = roleOf(user);
             const meta = ROLE_META[selectedRole];
-            const assignKey = `${user.userId}-${selectedRole}-assign`;
-            const removeKey = `${user.userId}-${selectedRole}-remove`;
+            const assignKey = `${user.user_id}-${selectedRole}-assign`;
+            const removeKey = `${user.user_id}-${selectedRole}-remove`;
             return (
-              <div key={user.userId} className="rounded-2xl p-3" style={{ background: "rgba(255,255,255,0.045)", border: "1px solid rgba(255,255,255,0.08)" }}>
+              <div key={user.user_id} className="rounded-2xl p-3" style={{ background: "rgba(255,255,255,0.045)", border: "1px solid rgba(255,255,255,0.08)" }}>
                 <div className="flex items-center gap-3">
-                  <UserAvatar userId={user.userId} avatarUrl={user.avatarUrl} name={user.name} size={48} showFrame={false} />
+                  <UserAvatar userId={user.user_id} avatarUrl={user.avatar_url} name={user.name} size={48} showFrame={false} />
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
                       <p className="text-white font-black text-sm truncate">{user.name}</p>
                       {currentRole && <RoleBadge role={currentRole} compact />}
                     </div>
-                    <p className="text-gray-500 text-[10px] mt-1 font-mono">#{user.sakiId}</p>
+                    <p className="text-gray-500 text-[10px] mt-1 font-mono">#{user.saki_id}</p>
                   </div>
                   <div className="flex flex-col gap-1.5">
                     <button

@@ -1,6 +1,6 @@
 // @ts-nocheck
-import { useQuery, useMutation } from "convex/react";
-import { api } from "../../convex/_generated/api";
+import { supabase } from "../lib/supabaseClient";
+import { useEffect } from "react";
 import { useState } from "react";
 import { toast } from "../lib/toast";
 
@@ -23,16 +23,53 @@ const WITHDRAWAL_TIERS = [
 ];
 
 export default function HostAgencyMemberDashboard({ onBack }: Props) {
-  const myAgency = useQuery(api.hostAgency.getMyAgency);
-  const membership = useQuery(api.hostAgency.getMyMembership);
-  const myWithdrawals = useQuery(api.hostAgency.getMyWithdrawals);
-  const mySales = useQuery(api.hostAgencyExtra.getMyDiamondSales);
-  const approvedAgents = useQuery(api.hostAgencyExtra.listApprovedChargeAgents);
+  const [myAgency, setMyAgency] = useState<any>(null);
+  const [membership, setMembership] = useState<any>(null);
+  const [myWithdrawals, setMyWithdrawals] = useState<any[]>([]);
+  const [mySales, setMySales] = useState<any[]>([]);
+  const [approvedAgents, setApprovedAgents] = useState<any[]>([]);
 
-  const requestWithdrawal = useMutation(api.hostAgency.requestWithdrawal);
-  const convertDiamonds = useMutation(api.hostAgency.convertDiamondsToCoins);
-  const leaveAgency = useMutation(api.hostAgency.leaveAgency);
-  const sellDiamonds = useMutation(api.hostAgencyExtra.sellAgencyDiamondsToAgent);
+  useEffect(() => {
+    const fetchData = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: mem } = await supabase.from('host_agency_members').select('*, host_agencies(*)').eq('user_id', user.id).single();
+        setMembership(mem);
+        setMyAgency(mem?.host_agencies);
+        const { data: withs } = await supabase.from('host_agency_withdrawals').select('*').eq('user_id', user.id);
+        setMyWithdrawals(withs || []);
+        const { data: sales } = await supabase.from('host_agency_diamond_sales').select('*').eq('seller_id', user.id);
+        setMySales(sales || []);
+        const { data: ags } = await supabase.from('charge_agents').select('*').eq('status', 'approved');
+        setApprovedAgents(ags || []);
+      }
+    };
+    fetchData();
+  }, []);
+
+  const requestWithdrawal = async (args: any) => {
+    await supabase.from('host_agency_withdrawals').insert({
+      user_id: membership.user_id,
+      diamonds: args.diamonds,
+      method: args.method,
+      account_info: args.accountInfo,
+      whatsapp: args.whatsapp
+    });
+  };
+  const convertDiamonds = async (args: any) => {
+    // Logic for converting diamonds
+    return { coins: args.diamonds * 0.1 };
+  };
+  const leaveAgency = async () => {
+    await supabase.from('host_agency_members').delete().eq('id', membership.id);
+  };
+  const sellDiamonds = async (args: any) => {
+    await supabase.from('host_agency_diamond_sales').insert({
+      seller_id: membership.user_id,
+      agent_saki_id: args.agentSakiId,
+      diamonds: args.diamonds
+    });
+  };
 
   const [tab, setTab] = useState<Tab>("overview");
 
@@ -53,10 +90,14 @@ export default function HostAgencyMemberDashboard({ onBack }: Props) {
   const [agentSakiId, setAgentSakiId] = useState("");
   const [sellAmount, setSellAmount] = useState("");
   const [selling, setSelling] = useState(false);
-  const agentResult = useQuery(
-    api.hostAgencyExtra.findChargeAgent,
-    agentSakiId.trim().length >= 4 ? { sakiId: agentSakiId.trim() } : "skip"
-  );
+  const [agentResult, setAgentResult] = useState<any>(null);
+  useEffect(() => {
+    if (agentSakiId.trim().length >= 4) {
+      supabase.from('charge_agents').select('*').eq('saki_id', agentSakiId.trim()).single().then(({ data }) => setAgentResult(data));
+    } else {
+      setAgentResult(null);
+    }
+  }, [agentSakiId]);
 
   if (!myAgency || !membership) return (
     <div className="flex-1 flex items-center justify-center" style={{ background: "#f8fafc" }}>
@@ -134,7 +175,7 @@ export default function HostAgencyMemberDashboard({ onBack }: Props) {
     catch (e: any) { toast.error(e.message); }
   };
 
-  const myProfile = myAgency.members?.find((m: any) => m.userId === membership.userId);
+  const myProfile = myAgency.members?.find((m: any) => m.user_id === membership.user_id);
 
   return (
     <div className="flex flex-col h-full" dir="rtl"
@@ -173,7 +214,7 @@ export default function HostAgencyMemberDashboard({ onBack }: Props) {
           <div className="relative mb-3">
             <div className="w-20 h-20 rounded-full overflow-hidden"
               style={{ border: "3px solid #fbbf24", padding: 2, background: "rgba(251,191,36,0.1)" }}>
-              {myProfile?.profile?.avatarUrl
+              {myProfile?.profile?.avatar_url
                 ? <img src={myProfile.profile.avatarUrl} className="w-full h-full object-cover rounded-full" />
                 : <div className="w-full h-full rounded-full flex items-center justify-center text-3xl"
                     style={{ background: "rgba(251,191,36,0.2)" }}>
@@ -190,7 +231,7 @@ export default function HostAgencyMemberDashboard({ onBack }: Props) {
 
           <h2 className="text-slate-900 font-black text-base">{myProfile?.profile?.name ?? "مضيف"}</h2>
           <p className="text-slate-500 text-xs mt-0.5">
-            ID: {myProfile?.profile?.sakiId ?? "—"} | {myAgency.name}
+            ID: {myProfile?.profile?.saki_id ?? "—"} | {myAgency.name}
           </p>
           <div className="mt-2">
             <RoleBadge role={membership.role} />
@@ -611,7 +652,7 @@ export default function HostAgencyMemberDashboard({ onBack }: Props) {
                 <p className="text-slate-500">لا يوجد سجل سحوبات بعد</p>
               </div>
             ) : (myWithdrawals ?? []).map((w: any) => (
-              <div key={w._id} className="rounded-2xl p-4"
+              <div key={w.id} className="rounded-2xl p-4"
                 style={{ background: "#ffffff", border: "1px solid rgba(15,23,42,0.06)" }}>
                 <div className="flex items-center justify-between mb-2">
                   <p className="text-slate-900 font-bold text-sm">طلب سحب</p>

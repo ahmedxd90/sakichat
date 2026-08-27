@@ -1,11 +1,10 @@
 // @ts-nocheck
-import { Id } from "../../convex/_generated/dataModel";
 
 export interface RoomPageProps {
-  roomId: Id<"rooms">;
+  roomId: string;
   onBack: () => void;
-  onViewProfile?: (userId: Id<"users">) => void;
-  onMessage?: (userId: Id<"users">) => void;
+  onViewProfile?: (userId: string) => void;
+  onMessage?: (userId: string) => void;
 }
 
 export interface GiftVideoShow {
@@ -42,7 +41,7 @@ export interface FlyingBanner {
   price: number;
   isGlobal?: boolean;
   roomName?: string;
-  roomId?: Id<"rooms">;
+  roomId?: string;
 }
 
 export interface SeatEmojiItem {

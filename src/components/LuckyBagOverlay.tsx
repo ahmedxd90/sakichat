@@ -1,18 +1,16 @@
 // @ts-nocheck
 import { useEffect, useRef, useState, useCallback } from "react";
-import { useMutation, useQuery } from "convex/react";
-import { api } from "../../convex/_generated/api";
-import { Id } from "../../convex/_generated/dataModel";
+import { supabase } from "../lib/supabaseClient";
 import { toast } from "../lib/toast";
 
 interface LuckyBagOverlayProps {
-  bagId: Id<"luckyBags">;
+  bagId: string;
   bagType: "normal" | "super";
   senderName: string;
   senderAvatarUrl?: string;
   totalCoins: number;
   maxRecipients: number;
-  expiresAt: number;
+  expiresAt: string;
   onClose: () => void;
 }
 
@@ -352,12 +350,20 @@ export default function LuckyBagOverlay({
   const [hasClaimed, setHasClaimed] = useState(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const claimBag = useMutation(api.luckyBag.claimLuckyBag);
-  const alreadyClaimed = useQuery(api.luckyBag.hasUserClaimed, { bagId });
+  const [alreadyClaimed, setAlreadyClaimed] = useState(false);
 
   useEffect(() => {
-    if (alreadyClaimed) setHasClaimed(true);
-  }, [alreadyClaimed]);
+    const checkClaimed = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data } = await supabase.from('lucky_bag_claims').select('*').eq('bag_id', bagId).eq('user_id', user.id).single();
+      if (data) {
+        setAlreadyClaimed(true);
+        setHasClaimed(true);
+      }
+    };
+    checkClaimed();
+  }, [bagId]);
 
   useEffect(() => {
     const total = bagType === "super" ? 20 : 5;
@@ -394,12 +400,13 @@ export default function LuckyBagOverlay({
 
     setClaiming(true);
     try {
-      const won = await claimBag({ bagId });
+      const { data: won, error } = await supabase.rpc('claim_lucky_bag', { target_bag_id: bagId });
+      if (error) throw error;
       setMyWin(won);
       setHasClaimed(true);
       setTimeout(() => setPhase("result"), 2200);
     } catch (e: any) {
-      toast.error(e.message);
+      toast.error(e.message || "عذراً، انتهت الحقيبة!");
       setIsChestShaking(false);
       setIsDragonAttacking(false);
     } finally {

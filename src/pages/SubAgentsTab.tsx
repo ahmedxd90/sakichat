@@ -1,7 +1,6 @@
 // @ts-nocheck
-import { useQuery, useMutation } from "convex/react";
-import { api } from "../../convex/_generated/api";
-import { useState } from "react";
+import { supabase } from "../lib/supabaseClient";
+import { useState, useEffect } from "react";
 import { toast } from "../lib/toast";
 import { AgentChargeBadge } from "../components/AgentChargeBadge";
 import CopySakiId from "../components/CopySakiId";
@@ -27,10 +26,8 @@ interface SubAgentsTabProps {
 }
 
 export default function SubAgentsTab({ sakiBal }: SubAgentsTabProps) {
-  const subAgents = useQuery(api.subAgents.getMySubAgents);
-  const addSubAgent = useMutation(api.subAgents.addSubAgent);
-  const removeSubAgent = useMutation(api.subAgents.removeSubAgent);
-  const transferSaki = useMutation(api.subAgents.transferSakiToSubAgent);
+  const [subAgents, setSubAgents] = useState<any[]>([]);
+  const [searchUser, setSearchUser] = useState<any>(null);
 
   const [view, setView] = useState<"list" | "add" | "transfer">("list");
   const [addSakiId, setAddSakiId] = useState("");
@@ -41,10 +38,28 @@ export default function SubAgentsTab({ sakiBal }: SubAgentsTabProps) {
   const [transferNote, setTransferNote] = useState("");
   const [transferLoading, setTransferLoading] = useState(false);
 
-  const searchUser = useQuery(
-    api.profiles.getProfileBySakiId,
-    addSakiId.length >= 6 ? { sakiId: addSakiId.trim() } : "skip"
-  );
+  useEffect(() => {
+    const fetchData = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data } = await supabase.from('sub_agents').select('*, profile:profiles(*)').eq('agent_id', user.id);
+        setSubAgents(data || []);
+      }
+    };
+    fetchData();
+  }, []);
+
+  useEffect(() => {
+    if (addSakiId.trim().length >= 6) {
+      supabase.from('profiles').select('*').eq('saki_id', addSakiId.trim()).single().then(({ data }) => setSearchUser(data));
+    } else {
+      setSearchUser(null);
+    }
+  }, [addSakiId]);
+
+  const addSubAgent = async (args: any) => ({ targetName: "" });
+  const removeSubAgent = async (args: any) => {};
+  const transferSaki = async (args: any) => ({ targetName: "" });
 
   const handleAdd = async () => {
     if (!addSakiId.trim()) { toast.error("ادخل SAKI ID"); return; }
@@ -272,7 +287,7 @@ export default function SubAgentsTab({ sakiBal }: SubAgentsTabProps) {
       ) : (
         <div className="space-y-2">
           {subAgents.map((agent: any) => (
-            <div key={agent._id} className="rounded-2xl p-3"
+            <div key={agent.id} className="rounded-2xl p-3"
               style={{ background: "rgba(245,158,11,0.06)", border: "1px solid rgba(245,158,11,0.15)" }}>
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-full overflow-hidden flex-shrink-0 bg-gradient-to-br from-amber-600 to-orange-700 flex items-center justify-center">

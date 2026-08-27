@@ -1,7 +1,6 @@
 // @ts-nocheck
 import { useEffect, useRef, useState, useCallback, forwardRef, useImperativeHandle } from "react";
-import { useQuery, useMutation } from "convex/react";
-import { api } from "../../../convex/_generated/api";
+import { supabase } from "../../lib/supabaseClient";
 
 interface Heart {
   id: string;
@@ -31,25 +30,37 @@ const RoomHeartsOverlay = forwardRef<RoomHeartsOverlayRef, { roomId: any; myUser
   function RoomHeartsOverlay({ roomId, myUserId }, ref) {
     const [hearts, setHearts] = useState<Heart[]>([]);
     const lastHeartIds = useRef<Set<string>>(new Set());
-    const sendHeart = useMutation(api.roomHearts.sendHeart);
-    const heartsCount = useQuery(api.roomHearts.getRoomHeartsCount, { roomId });
-    const latestHearts = useQuery(api.roomHearts.getLatestHearts, { roomId });
+    const [heartsCount, setHeartsCount] = useState(0);
+    const [latestHearts, setLatestHearts] = useState<any[]>([]);
+
+    useEffect(() => {
+      const fetchData = async () => {
+        const { count } = await supabase.from('room_hearts').select('*', { count: 'exact', head: true }).eq('room_id', roomId);
+        setHeartsCount(count || 0);
+        const { data } = await supabase.from('room_hearts').select('*').eq('room_id', roomId).order('created_at', { ascending: false }).limit(10);
+        setLatestHearts(data || []);
+      };
+      fetchData();
+    }, [roomId]);
+
+    const sendHeart = async (args: any) => {};
 
     useEffect(() => {
       if (!latestHearts) return;
       const newHearts: Heart[] = [];
       for (const h of latestHearts) {
-        if (!lastHeartIds.current.has(h._id)) {
-          lastHeartIds.current.add(h._id);
+        const hid = h.id || h._id;
+        if (!lastHeartIds.current.has(hid)) {
+          lastHeartIds.current.add(hid);
           newHearts.push({
-            id: h._id + "_" + Math.random(),
+            id: hid + "_" + Math.random(),
             color: h.color,
             x: h.x,
             size: 18 + Math.random() * 20,
             duration: 2.5 + Math.random() * 2,
             delay: Math.random() * 0.3,
             swing: 20 + Math.random() * 40,
-            userName: h.userName,
+            userName: h.user_name || h.userName,
           });
         }
       }
@@ -81,7 +92,7 @@ const RoomHeartsOverlay = forwardRef<RoomHeartsOverlayRef, { roomId: any; myUser
       try {
         await sendHeart({ roomId, color, x: xRatio });
       } catch (_) {}
-    }, [roomId, sendHeart]);
+    }, [roomId]);
 
     useImperativeHandle(ref, () => ({ triggerHeart }), [triggerHeart]);
 

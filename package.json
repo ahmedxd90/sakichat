@@ -4,11 +4,9 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "npm-run-all --parallel dev:frontend dev:backend",
-    "dev:frontend": "vite --open",
-    "dev:backend": "convex dev",
+    "dev": "vite --open",
     "build": "vite build",
-    "lint": "tsc -p convex -noEmit --pretty false && tsc -p . -noEmit --pretty false && convex dev --once && vite build"
+    "lint": "tsc -p . -noEmit --pretty false && vite build"
   },
   "dependencies": {
     "@auth/core": "^0.41.3",
@@ -22,8 +20,7 @@
     "@capawesome/capacitor-app-update": "^8.0.3",
     "@capawesome/capacitor-google-sign-in": "^0.1.2",
     "@capgo/native-purchases": "^8.6.5",
-    "@convex-dev/auth": "^0.0.80",
-    "@convex-dev/presence": "^0.3.0",
+
     "@fingerprintjs/fingerprintjs": "^5.1.0",
     "@supabase/supabase-js": "^2.112.4",
     "@types/canvas-confetti": "^1.9.0",
@@ -32,7 +29,7 @@
     "agora-token": "^2.0.5",
     "canvas-confetti": "^1.9.4",
     "clsx": "^2.1.1",
-    "convex": "^1.31.2",
+
     "firebase-admin": "^14.2.0",
     "googleapis": "^144.0.0",
     "hls.js": "^1.6.16",

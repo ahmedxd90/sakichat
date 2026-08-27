@@ -2,15 +2,14 @@ import { App } from "@capacitor/app";
 import { useEffect, useRef } from "react";
 import { Browser } from "@capacitor/browser";
 import { Capacitor } from "@capacitor/core";
-import { useAuthActions } from "@convex-dev/auth/react";
+import { supabase } from "../lib/supabaseClient";
 import { toast } from "../lib/toast";
 
 /**
- * Completes the Convex Auth OAuth flow when Android reopens the Capacitor app
+ * Completes the Supabase OAuth flow when Android reopens the Capacitor app
  * using the saki.chat.co://callback deep link.
  */
 export default function GoogleAuthDeepLinkHandler() {
-  const { signIn } = useAuthActions();
   const processingRef = useRef(false);
 
   useEffect(() => {
@@ -18,25 +17,35 @@ export default function GoogleAuthDeepLinkHandler() {
 
     const completeFromUrl = async (url?: string | null) => {
       if (!url || processingRef.current) return;
-      let parsed: URL;
-      try {
-        parsed = new URL(url);
-      } catch {
-        return;
-      }
-      const code = parsed.searchParams.get("code");
-      const oauthError = parsed.searchParams.get("error");
-      if (oauthError) {
-        window.dispatchEvent(new CustomEvent("saki-google-auth-state", { detail: { status: "error", message: oauthError } }));
-        toast.error("تم إلغاء تسجيل الدخول عبر Google أو رفضه");
-        return;
-      }
-      if (!code) return;
+      
+      // Supabase uses hash for access_token or query params for code
+      const hasAuthData = url.includes("access_token=") || url.includes("code=");
+      if (!hasAuthData) return;
 
       processingRef.current = true;
       try {
         await Browser.close().catch(() => {});
-        await signIn(undefined, { code });
+        
+        // Extract params from the URL (could be in hash or query)
+        const urlObj = new URL(url.replace("#", "?"));
+        const refreshToken = urlObj.searchParams.get("refresh_token");
+        const accessToken = urlObj.searchParams.get("access_token");
+
+        if (accessToken && refreshToken) {
+          const { error } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken,
+          });
+          if (error) throw error;
+        } else {
+          // If it's a PKCE flow with code
+          const code = urlObj.searchParams.get("code");
+          if (code) {
+            const { error } = await supabase.auth.exchangeCodeForSession(code);
+            if (error) throw error;
+          }
+        }
+
         window.dispatchEvent(new CustomEvent("saki-google-auth-state", { detail: { status: "success" } }));
       } catch (error) {
         console.error("Google OAuth callback failed", error);
@@ -59,7 +68,7 @@ export default function GoogleAuthDeepLinkHandler() {
     return () => {
       void listenerPromise.then((listener) => listener.remove());
     };
-  }, [signIn]);
+  }, []);
 
   return null;
 }

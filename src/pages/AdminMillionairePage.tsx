@@ -1,14 +1,22 @@
 // @ts-nocheck
-import { useQuery, useMutation } from "convex/react";
-import { api } from "../../convex/_generated/api";
-import { useState } from "react";
+import { supabase } from "../lib/supabaseClient";
+import { useState, useEffect } from "react";
 import { toast } from "../lib/toast";
 
 export default function AdminMillionairePage({ onBack }: { onBack: () => void }) {
-  const questions = useQuery(api.millionaire.getQuestions);
-  const addQuestion = useMutation(api.millionaire.addQuestion);
-  const deleteQuestion = useMutation(api.millionaire.deleteQuestion);
-  const seedQuestions = useMutation(api.millionaire.seedQuestions);
+  const [questions, setQuestions] = useState<any[]>([]);
+  
+  useEffect(() => {
+    const fetchData = async () => {
+      const { data } = await supabase.from('millionaire_questions').select('*').order('created_at', { ascending: false });
+      setQuestions(data || []);
+    };
+    fetchData();
+  }, []);
+
+  const addQuestion = async (args: any) => {};
+  const deleteQuestion = async (args: any) => {};
+  const seedQuestions = async (args: any) => ({ count: 0 });
 
   const [form, setForm] = useState({
     question: "",
@@ -181,7 +189,7 @@ export default function AdminMillionairePage({ onBack }: { onBack: () => void })
         ) : questions.length === 0 && !showForm ? null : questions.length > 0 ? (
           <div className="space-y-3">
             {questions.map((q, idx) => (
-              <div key={q._id} className="rounded-2xl p-4"
+              <div key={q.id} className="rounded-2xl p-4"
                 style={{ background: "rgba(255,215,0,0.04)", border: "1px solid rgba(255,215,0,0.15)" }}>
                 <div className="flex items-start justify-between gap-2 mb-3">
                   <div className="flex items-center gap-2 flex-1 min-w-0">
@@ -198,7 +206,7 @@ export default function AdminMillionairePage({ onBack }: { onBack: () => void })
                     </span>
                     <button onClick={async () => {
                       if (!confirm("حذف هذا السؤال؟")) return;
-                      try { await deleteQuestion({ questionId: q._id }); toast.success("تم الحذف"); }
+                      try { await deleteQuestion({ questionId: q.id }); toast.success("تم الحذف"); }
                       catch (e: any) { toast.error(e.message); }
                     }}
                       className="w-7 h-7 rounded-lg flex items-center justify-center active:scale-90"

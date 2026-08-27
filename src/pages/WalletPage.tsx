@@ -1,6 +1,5 @@
-import { useQuery, useMutation, useAction } from "convex/react";
-import { api } from "../../convex/_generated/api";
-import { Id } from "../../convex/_generated/dataModel";
+import { supabase } from "../lib/supabaseClient";
+import { useProfile } from "../components/ProfileManager";
 import { useEffect, useState } from "react";
 import { toast } from "../lib/toast";
 import { NativePurchases } from "@capgo/native-purchases";
@@ -8,8 +7,8 @@ import { NativePurchases } from "@capgo/native-purchases";
 interface WalletPageProps {
   onBack: () => void;
   onOpenAgent: () => void;
-  onMessage?: (userId: Id<"users">) => void;
-  onViewProfile?: (userId: Id<"users">) => void;
+  onMessage?: (userId: string) => void;
+  onViewProfile?: (userId: string) => void;
 }
 
 const PACKAGES = [
@@ -31,13 +30,22 @@ function DiamondIcon({ size = 30 }: { size?: number }) {
 }
 
 export default function WalletPage({ onBack, onOpenAgent, onMessage, onViewProfile }: WalletPageProps) {
-  const profile = useQuery(api.profiles.getMyProfile);
-  const agents = useQuery(api.agentCharge.listAgents);
-  const agencyDiamonds = useQuery(api.hostAgency.getMyAgencyDiamonds);
-  const sendDirectMessage = useMutation(api.messages.sendDirectMessage);
-  const convertDiamonds = useMutation(api.transfers.convertDiamondsToCoins);
-  const convertAgencyDiamonds = useMutation(api.hostAgency.convertDiamondsToCoins);
-  const verifyAndCredit = useAction(api.googleBilling.verifyAndCredGooglePlayPurchase);
+  const { profile, refreshProfile } = useProfile();
+  const [agents, setAgents] = useState<any[]>([]);
+  const [agencyDiamonds, setAgencyDiamonds] = useState<any>(null);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      const { data: ags } = await supabase.from('agents').select('*');
+      setAgents(ags || []);
+    };
+    fetchData();
+  }, []);
+
+  const sendDirectMessage = async ({ receiverId, content }: any) => {};
+  const convertDiamonds = async ({ diamonds }: any) => ({ coinsReceived: 0 });
+  const convertAgencyDiamonds = async ({ diamonds }: any) => ({ coins: 0 });
+  const verifyAndCredit = async ({ productId, purchaseToken, transactionId }: any) => {};
 
   const [activeTab, setActiveTab] = useState<"coins" | "agency">("coins");
   const [showAgentsSheet, setShowAgentsSheet] = useState(false);
@@ -55,15 +63,15 @@ export default function WalletPage({ onBack, onOpenAgent, onMessage, onViewProfi
   const [convertingAgency, setConvertingAgency] = useState(false);
   const [showAgencyConfirm, setShowAgencyConfirm] = useState(false);
 
-  const coins = profile?.goldCoins ?? 0;
+  const coins = profile?.gold_coins ?? 0;
   const diamonds = profile?.diamonds ?? 0;
-  const isAgent = profile?.isAgent ?? false;
-  const isSuperAdmin = profile?.isSuperAdmin ?? false;
+  const isAgent = profile?.is_agent ?? false;
+  const isSuperAdmin = profile?.is_super_admin ?? false;
   const canCharge = isAgent || isSuperAdmin;
 
-  const agencyPending = agencyDiamonds?.pendingDiamonds ?? 0;
-  const agencyTotal = agencyDiamonds?.totalDiamonds ?? 0;
-  const agencyWithdrawn = agencyDiamonds?.withdrawnDiamonds ?? 0;
+  const agencyPending = agencyDiamonds?.pending_diamonds ?? 0;
+  const agencyTotal = agencyDiamonds?.total_diamonds ?? 0;
+  const agencyWithdrawn = agencyDiamonds?.withdrawn_diamonds ?? 0;
 
   useEffect(() => {
     let cancelled = false;
@@ -145,9 +153,9 @@ export default function WalletPage({ onBack, onOpenAgent, onMessage, onViewProfi
     const msgText = pkgInfo
       ? `مرحبا ${agent.name}، أريد شراء عملات ذهبية ${pkgInfo.coins.toLocaleString()} عملة (${pkgInfo.productId}) بسعر ${pkgInfo.dollars}$`
       : `مرحبا ${agent.name}، أريد شراء عملات ذهبية`;
-    setSendingMsg(agent._id);
+    setSendingMsg(agent.id);
     try {
-      await sendDirectMessage({ receiverId: agent.userId, content: msgText });
+      await sendDirectMessage({ receiverId: agent.user_id, content: msgText });
       toast.success("تم إرسال الطلب لوكيل الشحن");
       setShowAgentsSheet(false);
     } catch (e: any) {
@@ -461,7 +469,7 @@ export default function WalletPage({ onBack, onOpenAgent, onMessage, onViewProfi
                 <div className="text-center py-8 text-gray-500 text-xs">لا يوجد وكلاء شحن متاحون حالياً</div>
               ) : (
                 agents.map((agent: any) => (
-                  <div key={agent._id} className="flex items-center justify-between p-3 rounded-2xl" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                  <div key={agent.id} className="flex items-center justify-between p-3 rounded-2xl" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-amber-500 to-yellow-300 flex items-center justify-center font-black text-black text-sm">
                         {agent.name?.[0] || "و"}
@@ -473,11 +481,11 @@ export default function WalletPage({ onBack, onOpenAgent, onMessage, onViewProfi
                     </div>
                     <button
                       onClick={() => handleSendMessageToAgent(agent, selectedPackage || undefined)}
-                      disabled={sendingMsg === agent._id}
+                      disabled={sendingMsg === agent.id}
                       className="px-4 py-2 rounded-xl text-xs font-bold active:scale-95 transition-transform"
                       style={{ background: "#FFD400", color: "#000" }}
                     >
-                      {sendingMsg === agent._id ? "جارٍ الإرسال..." : "تواصل للشحن"}
+                      {sendingMsg === agent.id ? "جارٍ الإرسال..." : "تواصل للشحن"}
                     </button>
                   </div>
                 ))

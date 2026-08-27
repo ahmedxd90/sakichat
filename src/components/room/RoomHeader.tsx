@@ -165,9 +165,9 @@ export default function RoomHeader({
             WebkitBackdropFilter: "blur(12px)",
           }}
         >
-          {onlineMembers.map((m: any, idx: number) => (
+              {onlineMembers.map((m: any, idx: number) => (
             <div
-              key={m._id ?? idx}
+              key={m.id ?? idx}
               className="w-[20px] h-[20px] rounded-full overflow-hidden flex-shrink-0"
               style={{ border: "1.5px solid rgba(255,255,255,0.18)", background: "#333" }}
             >

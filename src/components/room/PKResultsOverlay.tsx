@@ -1,13 +1,11 @@
 // @ts-nocheck
 import { useState, useEffect, useRef } from "react";
-import { useQuery } from "convex/react";
-import { api } from "../../../convex/_generated/api";
-import { Id } from "../../../convex/_generated/dataModel";
+import { supabase } from "../../lib/supabaseClient";
 import { formatNumber } from "../../lib/formatNumber";
 
 interface PKResultsOverlayProps {
-  pkId: Id<"pkBattles">;
-  roomId: Id<"rooms">;
+  pkId: string;
+  roomId: string;
   onClose: () => void;
 }
 
@@ -70,9 +68,24 @@ function MedalSVG({ color, size = 14 }: { color: string; size?: number }) {
 }
 
 export default function PKResultsOverlay({ pkId, roomId, onClose }: PKResultsOverlayProps) {
-  const pk = useQuery(api.pk.getPKBattle, { pkId });
-  const room1Contribs = useQuery(api.pk.getPKContributors, { pkId, roomId: pk?.room1Id ?? roomId });
-  const room2Contribs = useQuery(api.pk.getPKContributors, { pkId, roomId: pk?.room2Id ?? roomId });
+  const [pk, setPk] = useState<any>(null);
+  const [room1Contribs, setRoom1Contribs] = useState<any[]>([]);
+  const [room2Contribs, setRoom2Contribs] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      const { data: p } = await supabase.from('pk_battles').select('*').eq('id', pkId).single();
+      if (p) {
+        setPk(p);
+        const { data: c1 } = await supabase.from('pk_contributors').select('*').eq('pk_id', pkId).eq('room_id', p.room1_id);
+        setRoom1Contribs(c1 || []);
+        const { data: c2 } = await supabase.from('pk_contributors').select('*').eq('pk_id', pkId).eq('room_id', p.room2_id);
+        setRoom2Contribs(c2 || []);
+      }
+    };
+    fetchData();
+  }, [pkId]);
+
   const [fireworks, setFireworks] = useState<Array<{ id: number; x: number; y: number }>>([]);
   const fwRef = useRef(0);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -94,10 +107,10 @@ export default function PKResultsOverlay({ pkId, roomId, onClose }: PKResultsOve
 
   if (!pk) return null;
 
-  const isRoom1Winner = pk.winnerId === pk.room1Id;
-  const isRoom2Winner = pk.winnerId === pk.room2Id;
-  const isDraw = !pk.winnerId;
-  const isMyRoom1 = pk.room1Id === roomId;
+  const isRoom1Winner = pk.winner_id === pk.room1_id;
+  const isRoom2Winner = pk.winner_id === pk.room2_id;
+  const isDraw = !pk.winner_id;
+  const isMyRoom1 = pk.room1_id === roomId;
   const myRoomWon = isMyRoom1 ? isRoom1Winner : isRoom2Winner;
 
   const blueColor = "#3b82f6";
@@ -105,7 +118,7 @@ export default function PKResultsOverlay({ pkId, roomId, onClose }: PKResultsOve
 
   const displayContribs = tab === "room1" ? (room1Contribs ?? []) : (room2Contribs ?? []);
   const tabColor = tab === "room1" ? blueColor : redColor;
-  const tabName = tab === "room1" ? pk.room1Name : pk.room2Name;
+  const tabName = tab === "room1" ? pk.room1_name : pk.room2_name;
   const tabTeam = tab === "room1" ? "🐯 النمور" : "🦁 الأسود";
 
   return (
@@ -135,7 +148,7 @@ export default function PKResultsOverlay({ pkId, roomId, onClose }: PKResultsOve
               {isDraw ? "تعادل!" : myRoomWon ? "فزت! 🎉" : "انتهت المعركة"}
             </h2>
             <p className="text-gray-400 text-sm">
-              {isDraw ? "تعادلت الغرفتان" : `الفائز: ${isRoom1Winner ? pk.room1Name : pk.room2Name}`}
+              {isDraw ? "تعادلت الغرفتان" : `الفائز: ${isRoom1Winner ? pk.room1_name : pk.room2_name}`}
             </p>
           </div>
 
@@ -144,11 +157,11 @@ export default function PKResultsOverlay({ pkId, roomId, onClose }: PKResultsOve
             style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
             <div className="flex items-center justify-between">
               <div className="text-center flex-1">
-                <p className="text-xs font-black truncate" style={{ color: blueColor }}>{pk.room1Name}</p>
+                <p className="text-xs font-black truncate" style={{ color: blueColor }}>{pk.room1_name}</p>
                 <p className="text-[9px] mb-1" style={{ color: blueColor }}>🐯 النمور</p>
                 <div className="flex items-center justify-center gap-1">
                   <GiftSVG color="#fbbf24" size={11} />
-                  <p className="text-yellow-400 font-black text-lg">{formatNumber(pk.room1Coins ?? 0)}</p>
+                  <p className="text-yellow-400 font-black text-lg">{formatNumber(pk.room1_coins ?? 0)}</p>
                 </div>
                 {isRoom1Winner && (
                   <div className="flex justify-center mt-1">
@@ -158,11 +171,11 @@ export default function PKResultsOverlay({ pkId, roomId, onClose }: PKResultsOve
               </div>
               <div className="text-orange-400 font-black text-xl px-2">VS</div>
               <div className="text-center flex-1">
-                <p className="text-xs font-black truncate" style={{ color: redColor }}>{pk.room2Name}</p>
+                <p className="text-xs font-black truncate" style={{ color: redColor }}>{pk.room2_name}</p>
                 <p className="text-[9px] mb-1" style={{ color: redColor }}>🦁 الأسود</p>
                 <div className="flex items-center justify-center gap-1">
                   <GiftSVG color="#fbbf24" size={11} />
-                  <p className="text-yellow-400 font-black text-lg">{formatNumber(pk.room2Coins ?? 0)}</p>
+                  <p className="text-yellow-400 font-black text-lg">{formatNumber(pk.room2_coins ?? 0)}</p>
                 </div>
                 {isRoom2Winner && (
                   <div className="flex justify-center mt-1">
@@ -180,14 +193,14 @@ export default function PKResultsOverlay({ pkId, roomId, onClose }: PKResultsOve
               style={tab === "room1"
                 ? { background: "rgba(59,130,246,0.2)", border: "1px solid rgba(59,130,246,0.5)", color: blueColor }
                 : { background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", color: "#6b7280" }}>
-              🐯 {pk.room1Name}
+              🐯 {pk.room1_name}
             </button>
             <button onClick={() => setTab("room2")}
               className="flex-1 py-2 rounded-xl text-xs font-bold transition-all"
               style={tab === "room2"
                 ? { background: "rgba(239,68,68,0.2)", border: "1px solid rgba(239,68,68,0.5)", color: redColor }
                 : { background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", color: "#6b7280" }}>
-              🦁 {pk.room2Name}
+              🦁 {pk.room2_name}
             </button>
           </div>
 
@@ -208,7 +221,7 @@ export default function PKResultsOverlay({ pkId, roomId, onClose }: PKResultsOve
               </div>
             ) : (
               displayContribs.slice(0, 10).map((c, i) => (
-                <div key={c._id} className="flex items-center gap-3 px-3 py-2 border-b last:border-0"
+                <div key={c.id} className="flex items-center gap-3 px-3 py-2 border-b last:border-0"
                   style={{ borderColor: "rgba(255,255,255,0.04)" }}>
                   <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-black flex-shrink-0"
                     style={{
@@ -221,7 +234,7 @@ export default function PKResultsOverlay({ pkId, roomId, onClose }: PKResultsOve
                     {i + 1}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-white text-xs font-bold truncate">{c.userName ?? "مجهول"}</p>
+                    <p className="text-white text-xs font-bold truncate">{c.user_name ?? "مجهول"}</p>
                   </div>
                   <div className="flex items-center gap-1 flex-shrink-0">
                     <GiftSVG color="#fbbf24" size={10} />

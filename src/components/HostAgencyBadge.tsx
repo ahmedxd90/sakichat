@@ -1,8 +1,6 @@
 // @ts-nocheck
-import React from "react";
-import { useQuery } from "convex/react";
-import { api } from "../../convex/_generated/api";
-import { Id } from "../../convex/_generated/dataModel";
+import React, { useState, useEffect } from "react";
+import { supabase } from "../lib/supabaseClient";
 
 // ── أيقونة ميكروفون SVG حقيقية للمضيف ──
 function MicSvg({ size = 14, color }: { size?: number; color: string }) {
@@ -76,10 +74,20 @@ export function HostAgencyBadgeInline({
   userId,
   size = "sm",
 }: {
-  userId: Id<"users">;
+  userId: string;
   size?: "sm" | "md";
 }) {
-  const badge = useQuery(api.hostAgency.getAgencyBadgeByUserId, { userId });
+  const [badge, setBadge] = useState<any>(null);
+
+  useEffect(() => {
+    if (!userId) return;
+    const fetchBadge = async () => {
+      const { data } = await supabase.from('host_agency_members').select('*, host_agencies(name)').eq('user_id', userId).single();
+      if (data) setBadge({ ...data, agencyName: data.host_agencies.name });
+    };
+    fetchBadge();
+  }, [userId]);
+
   if (!badge) return null;
 
   const cfg = getBadgeConfig(badge.role);
@@ -128,8 +136,18 @@ export function HostAgencyBadgeInline({
 }
 
 // ── Badge Card (كبير - لصفحة الأوسمة) ──
-export function HostAgencyBadgeCard({ userId }: { userId: Id<"users"> }) {
-  const badge = useQuery(api.hostAgency.getAgencyBadgeByUserId, { userId });
+export function HostAgencyBadgeCard({ userId }: { userId: string }) {
+  const [badge, setBadge] = useState<any>(null);
+
+  useEffect(() => {
+    if (!userId) return;
+    const fetchBadge = async () => {
+      const { data } = await supabase.from('host_agency_members').select('*, host_agencies(name)').eq('user_id', userId).single();
+      if (data) setBadge({ ...data, agencyName: data.host_agencies.name });
+    };
+    fetchBadge();
+  }, [userId]);
+
   if (!badge) return null;
 
   const cfg = getBadgeConfig(badge.role);
@@ -185,8 +203,18 @@ export function HostAgencyBadgeCard({ userId }: { userId: Id<"users"> }) {
 }
 
 // ── Section Card (بطاقة كاملة في صفحة الملف الشخصي) ──
-export function HostAgencyBadgeSection({ userId }: { userId: Id<"users"> }) {
-  const badge = useQuery(api.hostAgency.getAgencyBadgeByUserId, { userId });
+export function HostAgencyBadgeSection({ userId }: { userId: string }) {
+  const [badge, setBadge] = useState<any>(null);
+
+  useEffect(() => {
+    if (!userId) return;
+    const fetchBadge = async () => {
+      const { data } = await supabase.from('host_agency_members').select('*, host_agencies(name)').eq('user_id', userId).single();
+      if (data) setBadge({ ...data, agencyName: data.host_agencies.name });
+    };
+    fetchBadge();
+  }, [userId]);
+
   if (!badge) return null;
 
   const cfg = getBadgeConfig(badge.role);

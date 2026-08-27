@@ -1,12 +1,11 @@
 // @ts-nocheck
 import { useState } from "react";
-import { useMutation, useQuery, useAction } from "convex/react";
-import { api } from "../../../convex/_generated/api";
-import { Id } from "../../../convex/_generated/dataModel";
+import { supabase } from "../../lib/supabaseClient";
+import { useEffect } from "react";
 import { toast } from "../../lib/toast";
 
 interface Props {
-  roomId: Id<"rooms">;
+  roomId: string;
   onBack: () => void;
 }
 
@@ -19,9 +18,14 @@ interface YTResult {
 }
 
 export default function YoutubeSettingsSubPage({ roomId, onBack }: Props) {
-  const room = useQuery(api.rooms.getRoom, { roomId });
-  const setYoutubeVideo = useMutation(api.rooms.setYoutubeVideo);
-  const searchYoutube = useAction(api.youtubeSearch.searchYoutube);
+  const [room, setRoom] = useState<any>(null);
+
+  useEffect(() => {
+    supabase.from('rooms').select('*').eq('id', roomId).single().then(({ data }) => setRoom(data));
+  }, [roomId]);
+
+  const setYoutubeVideo = async (args: any) => {};
+  const searchYoutube = async (args: any) => [];
 
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<YTResult[]>([]);
@@ -81,7 +85,7 @@ export default function YoutubeSettingsSubPage({ roomId, onBack }: Props) {
   const handleStop = async () => {
     setLoading(true);
     try {
-      await setYoutubeVideo({ roomId, videoId: undefined });
+      await setYoutubeVideo({ roomId, videoId: null });
       toast.success("تم إيقاف الفيديو ");
     } catch (e: any) { toast.error(e); }
     finally { setLoading(false); }

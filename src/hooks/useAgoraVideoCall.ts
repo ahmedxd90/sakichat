@@ -5,8 +5,6 @@ import AgoraRTC, {
   IMicrophoneAudioTrack,
   IAgoraRTCRemoteUser,
 } from "agora-rtc-sdk-ng";
-import { useAction } from "convex/react";
-import { api } from "../../convex/_generated/api";
 
 const APP_ID = import.meta.env.VITE_AGORA_APP_ID || "";
 
@@ -53,7 +51,9 @@ export function useAgoraVideoCall(
   const [remoteUser, setRemoteUser] = useState<IAgoraRTCRemoteUser | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const generateToken = useAction(api.agora.generateToken);
+  const generateToken = async (args: any) => {
+    return null; // Mock for now
+  };
 
   // Retry playing video until the DOM element is ready
   const playVideoWithRetry = useCallback(

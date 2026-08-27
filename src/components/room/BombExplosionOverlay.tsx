@@ -1,11 +1,9 @@
 // @ts-nocheck
 import { useEffect, useState, useRef } from "react";
-import { useQuery } from "convex/react";
-import { api } from "../../../convex/_generated/api";
-import { Id } from "../../../convex/_generated/dataModel";
+import { supabase } from "../../lib/supabaseClient";
 
 interface BombExplosionOverlayProps {
-  roomId: Id<"rooms">;
+  roomId: string;
 }
 
 const LEVEL_COLORS = [
@@ -70,7 +68,8 @@ function playExplosionSound() {
 }
 
 export default function BombExplosionOverlay({ roomId }: BombExplosionOverlayProps) {
-  const bombState = useQuery(api.roomBomb.getRoomBombState, { roomId });
+  const [bombState, setBombState] = useState<any>(null);
+  const [leaderboard, setLeaderboard] = useState<any[]>([]);
   const [phase, setPhase] = useState<Phase>("done");
   const [countdown, setCountdown] = useState(10);
   const [explodedLevel, setExplodedLevel] = useState(1);
@@ -80,19 +79,28 @@ export default function BombExplosionOverlay({ roomId }: BombExplosionOverlayPro
   const phaseRef = useRef<Phase>("done");
   const trackedExplodeAt = useRef<number | null>(null);
 
-  const leaderboard = useQuery(
-    api.roomBomb.getRoomBombLeaderboard,
-    showLeaderboard ? { roomId, level: explodedLevel } : "skip"
-  );
+  useEffect(() => {
+    const fetchData = async () => {
+      const { data } = await supabase.from('room_bomb_state').select('*').eq('room_id', roomId).single();
+      setBombState(data);
+    };
+    fetchData();
+  }, [roomId]);
+
+  useEffect(() => {
+    if (showLeaderboard) {
+      supabase.from('room_bomb_leaderboard').select('*').eq('room_id', roomId).eq('level', explodedLevel).then(({ data }) => setLeaderboard(data || []));
+    }
+  }, [showLeaderboard, roomId, explodedLevel]);
 
   useEffect(() => {
     if (!bombState) return;
-    const isExploding = bombState.isExploding;
-    const explodeAt = bombState.explodeAt as number | null;
+    const isExploding = bombState.is_exploding;
+    const explodeAt = bombState.explode_at as number | null;
 
     if (isExploding && explodeAt && explodeAt !== trackedExplodeAt.current) {
       trackedExplodeAt.current = explodeAt;
-      setExplodedLevel(bombState.currentLevel ?? 1);
+      setExplodedLevel(bombState.current_level ?? 1);
       setShowLeaderboard(false);
       setShowRewards(false);
 

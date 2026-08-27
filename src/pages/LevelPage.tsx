@@ -1,6 +1,5 @@
 // @ts-nocheck
-import { useQuery } from "convex/react";
-import { api } from "../../convex/_generated/api";
+import { useProfile } from "../components/ProfileManager";
 import { useState } from "react";
 import {
   calcLevelWealth,
@@ -71,14 +70,14 @@ function TierCard({ tier, type, active, onClick }: { tier: number; type: "wealth
 interface LevelPageProps { onBack: () => void; }
 
 export default function LevelPage({ onBack }: LevelPageProps) {
-  const profile = useQuery(api.profiles.getMyProfile);
+  const { profile } = useProfile();
   const [activeTab, setActiveTab] = useState<"wealth" | "charisma">("wealth");
   const [selectedTier, setSelectedTier] = useState(0);
 
   if (!profile) return <div className="h-full flex items-center justify-center bg-[#080814]"><div className="w-9 h-9 rounded-full border-2 border-fuchsia-400 border-t-transparent animate-spin" /></div>;
 
-  const totalSent = profile.totalCoinsSent ?? 0;
-  const totalReceived = profile.totalCoinsReceived ?? 0;
+  const totalSent = profile.total_coins_sent ?? 0;
+  const totalReceived = profile.total_coins_received ?? 0;
   const wealthLevel = calcLevelWealth(totalSent);
   const charismaLevel = calcLevelCharisma(totalReceived);
   const activeLevel = activeTab === "wealth" ? wealthLevel : charismaLevel;

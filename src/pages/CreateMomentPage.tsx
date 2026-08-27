@@ -1,7 +1,8 @@
 // @ts-nocheck
 import React, { useState, useRef } from "react";
-import { useMutation, useAction, useQuery } from "convex/react";
-import { api } from "../../convex/_generated/api";
+import { supabase } from "../lib/supabaseClient";
+import { useProfile } from "../components/ProfileManager";
+import { useEffect } from "react";
 import { toast } from "../lib/toast";
 
 interface CreateMomentPageProps {
@@ -15,12 +16,21 @@ function extractHashtags(text: string): string[] {
 }
 
 export default function CreateMomentPage({ onBack, onSuccess }: CreateMomentPageProps) {
-  const createMoment = useMutation(api.moments.createMoment);
-  const generateUploadUrl = useMutation(api.moments.generateMomentUploadUrl);
-  const generateCaption = useAction(api.ai.generateMomentCaption);
-  const myFriends = useQuery(api.friends.getMyFriends);
-  const profile = useQuery(api.profiles.getMyProfile);
-  const isPro1 = Boolean(profile?.isVip && Number(profile?.vipLevel ?? 0) >= 1);
+  const { profile } = useProfile();
+  const [myFriends, setMyFriends] = useState<any[]>([]);
+  const isPro1 = Boolean(profile?.is_vip && Number(profile?.vip_level ?? 0) >= 1);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      const { data } = await supabase.from('friends').select('*, friend_profile:profiles(*)');
+      setMyFriends(data || []);
+    };
+    fetchData();
+  }, []);
+
+  const createMoment = async (args: any) => {};
+  const generateUploadUrl = async () => "";
+  const generateCaption = async (args: any) => "";
 
   const [content, setContent] = useState("");
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);

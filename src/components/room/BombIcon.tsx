@@ -1,10 +1,9 @@
 // @ts-nocheck
-import { useQuery } from "convex/react";
-import { api } from "../../../convex/_generated/api";
-import { Id } from "../../../convex/_generated/dataModel";
+import { useState, useEffect } from "react";
+import { supabase } from "../../lib/supabaseClient";
 
 interface BombIconProps {
-  roomId: Id<"rooms">;
+  roomId: string;
   onClick: () => void;
   isCp: boolean;
   isMusic: boolean;
@@ -13,12 +12,22 @@ interface BombIconProps {
 const LEVEL_THRESHOLDS = [1_000_000, 5_000_000, 10_000_000, 15_000_000, 20_000_000];
 
 export default function BombIcon({ roomId, onClick, isCp, isMusic }: BombIconProps) {
-  const bombState = useQuery(api.roomBomb.getRoomBombState, { roomId });
+  const [bombState, setBombState] = useState<any>(null);
 
-  const currentLevel = bombState?.currentLevel ?? 1;
-  const totalCoins = bombState?.totalCoinsInLevel ?? 0;
+  useEffect(() => {
+    const fetchBomb = async () => {
+      const { data } = await supabase.from('room_bomb_state').select('*').eq('room_id', roomId).single();
+      setBombState(data);
+    };
+    fetchBomb();
+    const sub = supabase.channel(`bomb_icon_v2_${roomId}`).on('postgres_changes', { event: '*', schema: 'public', table: 'room_bomb_state' }, fetchBomb).subscribe();
+    return () => { sub.unsubscribe(); };
+  }, [roomId]);
+
+  const currentLevel = bombState?.current_level ?? 1;
+  const totalCoins = bombState?.total_coins_in_level ?? 0;
   const threshold = bombState?.threshold ?? LEVEL_THRESHOLDS[0];
-  const isExploding = bombState?.isExploding ?? false;
+  const isExploding = bombState?.is_exploding ?? false;
   const progress = Math.min((totalCoins / threshold) * 100, 100);
   const isDone = currentLevel > 5;
 

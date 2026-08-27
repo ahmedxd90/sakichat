@@ -1,37 +1,45 @@
 // @ts-nocheck
 import { useState, useEffect } from "react";
-import { useQuery } from "convex/react";
-import { api } from "../../../convex/_generated/api";
-import { Id } from "../../../convex/_generated/dataModel";
+import { supabase } from "../../lib/supabaseClient";
 import { formatNumber } from "../../lib/formatNumber";
 
 interface InRoomPKBarProps {
-  roomId: Id<"rooms">;
+  roomId: string;
   onOpenDetails: () => void;
 }
 
 export default function InRoomPKBar({ roomId, onOpenDetails }: InRoomPKBarProps) {
-  const activePK = useQuery(api.pkInRoom.getActiveInRoomPK, { roomId });
+  const [activePK, setActivePK] = useState<any>(null);
   const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    const fetchPK = async () => {
+      const { data } = await supabase.from('in_room_pk_battles').select('*').eq('room_id', roomId).eq('status', 'active').single();
+      setActivePK(data);
+    };
+    fetchPK();
+    const sub = supabase.channel(`in_room_pk_${roomId}`).on('postgres_changes', { event: '*', schema: 'public', table: 'in_room_pk_battles' }, fetchPK).subscribe();
+    return () => { sub.unsubscribe(); };
+  }, [roomId]);
 
   useEffect(() => {
     if (!activePK) return;
     const t = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(t);
-  }, [activePK?._id]);
+  }, [activePK?.id]);
 
   if (!activePK) return null;
 
-  const timeLeft = Math.max(0, activePK.endsAt - now);
+  const timeLeft = Math.max(0, activePK.ends_at - now);
   const minutes = Math.floor(timeLeft / 60000);
   const seconds = Math.floor((timeLeft % 60000) / 1000);
   const isUrgent = timeLeft < 60000;
-  const isFever = activePK.isFeverTime;
+  const isFever = activePK.is_fever_time;
 
-  const total = (activePK.team1Coins ?? 0) + (activePK.team2Coins ?? 0);
-  const t1Pct = total > 0 ? ((activePK.team1Coins ?? 0) / total) * 100 : 50;
+  const total = (activePK.team1_coins ?? 0) + (activePK.team2_coins ?? 0);
+  const t1Pct = total > 0 ? ((activePK.team1_coins ?? 0) / total) * 100 : 50;
   const t2Pct = 100 - t1Pct;
-  const t1Leading = (activePK.team1Coins ?? 0) >= (activePK.team2Coins ?? 0);
+  const t1Leading = (activePK.team1_coins ?? 0) >= (activePK.team2_coins ?? 0);
 
   return (
     <button
@@ -71,11 +79,11 @@ export default function InRoomPKBar({ roomId, onOpenDetails }: InRoomPKBarProps)
               🔴
             </div>
             <p className="text-[9px] font-black truncate max-w-[60px] text-center" style={{ color: t1Leading ? "#ef4444" : "rgba(255,255,255,0.7)" }}>
-              {activePK.team1Name}
+              {activePK.team1_name}
             </p>
             <div className="px-1.5 py-0.5 rounded-full text-[9px] font-black tabular-nums"
               style={{ background: "rgba(239,68,68,0.15)", border: "1px solid rgba(239,68,68,0.4)", color: "#ef4444" }}>
-              🎁 {formatNumber(activePK.team1Coins ?? 0)}
+              🎁 {formatNumber(activePK.team1_coins ?? 0)}
             </div>
           </div>
           <div className="flex flex-col items-center gap-0.5 flex-shrink-0">
@@ -88,11 +96,11 @@ export default function InRoomPKBar({ roomId, onOpenDetails }: InRoomPKBarProps)
               🔵
             </div>
             <p className="text-[9px] font-black truncate max-w-[60px] text-center" style={{ color: !t1Leading ? "#3b82f6" : "rgba(255,255,255,0.7)" }}>
-              {activePK.team2Name}
+              {activePK.team2_name}
             </p>
             <div className="px-1.5 py-0.5 rounded-full text-[9px] font-black tabular-nums"
               style={{ background: "rgba(59,130,246,0.15)", border: "1px solid rgba(59,130,246,0.4)", color: "#3b82f6" }}>
-              🎁 {formatNumber(activePK.team2Coins ?? 0)}
+              🎁 {formatNumber(activePK.team2_coins ?? 0)}
             </div>
           </div>
         </div>

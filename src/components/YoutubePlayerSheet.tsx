@@ -1,12 +1,10 @@
 // @ts-nocheck
 import { useState } from "react";
-import { useMutation } from "convex/react";
-import { api } from "../../convex/_generated/api";
-import { Id } from "../../convex/_generated/dataModel";
+import { supabase } from "../lib/supabaseClient";
 import { toast } from "sonner";
 
 interface CinemaPlayerSheetProps {
-  roomId: Id<"rooms">;
+  roomId: string;
   isOwner: boolean;
   currentVideoId?: string; // stores the full URL or youtube ID
   onClose: () => void;
@@ -219,7 +217,10 @@ function FullScreenPlayer({ parsed, isOwner, onBack, onStop }: {
 }
 
 export default function YoutubePlayerSheet({ roomId, isOwner, currentVideoId, onClose }: CinemaPlayerSheetProps) {
-  const setYoutubeVideo = useMutation(api.rooms.setYoutubeVideo);
+  const setYoutubeVideo = async (args: any) => {
+    const { error } = await supabase.from('rooms').update({ youtube_video_id: args.videoId }).eq('id', args.roomId);
+    if (error) throw error;
+  };
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [showFullPlayer, setShowFullPlayer] = useState(false);

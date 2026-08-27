@@ -1,25 +1,25 @@
 import { useEffect, useRef, useState } from "react";
-import { useQuery } from "convex/react";
-import { api } from "../../convex/_generated/api";
+import { supabase } from "../lib/supabaseClient";
 
 export default function GlobalLiveEventBanner() {
-  const events = useQuery(api.livestreams.getRecentGlobalLiveEvents);
   const [item, setItem] = useState<any>(null);
   const lastRef = useRef<string | null>(null);
 
   useEffect(() => {
-    // Gift flyout banners are intentionally disabled. Keep join notifications only.
-    const join = events?.joins?.[0];
-    const next = join ? { ...join, kind: "join" } : null;
-    if (!next) return;
-    const key = `${next.kind}:${next._id}`;
-    if (lastRef.current === null) { lastRef.current = key; return; }
-    if (lastRef.current === key) return;
-    lastRef.current = key;
-    setItem(next);
-    const timer = window.setTimeout(() => setItem(null), next.kind === "gift" ? 5200 : 3600);
-    return () => window.clearTimeout(timer);
-  }, [events?.joins?.[0]?._id]);
+    const channel = supabase
+      .channel('global_live_events')
+      .on('postgres_changes', { event: 'INSERT', table: 'live_stream_joins' }, (payload) => {
+        const next = { ...payload.new, kind: "join" };
+        const key = `join:${next.id}`;
+        if (lastRef.current === key) return;
+        lastRef.current = key;
+        setItem(next);
+        const timer = window.setTimeout(() => setItem(null), 3600);
+        return () => window.clearTimeout(timer);
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, []);
 
   if (!item) return null;
   const isGift = item.kind === "gift";

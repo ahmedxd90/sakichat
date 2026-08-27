@@ -1,5 +1,4 @@
 // @ts-nocheck
-import { Id } from "../../../convex/_generated/dataModel";
 import BombFloatingIcon from "./BombFloatingIcon";
 import PKFloatingIcon from "./PKFloatingIcon";
 import { MillionaireIcon } from "./MillionaireSeats";
@@ -10,7 +9,7 @@ interface RoomSocialBarProps {
   isPK: boolean;
   isMillionaire?: boolean;
   isCinema?: boolean;
-  roomId: Id<"rooms">;
+  roomId: string;
   isOwner: boolean;
   isAdmin: boolean;
   hasActiveMillionaireGame?: boolean;

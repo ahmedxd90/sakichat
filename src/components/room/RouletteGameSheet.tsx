@@ -1,8 +1,6 @@
 // @ts-nocheck
 import { useState, useEffect, useRef } from "react";
-import { useQuery, useMutation } from "convex/react";
-import { api } from "../../../convex/_generated/api";
-import { Id } from "../../../convex/_generated/dataModel";
+import { supabase } from "../../lib/supabaseClient";
 import { toast } from "../../lib/toast";
 
 const RED_NUMBERS = [1,3,5,7,9,12,14,16,18,19,21,23,25,27,30,32,34,36];
@@ -298,26 +296,45 @@ function BettingBoard({
 export default function RouletteGameSheet({
   roomId, myUserId, isOwner, isAdmin, onClose,
 }: {
-  roomId: Id<"rooms">;
+  roomId: string;
   myUserId: string;
   isOwner: boolean;
   isAdmin: boolean;
   onClose: () => void;
 }) {
-  const activeSession = useQuery(api.roulette.getActiveSession, { roomId });
-  const myBetsData = useQuery(
-    api.roulette.getSessionBets,
-    activeSession ? { sessionId: activeSession._id } : "skip"
-  );
-  const recentResults = useQuery(api.roulette.getRecentResults, { roomId });
-  const myProfile = useQuery(api.profiles.getMyProfile);
-
-  const startSession = useMutation(api.roulette.startSession);
-  const placeBet = useMutation(api.roulette.placeBet);
-  const spinWheel = useMutation(api.roulette.spinWheel);
-  const endSession = useMutation(api.roulette.endSession);
+  const [activeSession, setActiveSession] = useState<any>(null);
+  const [myBetsData, setMyBetsData] = useState<any[]>([]);
+  const [recentResults, setRecentResults] = useState<any[]>([]);
+  const [myProfile, setMyProfile] = useState<any>(null);
 
   const [selectedChip, setSelectedChip] = useState(100);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: p } = await supabase.from('profiles').select('*').eq('user_id', user.id).single();
+        setMyProfile(p);
+      }
+
+      const fetchSession = async () => {
+        const { data: session } = await supabase.from('roulette_sessions').select('*').eq('room_id', roomId).order('created_at', { ascending: false }).limit(1).single();
+        setActiveSession(session);
+        
+        if (session) {
+          const { data: bets } = await supabase.from('roulette_bets').select('*').eq('session_id', session.id).eq('user_id', user?.id);
+          setMyBetsData(bets || []);
+        }
+        
+        const { data: recent } = await supabase.from('roulette_sessions').select('*').eq('room_id', roomId).eq('status', 'ended').order('created_at', { ascending: false }).limit(10);
+        setRecentResults(recent || []);
+      };
+      fetchSession();
+      const sub = supabase.channel(`roulette_room_${roomId}`).on('postgres_changes', { event: '*', schema: 'public', table: 'roulette_sessions' }, fetchSession).subscribe();
+      return () => { sub.unsubscribe(); };
+    };
+    fetchData();
+  }, [roomId]);
   const [collapsed, setCollapsed] = useState(false);
   const [spinning, setSpinning] = useState(false);
   const [showResult, setShowResult] = useState(false);
@@ -367,12 +384,19 @@ export default function RouletteGameSheet({
     setSpinEnded(true);
   };
 
-  const handleBet = async (betType: string, betValue: string) => {
+  const handleBet = async (bet_type: string, bet_value: string) => {
     if (!activeSession || activeSession.status !== "betting") return;
     if (timeLeft <= 0) { toast.error("انتهى وقت الرهان"); return; }
     if (coins < selectedChip) { toast.error("رصيدك غير كافٍ"); return; }
     try {
-      await placeBet({ sessionId: activeSession._id, betType, betValue, amount: selectedChip });
+      const { error } = await supabase.from('roulette_bets').insert({
+        session_id: activeSession.id,
+        user_id: myUserId,
+        bet_type,
+        bet_value,
+        amount: selectedChip
+      });
+      if (error) throw error;
     } catch (e: any) { toast.error(e.message); }
   };
 

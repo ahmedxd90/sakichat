@@ -1,6 +1,4 @@
-import { useQuery, useMutation } from "convex/react";
-import { api } from "../../../convex/_generated/api";
-import { Id } from "../../../convex/_generated/dataModel";
+import { supabase } from "../../lib/supabaseClient";
 import { useMemo, useState } from "react";
 import { ARAB_COUNTRIES } from "../../data/countries";
 import { VipFrame, VipName, VipBadge } from "../VipBadge";
@@ -9,7 +7,7 @@ import UserAvatar from "../UserAvatar";
 import { toast } from "sonner";
 
 interface RoomInfoSheetProps {
-  roomId: Id<"rooms">;
+  roomId: string;
   isCp: boolean;
   isOwner: boolean;
   onClose: () => void;
@@ -36,17 +34,78 @@ export default function RoomInfoSheet({
   onClose,
   onOpenSettings,
 }: RoomInfoSheetProps) {
-  const room = useQuery(api.rooms.getRoom, { roomId });
-  const members = useQuery(api.rooms.getRoomMembers, { roomId });
-  const followStatus = useQuery(api.roomSocial.getRoomFollowStatus, { roomId });
-  const membershipStatus = useQuery(api.rooms.getRoomMembershipStatus, { roomId });
-  const toggleFollow = useMutation(api.roomSocial.toggleRoomFollow);
-  const purchaseMembership = useMutation(api.rooms.purchaseRoomMembership);
+  const [room, setRoom] = useState<any>(null);
+  const [members, setMembers] = useState<any[]>([]);
+  const [followStatus, setFollowStatus] = useState<any>(null);
+  const [membershipStatus, setMembershipStatus] = useState<any>(null);
 
   const [activeTab, setActiveTab] = useState<ActiveTab>("data");
   const [followLoading, setFollowLoading] = useState(false);
   const [joinLoading, setJoinLoading] = useState(false);
   const [showJoinModal, setShowJoinModal] = useState(false);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      const { data: roomData } = await supabase.from('rooms').select('*').eq('id', roomId).single();
+      setRoom(roomData);
+      
+      const { data: membersData } = await supabase.from('room_members').select('*, profile:profiles(*)').eq('room_id', roomId);
+      setMembers(membersData || []);
+
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: followData } = await supabase.from('room_follows').select('*').eq('room_id', roomId).eq('user_id', user.id).maybeSingle();
+        setFollowStatus({ isFollowing: !!followData });
+
+        const { data: memberData } = await supabase.from('room_members').select('*').eq('room_id', roomId).eq('user_id', user.id).maybeSingle();
+        setMembershipStatus({ isPaidMember: !!memberData });
+      }
+    };
+    fetchData();
+  }, [roomId]);
+
+  const handleToggleFollow = async () => {
+    if (isOwner || followLoading) return;
+    setFollowLoading(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("يجب تسجيل الدخول");
+
+      if (followStatus?.isFollowing) {
+        await supabase.from('room_follows').delete().eq('room_id', roomId).eq('user_id', user.id);
+        setFollowStatus({ isFollowing: false });
+        toast.success("تم إلغاء متابعة الغرفة");
+      } else {
+        await supabase.from('room_follows').insert({ room_id: roomId, user_id: user.id });
+        setFollowStatus({ isFollowing: true });
+        toast.success("تمت متابعة الغرفة ✅");
+      }
+    } catch (error: any) {
+      toast.error(error?.message ?? "تعذر تحديث المتابعة");
+    } finally {
+      setFollowLoading(false);
+    }
+  };
+
+  const handleJoin = async () => {
+    if (isOwner || joinLoading || isPaidMember) return;
+    setJoinLoading(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("يجب تسجيل الدخول");
+
+      const { error } = await supabase.from('room_members').insert({ room_id: roomId, user_id: user.id, role: 'member' });
+      if (error) throw error;
+
+      setShowJoinModal(false);
+      setMembershipStatus({ isPaidMember: true });
+      toast.success("تم الانضمام كعضو مجاناً ✅");
+    } catch (error: any) {
+      toast.error(error?.message ?? "تعذر إتمام الانضمام");
+    } finally {
+      setJoinLoading(true);
+    }
+  };
 
   const country = ARAB_COUNTRIES.find((c) => c.code === room?.country);
   const membershipPrice = membershipStatus?.price ?? Math.max(0, Number((room as any)?.membershipPrice ?? 0));
@@ -70,34 +129,7 @@ export default function RoomInfoSheet({
   const admins = orderedMembers.filter((member) => member.role === "admin");
   const regularMembers = orderedMembers.filter((member) => member.role !== "owner" && member.role !== "admin");
 
-  const handleToggleFollow = async () => {
-    if (isOwner || followLoading) return;
-    setFollowLoading(true);
-    try {
-      const result = await toggleFollow({ roomId });
-      toast.success(result ? "تمت متابعة الغرفة ✅" : "تم إلغاء متابعة الغرفة");
-    } catch (error: any) {
-      toast.error(error?.message ?? "تعذر تحديث المتابعة");
-    } finally {
-      setFollowLoading(false);
-    }
-  };
 
-  const handleJoin = async () => {
-    if (isOwner || joinLoading || isPaidMember) return;
-    setJoinLoading(true);
-    try {
-      const result = await purchaseMembership({ roomId });
-      setShowJoinModal(false);
-      toast.success(result.price > 0
-        ? `تم الانضمام وخصم ${result.price.toLocaleString()} ذهبية ✅`
-        : "تم الانضمام كعضو مجاناً ✅");
-    } catch (error: any) {
-      toast.error(error?.message ?? "تعذر إتمام الانضمام");
-    } finally {
-      setJoinLoading(false);
-    }
-  };
 
   const renderMemberGroup = (title: string, group: RoomMember[], tone: "owner" | "admin" | "member") => {
     if (group.length === 0) return null;
@@ -118,7 +150,7 @@ export default function RoomInfoSheet({
         </div>
         <div className="space-y-2">
           {group.map((member, index) => (
-            <MemberCard key={`${member.userId}-${member.role}-${index}`} member={member} badge={toneStyles.label} badgeClass={toneStyles.badge} />
+            <MemberCard key={`${member.user_id}-${member.role}-${index}`} member={member} badge={toneStyles.label} badgeClass={toneStyles.badge} />
           ))}
         </div>
       </section>
@@ -257,7 +289,7 @@ function MemberCard({ member, badge, badgeClass }: { member: RoomMember; badge: 
   return (
     <div className="flex items-center gap-3 rounded-2xl px-3 py-2.5 bg-white border border-gray-100 shadow-sm">
       <VipFrame isVip={isVip} level={vipLevel}>
-        <UserAvatar userId={member.userId} avatarUrl={avatarUrl} name={name} size={42} showFrame={!isPrivate} />
+        <UserAvatar userId={member.user_id} avatarUrl={avatarUrl} name={name} size={42} showFrame={!isPrivate} />
       </VipFrame>
       <div className="flex-1 min-w-0 text-right">
         <div className="flex items-center gap-1 min-w-0">

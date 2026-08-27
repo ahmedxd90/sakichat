@@ -1,12 +1,10 @@
 // @ts-nocheck
 import { useState } from "react";
-import { useMutation } from "convex/react";
-import { api } from "../../convex/_generated/api";
-import { Id } from "../../convex/_generated/dataModel";
+import { supabase } from "../lib/supabaseClient";
 import { toast } from "../lib/toast";
 
 interface LuckyBagSheetProps {
-  roomId: Id<"rooms">;
+  roomId: string;
   myCoins: number;
   onClose: () => void;
 }
@@ -134,8 +132,6 @@ export default function LuckyBagSheet({ roomId, myCoins, onClose }: LuckyBagShee
   const [superRecipients, setSuperRecipients] = useState(10);
   const [sending, setSending] = useState(false);
 
-  const sendLuckyBag = useMutation(api.luckyBag.sendLuckyBag);
-
   const handleSend = async () => {
     const amount = tab === "normal" ? normalAmount : superAmount;
     const recipients = tab === "normal" ? normalRecipients : superRecipients;
@@ -147,12 +143,24 @@ export default function LuckyBagSheet({ roomId, myCoins, onClose }: LuckyBagShee
 
     setSending(true);
     try {
-      await sendLuckyBag({
-        roomId,
-        bagType: tab,
-        totalCoins: amount,
-        maxRecipients: recipients,
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("يجب تسجيل الدخول");
+
+      const { error } = await supabase.from('lucky_bags').insert({
+        room_id: roomId,
+        creator_id: user.id,
+        bag_type: tab,
+        total_coins: amount,
+        max_recipients: recipients,
+        remaining_coins: amount,
+        remaining_recipients: recipients,
+        expires_at: new Date(Date.now() + 5 * 60 * 1000).toISOString()
       });
+      
+      if (error) throw error;
+
+      await supabase.rpc('deduct_coins', { amount_to_deduct: amount });
+
       toast.success(tab === "super" ? "🎉 تم إرسال حقيبة الحظ السوبر!" : "🎁 تم إرسال حقيبة الحظ!");
       onClose();
     } catch (e: any) {

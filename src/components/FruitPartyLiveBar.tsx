@@ -1,7 +1,6 @@
 // @ts-nocheck
-import { useQuery } from "convex/react";
-import { api } from "../../convex/_generated/api";
 import { useState, useEffect } from "react";
+import { supabase } from "../lib/supabaseClient";
 
 const FRUITS = [
   { key: "watermelon", label: "بطيخ",    color: "#22c55e", emoji: "🍉" },
@@ -16,19 +15,31 @@ const FRUITS = [
 ];
 
 export default function FruitPartyLiveBar({ roomId }: { roomId?: any }) {
-  const lastRounds   = useQuery(api.fruitParty.getLastRounds, roomId ? { roomId } : "skip");
-  const currentRound = useQuery(api.fruitParty.getCurrentRound, roomId ? { roomId } : "skip");
+  const [lastRounds, setLastRounds] = useState<any[]>([]);
+  const [currentRound, setCurrentRound] = useState<any>(null);
   const [timeLeft, setTimeLeft] = useState(0);
+
+  useEffect(() => {
+    if (!roomId) return;
+    const fetchData = async () => {
+      const { data: rounds } = await supabase.from('fruit_party_rounds').select('*').eq('room_id', roomId).eq('status', 'finished').order('created_at', { ascending: false }).limit(10);
+      setLastRounds(rounds || []);
+      
+      const { data: current } = await supabase.from('fruit_party_rounds').select('*').eq('room_id', roomId).eq('status', 'active').single();
+      setCurrentRound(current);
+    };
+    fetchData();
+  }, [roomId]);
 
   useEffect(() => {
     if (!currentRound) return;
     const t = setInterval(() => {
-      setTimeLeft(Math.max(0, Math.ceil((currentRound.endsAt - Date.now()) / 1000)));
+      setTimeLeft(Math.max(0, Math.ceil((new Date(currentRound.ends_at).getTime() - Date.now()) / 1000)));
     }, 500);
     return () => clearInterval(t);
-  }, [currentRound?.endsAt]);
+  }, [currentRound?.ends_at]);
 
-  const recent = (lastRounds ?? []).slice(0, 10);
+  const recent = lastRounds;
   const timerColor = timeLeft <= 5 ? "#ef4444" : timeLeft <= 10 ? "#f97316" : "#4ade80";
 
   return (

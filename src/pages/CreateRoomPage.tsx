@@ -6,7 +6,7 @@ import { ARAB_COUNTRIES } from "../data/countries";
 
 interface CreateRoomPageProps {
   onBack: () => void;
-  onSuccess: (roomId: Id<"rooms">) => void;
+  onSuccess: (roomId: string) => void;
 }
 
 const SEAT_OPTIONS = [5, 10, 15, 20];
@@ -21,10 +21,10 @@ export default function CreateRoomPage({ onBack, onSuccess }: CreateRoomPageProp
   const [loading, setLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const isActive = profile?.isActive ?? false;
+  const isActive = profile?.is_active ?? false;
   const autoCountry = profile?.country ?? "";
   const countryInfo = ARAB_COUNTRIES.find((c) => c.code === autoCountry);
-  const displayImage = coverPreview ?? profile?.avatarUrl ?? null;
+  const displayImage = coverPreview ?? profile?.avatar_url ?? null;
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -226,7 +226,7 @@ export default function CreateRoomPage({ onBack, onSuccess }: CreateRoomPageProp
               <span className="text-sm font-bold" style={{ color: "#555" }}>معرّف الغرفة</span>
             </div>
             <div className="px-3 py-1.5 rounded-xl" style={{ background: "linear-gradient(135deg,#f0f3ff,#f5f0ff)", border: "1px solid #d0d8ff" }}>
-              <span className="font-black text-sm" style={{ color: "#4776E6" }}>{profile?.sakiId ?? "—"}</span>
+              <span className="font-black text-sm" style={{ color: "#4776E6" }}>{profile?.saki_id ?? "—"}</span>
             </div>
           </div>
 

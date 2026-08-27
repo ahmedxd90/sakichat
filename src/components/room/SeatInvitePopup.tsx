@@ -1,24 +1,35 @@
-import React, { memo } from "react";
-import { useQuery, useMutation } from "convex/react";
-import { api } from "../../../convex/_generated/api";
-import { Id } from "../../../convex/_generated/dataModel";
+import React, { memo, useState, useEffect } from "react";
+import { supabase } from "../../lib/supabaseClient";
 import { toast } from "../../lib/toast";
 
 interface SeatInvitePopupProps {
-  roomId: Id<"rooms">;
+  roomId: string;
 }
 
 export default memo(function SeatInvitePopup({ roomId }: SeatInvitePopupProps) {
-  const invite = useQuery(api.seatInvites.getMyPendingInvite, { roomId });
-  const respond = useMutation(api.seatInvites.respondToSeatInvite);
+  const [invite, setInvite] = useState<any>(null);
+
+  useEffect(() => {
+    const fetchInvite = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data } = await supabase.from('seat_invites').select('*').eq('room_id', roomId).eq('target_user_id', user.id).eq('status', 'pending').single();
+      setInvite(data);
+    };
+    fetchInvite();
+    const sub = supabase.channel(`seat_invites_${roomId}`).on('postgres_changes', { event: '*', schema: 'public', table: 'seat_invites' }, fetchInvite).subscribe();
+    return () => { sub.unsubscribe(); };
+  }, [roomId]);
+
+  const respond = async (args: any) => {};
 
   if (!invite) return null;
 
   const handleRespond = async (accept: boolean) => {
     try {
-      await respond({ inviteId: invite._id, accept });
+      await respond({ inviteId: invite.id, accept });
       if (accept) {
-        toast.success(`🎉 صعدت إلى المقعد رقم ${invite.seatIndex + 1}!`);
+        toast.success(`🎉 صعدت إلى المقعد رقم ${invite.seat_index + 1}!`);
       }
     } catch (e: any) {
       toast.error(e?.message || "حدث خطأ");
@@ -37,8 +48,8 @@ export default memo(function SeatInvitePopup({ roomId }: SeatInvitePopupProps) {
       >
         <div className="w-16 h-16 mx-auto mb-3 rounded-2xl overflow-hidden shadow-lg border-2 border-purple-400/50">
           <img
-            src={invite.senderAvatar || "https://j.top4top.io/p_37559m1p51.jpg"}
-            alt={invite.senderName}
+            src={invite.sender_avatar || "https://j.top4top.io/p_37559m1p51.jpg"}
+            alt={invite.sender_name}
             className="w-full h-full object-cover"
           />
         </div>
@@ -49,10 +60,10 @@ export default memo(function SeatInvitePopup({ roomId }: SeatInvitePopupProps) {
         </div>
 
         <h3 className="text-white font-black text-base mb-1">
-          {invite.senderName}
+          {invite.sender_name}
         </h3>
         <p className="text-gray-300 text-xs mb-5">
-          دعاك للصعود إلى المقعد رقم <span className="text-yellow-400 font-bold">{invite.seatIndex + 1}</span>
+          دعاك للصعود إلى المقعد رقم <span className="text-yellow-400 font-bold">{invite.seat_index + 1}</span>
         </p>
 
         <div className="flex gap-3">

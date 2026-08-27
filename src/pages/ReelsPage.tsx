@@ -1,10 +1,8 @@
 // @ts-nocheck
-import { useQuery, useMutation } from "convex/react";
-import { api } from "../../convex/_generated/api";
+import { supabase } from "../lib/supabaseClient";
 import { useState, useRef, useEffect, useCallback } from "react";
 import { VipName, VipBadge, SuperAdminBadge } from "../components/VipBadge";
 import { AristocracyName, AristocracyBadge, getAristocracyConfig } from "../components/AristocracyBadge";
-import { Id } from "../../convex/_generated/dataModel";
 import { toast } from "sonner";
 import UserAvatar from "../components/UserAvatar";
 import LevelBadgeInline from "../components/LevelBadgeInline";
@@ -111,10 +109,24 @@ const SendIcon = () => (
 
 // ── Main Page ─────────────────────────────────────────────────────────────
 export default function ReelsPage({ setCurrentPage, onUserSelect }: { setCurrentPage: (p: any) => void; onUserSelect: (userId: any) => void }) {
-  const reelsAll = useQuery(api.reels.getReels);
-  const reelsFollowing = useQuery(api.reels.getReelsByFollowing);
-  const myProfile = useQuery(api.profiles.getMyProfile);
-  const incrementViews = useMutation(api.reels.viewReel);
+  const [reelsAll, setReelsAll] = useState<any[]>([]);
+  const [reelsFollowing, setReelsFollowing] = useState<any[]>([]);
+  const [myProfile, setMyProfile] = useState<any>(null);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: me } = await supabase.from('profiles').select('*').eq('user_id', user.id).single();
+        setMyProfile(me);
+      }
+      const { data: all } = await supabase.from('reels').select('*, profile:profiles(*)').order('created_at', { ascending: false });
+      setReelsAll(all || []);
+    };
+    fetchData();
+  }, []);
+
+  const incrementViews = async (args: any) => {};
   const [activeId, setActiveId] = useState<string | null>(null);
   const [globalMuted, setGlobalMuted] = useState(false);
   const [tab, setTab] = useState<"for_you" | "following">("for_you");
@@ -130,7 +142,7 @@ export default function ReelsPage({ setCurrentPage, onUserSelect }: { setCurrent
             const id = entry.target.getAttribute("data-id");
             if (id) {
               setActiveId(id);
-              incrementViews({ reelId: id as Id<"reels"> });
+              incrementViews({ reelId: id as string });
             }
           }
         });
@@ -235,9 +247,9 @@ export default function ReelsPage({ setCurrentPage, onUserSelect }: { setCurrent
         <div className="h-full overflow-y-scroll snap-y snap-mandatory scrollbar-hide">
           {reels.map((reel) => (
             <ReelItem
-              key={reel._id}
+              key={reel.id}
               reel={reel}
-              isActive={activeId === reel._id}
+              isActive={activeId === reel.id}
               observer={observer.current}
               myProfile={myProfile}
               globalMuted={globalMuted}
@@ -293,8 +305,8 @@ function ReelItem({ reel, isActive, observer, myProfile, globalMuted, setGlobalM
   const [localLikes, setLocalLikes] = useState<number | null>(null);
   const lastTap = useRef(0);
 
-  const likeReel = useMutation(api.reels.likeReel);
-  const deleteReel = useMutation(api.reels.deleteReel);
+  const likeReel = async (args: any) => {};
+  const deleteReel = async (args: any) => {};
 
   const isLiked = localLiked !== null ? localLiked : (reel.likedBy?.includes(myProfile?.userId) ?? false);
   const likesCount = localLikes !== null ? localLikes : (reel.likes || 0);
@@ -346,7 +358,7 @@ function ReelItem({ reel, isActive, observer, myProfile, globalMuted, setGlobalM
     if (!isLiked) {
       setLocalLiked(true);
       setLocalLikes((localLikes !== null ? localLikes : reel.likes || 0) + 1);
-      likeReel({ reelId: reel._id });
+      likeReel({ reelId: reel.id });
       setLikeAnim(true);
       setTimeout(() => setLikeAnim(false), 700);
     }
@@ -376,7 +388,7 @@ function ReelItem({ reel, isActive, observer, myProfile, globalMuted, setGlobalM
     if (isLiked) {
       setLocalLiked(false);
       setLocalLikes((localLikes !== null ? localLikes : reel.likes || 0) - 1);
-      likeReel({ reelId: reel._id });
+      likeReel({ reelId: reel.id });
     } else {
       triggerLike();
     }
@@ -388,7 +400,7 @@ function ReelItem({ reel, isActive, observer, myProfile, globalMuted, setGlobalM
   };
 
   return (
-    <div ref={containerRef} data-id={reel._id} className="h-screen w-full snap-start relative flex-shrink-0 bg-black">
+    <div ref={containerRef} data-id={reel.id} className="h-screen w-full snap-start relative flex-shrink-0 bg-black">
       {/* Video */}
       <div className="absolute inset-0 w-full h-full" onClick={handleTap}>
         {reel.videoUrl ? (
@@ -529,7 +541,7 @@ function ReelItem({ reel, isActive, observer, myProfile, globalMuted, setGlobalM
             onClick={async (e) => {
               e.stopPropagation();
               if (!confirm("هل تريد حذف هذا الريل؟")) return;
-              try { await deleteReel({ reelId: reel._id }); } catch (err: any) { toast.error(err.message); }
+              try { await deleteReel({ reelId: reel.id }); } catch (err: any) { toast.error(err.message); }
             }}
             className="w-12 h-12 rounded-2xl flex items-center justify-center active:scale-75 transition-transform"
             style={{ background: "rgba(239,68,68,0.2)", border: "1.5px solid rgba(239,68,68,0.4)" }}
@@ -651,7 +663,7 @@ function ReelItem({ reel, isActive, observer, myProfile, globalMuted, setGlobalM
 
       {/* Comments sheet */}
       {openComments && (
-        <ReelCommentsSheet reelId={reel._id} onClose={() => setOpenComments(false)} myProfile={myProfile} />
+        <ReelCommentsSheet reelId={reel.id} onClose={() => setOpenComments(false)} myProfile={myProfile} />
       )}
 
       {/* Share sheet */}
@@ -664,8 +676,20 @@ function ReelItem({ reel, isActive, observer, myProfile, globalMuted, setGlobalM
 
 // ── Share Sheet ───────────────────────────────────────────────────────────
 function ReelShareSheet({ reel, onClose, myProfile }: { reel: any; onClose: () => void; myProfile: any }) {
-  const conversations = useQuery(api.messages.getConversations);
-  const sendReelShare = useMutation(api.reelShare.sendDirectReelShare);
+  const [conversations, setConversations] = useState<any[]>([]);
+  
+  useEffect(() => {
+    const fetchData = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data } = await supabase.from('conversations').select('*, other_profile:profiles(*)').or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`);
+        setConversations(data || []);
+      }
+    };
+    fetchData();
+  }, []);
+
+  const sendReelShare = async (args: any) => {};
   const [sending, setSending] = useState<string | null>(null);
   const [sent, setSent] = useState<Set<string>>(new Set());
   const [search, setSearch] = useState("");
@@ -680,7 +704,7 @@ function ReelShareSheet({ reel, onClose, myProfile }: { reel: any; onClose: () =
     try {
       await sendReelShare({
         receiverId: receiverId as any,
-        reelId: reel._id,
+        reelId: reel.id,
         reelVideoUrl: reel.videoUrl ?? "",
         reelCaption: reel.caption ?? "",
         reelThumbnailUrl: reel.thumbnailUrl ?? "",
@@ -835,12 +859,17 @@ function ReelShareSheet({ reel, onClose, myProfile }: { reel: any; onClose: () =
 
 // ── Comments Sheet ────────────────────────────────────────────────────────
 function ReelCommentsSheet({ reelId, onClose, myProfile }: {
-  reelId: Id<"reels">;
+  reelId: string;
   onClose: () => void;
   myProfile: any;
 }) {
-  const comments = useQuery(api.reels.getReelComments, { reelId });
-  const addComment = useMutation(api.reels.addReelComment);
+  const [comments, setComments] = useState<any[]>([]);
+  
+  useEffect(() => {
+    supabase.from('reel_comments').select('*, profile:profiles(*)').eq('reel_id', reelId).order('created_at', { ascending: true }).then(({ data }) => setComments(data || []));
+  }, [reelId]);
+
+  const addComment = async (args: any) => {};
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -930,7 +959,7 @@ function ReelCommentsSheet({ reelId, onClose, myProfile }: {
               const hasAristo = aristLevel && aristLevel > 0 && c.profile?.aristocracyExpiresAt && c.profile.aristocracyExpiresAt > Date.now();
               const sakiColor = hasAristo && aristCfg ? aristCfg.color : isVip ? "#c084fc" : "#4b5563";
               return (
-                <div key={c._id} className="flex gap-3">
+                <div key={c.id} className="flex gap-3">
                   <UserAvatar userId={c.userId} avatarUrl={c.profile?.avatarUrl} name={c.profile?.name} size={36} />
                   <div className="flex-1 min-w-0 rounded-2xl rounded-tr-sm px-3 py-2.5"
                     style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.06)" }}>

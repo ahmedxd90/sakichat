@@ -34,9 +34,9 @@ const AHLEEN_UI = {
 };
 
 interface HomePageProps {
-  onRoomSelect: (id: Id<"rooms">) => void;
+  onRoomSelect: (id: string) => void;
   setCurrentPage: (p: Page) => void;
-  onUserSelect: (id: Id<"users">) => void;
+  onUserSelect: (id: string) => void;
   onSubPageChange?: (active: boolean, backFn?: () => void, pageName?: string) => void;
 }
 
@@ -54,10 +54,20 @@ function MyRoomRow({ room, badge, onSelect }: { room: any; badge?: string; onSel
 }
 
 function BroadcastTicker({ onOpen }: { onOpen: () => void }) {
-  const messages = useQuery(api.broadcast.getMessages);
+  const [messages, setMessages] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const { lang } = useLang();
-  const isLoading = messages === undefined;
-  const displayMsgs = (messages ?? []).slice(-6);
+
+  useEffect(() => {
+    const fetchBroadcasts = async () => {
+      const { data } = await supabase.from('broadcasts').select('*').order('created_at', { ascending: false }).limit(6);
+      if (data) setMessages(data);
+      setIsLoading(false);
+    };
+    fetchBroadcasts();
+  }, []);
+
+  const displayMsgs = messages;
   const loopMsgs = displayMsgs.length > 0 ? [...displayMsgs, ...displayMsgs] : [];
   const emptyText = isLoading ? (lang === "en" ? "Loading broadcast..." : "جارٍ تحميل الإذاعة...") : (lang === "en" ? "No live broadcast now" : "لا توجد إذاعة حالية");
 
@@ -71,8 +81,8 @@ function BroadcastTicker({ onOpen }: { onOpen: () => void }) {
       <div className="flex-1 overflow-hidden relative h-full flex items-center px-3" style={{ minWidth: 0 }}>
         <div className="flex items-center whitespace-nowrap" style={{ animation: "bc-fly 24s linear infinite", gap: 32 }}>
           {loopMsgs.length > 0 ? loopMsgs.map((item: any, i: number) => (
-            <div key={`${item._id ?? "broadcast"}-${i}`} className="flex items-center flex-shrink-0 gap-2">
-              <span className="text-xs font-bold text-amber-600">{item.senderName ?? "Saki Chat"}:</span>
+            <div key={`${item.id ?? "broadcast"}-${i}`} className="flex items-center flex-shrink-0 gap-2">
+              <span className="text-xs font-bold text-amber-600">{item.sender_name ?? "Saki Chat"}:</span>
               <span className="text-xs text-slate-600">{item.content}</span>
             </div>
           )) : (

@@ -1,16 +1,23 @@
-import { useQuery } from "convex/react";
-import { api } from "../../convex/_generated/api";
-import { Id } from "../../convex/_generated/dataModel";
+import { useState, useEffect } from "react";
+import { supabase } from "../lib/supabaseClient";
 
 interface AdminRoomLockScreenProps {
-  roomId: Id<"rooms">;
+  roomId: string;
   onBack: () => void;
 }
 
 export default function AdminRoomLockScreen({ roomId, onBack }: AdminRoomLockScreenProps) {
-  const lockStatus = useQuery(api.adminLock.getRoomAdminLockStatus, { roomId });
+  const [lockStatus, setLockStatus] = useState<any>(null);
 
-  if (!lockStatus?.isAdminLocked) return null;
+  useEffect(() => {
+    const fetchLock = async () => {
+      const { data } = await supabase.from('rooms').select('is_admin_locked, admin_lock_reason').eq('id', roomId).single();
+      setLockStatus(data);
+    };
+    fetchLock();
+  }, [roomId]);
+
+  if (!lockStatus?.is_admin_locked) return null;
 
   return (
     <div className="fixed inset-0 z-[500] flex items-center justify-center p-4"
@@ -47,7 +54,7 @@ export default function AdminRoomLockScreen({ roomId, onBack }: AdminRoomLockScr
           <div>
             <h2 className="text-white font-black text-xl mb-2">🔒 الغرفة مقفلة إدارياً</h2>
             <p className="text-gray-300 text-sm leading-relaxed">
-              {lockStatus.adminLockReason ?? "تم قفل هذه الغرفة من قِبل الإدارة الرسمية"}
+              {lockStatus.admin_lock_reason ?? "تم قفل هذه الغرفة من قِبل الإدارة الرسمية"}
             </p>
           </div>
 

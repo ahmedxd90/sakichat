@@ -1,6 +1,6 @@
 // @ts-nocheck
-import { useQuery } from "convex/react";
-import { api } from "../../convex/_generated/api";
+import { useState, useEffect } from "react";
+import { supabase } from "../lib/supabaseClient";
 import SVGADisplay from "./SVGADisplay";
 
 interface CustomBadgeCardProps {
@@ -114,10 +114,16 @@ export function CustomBadgeCard({ badge, size = "md" }: CustomBadgeCardProps) {
 
 // ── Hook to get user custom badges ────────────────────────────────────────
 export function useUserCustomBadges(userId?: string | null) {
-  return useQuery(
-    api.customBadges.getUserCustomBadges,
-    userId ? { userId: userId as any } : "skip"
-  );
+  const [badges, setBadges] = useState<any[]>([]);
+  useEffect(() => {
+    if (!userId) return;
+    const fetchBadges = async () => {
+      const { data } = await supabase.from('user_custom_badges').select('*, custom_badges(*)').eq('user_id', userId);
+      setBadges(data?.map(d => d.custom_badges) || []);
+    };
+    fetchBadges();
+  }, [userId]);
+  return badges;
 }
 
 // ── Inline badge chip ─────────────────────────────────────────────────────

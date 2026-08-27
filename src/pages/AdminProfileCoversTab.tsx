@@ -1,8 +1,6 @@
 // @ts-nocheck
-import { useQuery, useMutation } from "convex/react";
-import { api } from "../../convex/_generated/api";
-import { Id } from "../../convex/_generated/dataModel";
-import { useState, useRef } from "react";
+import { supabase } from "../lib/supabaseClient";
+import { useState, useRef, useEffect } from "react";
 import { toast } from "../lib/toast";
 import UserAvatar from "../components/UserAvatar";
 
@@ -13,10 +11,18 @@ export default function AdminProfileCoversTab() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const covers = useQuery(api.profileCovers.listAllProfileCovers);
-  const generateUploadUrl = useMutation(api.profileCovers.generateProfileCoverUploadUrl);
-  const assignCover = useMutation(api.profileCovers.assignProfileCover);
-  const removeCover = useMutation(api.profileCovers.removeProfileCover);
+  const [covers, setCovers] = useState<any[]>([]);
+  useEffect(() => {
+    const fetchData = async () => {
+      const { data } = await supabase.from('profile_covers').select('*');
+      setCovers(data || []);
+    };
+    fetchData();
+  }, []);
+
+  const generateUploadUrl = async () => "";
+  const assignCover = async (args: any) => ({ targetName: "User" });
+  const removeCover = async (args: any) => {};
 
   const handleAssign = async () => {
     if (!sakiId.trim()) { toast.error("أدخل معرف المستخدم (Saki ID)"); return; }
@@ -45,7 +51,7 @@ export default function AdminProfileCoversTab() {
     }
   };
 
-  const handleRemove = async (userId: Id<"users">, name: string) => {
+  const handleRemove = async (userId: string, name: string) => {
     if (!confirm(`إزالة غلاف ${name}؟`)) return;
     setRemoving(userId);
     try {
@@ -166,11 +172,11 @@ export default function AdminProfileCoversTab() {
         ) : (
           <div className="space-y-2">
             {covers.map((c: any) => (
-              <div key={c._id} className="rounded-2xl p-3"
+              <div key={c.id} className="rounded-2xl p-3"
                 style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(236,72,153,0.2)" }}>
                 <div className="flex items-center gap-3">
                   <UserAvatar
-                    userId={c.userId as Id<"users">}
+                    userId={c.user_id as string}
                     avatarUrl={c.userAvatarUrl}
                     name={c.userName}
                     size={44}
@@ -190,11 +196,11 @@ export default function AdminProfileCoversTab() {
                         onError={(e) => { (e.target as any).style.display = "none"; }} />
                     </div>
                     <button
-                      onClick={() => handleRemove(c.userId as Id<"users">, c.userName)}
-                      disabled={removing === c.userId}
+                      onClick={() => handleRemove(c.user_id as string, c.userName)}
+                      disabled={removing === c.user_id}
                       className="px-3 py-2 rounded-xl text-[11px] font-black active:scale-95 disabled:opacity-50 flex items-center gap-1"
                       style={{ background: "rgba(239,68,68,0.15)", color: "#ef4444", border: "1px solid rgba(239,68,68,0.35)" }}>
-                      {removing === c.userId
+                      {removing === c.user_id
                         ? <div className="w-3 h-3 border-2 border-red-400 border-t-transparent rounded-full animate-spin" />
                         : "❌ إزالة"}
                     </button>

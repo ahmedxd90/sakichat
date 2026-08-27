@@ -1,11 +1,9 @@
 // @ts-nocheck
-import { useMutation } from "convex/react";
-import { api } from "../../convex/_generated/api";
-import { Id } from "../../convex/_generated/dataModel";
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
+import { supabase } from "../lib/supabaseClient";
 
 interface Props {
-  callId: Id<"videoCalls">;
+  callId: string;
   callerName: string;
   callerAvatarUrl?: string;
   onAccept: (channelName: string) => void;
@@ -13,10 +11,6 @@ interface Props {
 }
 
 export default function IncomingCallPopup({ callId, callerName, callerAvatarUrl, onAccept, onDecline }: Props) {
-  const acceptCall = useMutation(api.videoCalls.acceptCall);
-  const declineCall = useMutation(api.videoCalls.declineCall);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-
   useEffect(() => {
     // صوت رنين
     try {
@@ -41,8 +35,9 @@ export default function IncomingCallPopup({ callId, callerName, callerAvatarUrl,
 
   const handleAccept = async () => {
     try {
-      const result = await acceptCall({ callId });
-      onAccept(result.channelName);
+      const { data, error } = await supabase.from('video_calls').update({ status: 'accepted' }).eq('id', callId).select('channel_name').single();
+      if (error) throw error;
+      onAccept(data.channel_name);
     } catch (e: any) {
       console.error(e);
       onDecline();
@@ -50,7 +45,9 @@ export default function IncomingCallPopup({ callId, callerName, callerAvatarUrl,
   };
 
   const handleDecline = async () => {
-    try { await declineCall({ callId }); } catch (_) {}
+    try { 
+      await supabase.from('video_calls').update({ status: 'declined' }).eq('id', callId);
+    } catch (_) {}
     onDecline();
   };
 

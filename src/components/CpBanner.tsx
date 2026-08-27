@@ -1,10 +1,8 @@
-import { useQuery } from "convex/react";
-import { api } from "../../convex/_generated/api";
-import { Id } from "../../convex/_generated/dataModel";
 import { useEffect, useState } from "react";
+import { supabase } from "../lib/supabaseClient";
 
 interface Props {
-  userId: Id<"users">;
+  userId: string;
   myAvatarUrl?: string | null;
   myName?: string;
 }
@@ -70,13 +68,26 @@ function totalDays(startedAt: number, expiresAt: number | null): string {
 }
 
 export default function CpBanner({ userId, myAvatarUrl, myName }: Props) {
-  const cp = useQuery(api.store.getActiveCpPartner, { userId });
+  const [cp, setCp] = useState<any>(null);
   const [showWave, setShowWave] = useState(true);
 
   useEffect(() => {
+    const fetchCp = async () => {
+      const { data } = await supabase.from('cp_partners').select('*, profiles:partner_id(name, avatar_url)').eq('user_id', userId).eq('is_active', true).single();
+      if (data) {
+        setCp({
+          ...data,
+          partnerName: data.profiles.name,
+          partnerAvatarUrl: data.profiles.avatar_url,
+          startedAt: new Date(data.created_at).getTime(),
+          expiresAt: data.expires_at ? new Date(data.expires_at).getTime() : null
+        });
+      }
+    };
+    fetchCp();
     const t = setInterval(() => setShowWave((v) => !v), 2000);
     return () => clearInterval(t);
-  }, []);
+  }, [userId]);
 
   if (!cp) return null;
 

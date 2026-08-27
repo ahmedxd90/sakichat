@@ -1,12 +1,10 @@
 // @ts-nocheck
 import { useEffect, useState } from "react";
-import { useMutation, useQuery } from "convex/react";
-import { api } from "../../convex/_generated/api";
-import { Id } from "../../convex/_generated/dataModel";
+import { supabase } from "../lib/supabaseClient";
 import { toast } from "../lib/toast";
 
 interface SuperLuckyBagExplosionProps {
-  bagId: Id<"luckyBags">;
+  bagId: string;
   totalCoins: number;
   maxRecipients: number;
   senderName: string;
@@ -635,8 +633,19 @@ export default function SuperLuckyBagExplosion({
   const [coinsRaining, setCoinsRaining] = useState(false);
   const [claimedCoins, setClaimedCoins] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
-  const claimBag = useMutation(api.luckyBag.claimLuckyBag);
-  const hasClaimed = useQuery(api.luckyBag.hasUserClaimed, { bagId });
+  const [hasClaimed, setHasClaimed] = useState<boolean | undefined>(undefined);
+
+  useEffect(() => {
+    const checkClaimed = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data } = await supabase.from('lucky_bag_claims').select('*').eq('bag_id', bagId).eq('user_id', user.id).single();
+      setHasClaimed(!!data);
+    };
+    checkClaimed();
+  }, [bagId]);
+
+  const claimBag = async (args: any) => {};
 
   useEffect(() => {
     playJetSound();

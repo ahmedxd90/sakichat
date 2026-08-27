@@ -1,15 +1,22 @@
 // شاشة الإعلان الكاملة عند فتح التطبيق
 import { useState, useEffect, useRef } from "react";
-import { useQuery } from "convex/react";
-import { api } from "../../convex/_generated/api";
+import { supabase } from "../lib/supabaseClient";
 
 interface SplashAdScreenProps {
   onDone: () => void;
 }
 
 export default function SplashAdScreen({ onDone }: SplashAdScreenProps) {
-  const ad = useQuery(api.splashAds.getActiveSplashAd);
+  const [ad, setAd] = useState<any>(undefined);
   const [countdown, setCountdown] = useState<number>(5);
+
+  useEffect(() => {
+    const fetchAd = async () => {
+      const { data } = await supabase.from('splash_ads').select('*').eq('is_active', true).single();
+      setAd(data || null);
+    };
+    fetchAd();
+  }, []);
   const [visible, setVisible] = useState(false);
   const [closing, setClosing] = useState(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -40,7 +47,7 @@ export default function SplashAdScreen({ onDone }: SplashAdScreenProps) {
 
     // يوجد إعلان - اعرضه
     setVisible(true);
-    const duration = ad.durationSeconds ?? 5;
+    const duration = ad.duration_seconds ?? 5;
     setCountdown(duration);
 
     timerRef.current = setInterval(() => {
@@ -78,7 +85,7 @@ export default function SplashAdScreen({ onDone }: SplashAdScreenProps) {
       {/* الصورة/GIF - شاشة كاملة */}
       <div className="relative flex-1 overflow-hidden">
         <img
-          src={ad.imageUrl ?? ""}
+          src={ad.image_url ?? ""}
           alt={ad.title ?? "إعلان"}
           className="w-full h-full object-cover"
           style={{ display: "block" }}
@@ -138,7 +145,7 @@ export default function SplashAdScreen({ onDone }: SplashAdScreenProps) {
                   stroke="white"
                   strokeWidth="2"
                   strokeDasharray={`${2 * Math.PI * 10}`}
-                  strokeDashoffset={`${2 * Math.PI * 10 * (1 - countdown / (ad.durationSeconds ?? 5))}`}
+                  strokeDashoffset={`${2 * Math.PI * 10 * (1 - countdown / (ad.duration_seconds ?? 5))}`}
                   style={{ transition: "stroke-dashoffset 1s linear" }}
                 />
               </svg>
@@ -179,7 +186,7 @@ export default function SplashAdScreen({ onDone }: SplashAdScreenProps) {
           style={{
             height: "100%",
             background: "linear-gradient(90deg, #a855f7, #ec4899)",
-            width: `${(1 - countdown / (ad.durationSeconds ?? 5)) * 100}%`,
+            width: `${(1 - countdown / (ad.duration_seconds ?? 5)) * 100}%`,
             transition: "width 1s linear",
           }}
         />

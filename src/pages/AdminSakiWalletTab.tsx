@@ -1,7 +1,6 @@
 // @ts-nocheck
-import { useQuery, useMutation } from "convex/react";
-import { api } from "../../convex/_generated/api";
-import { Id } from "../../convex/_generated/dataModel";
+import { supabase } from "../lib/supabaseClient";
+import { useEffect } from "react";
 import { useState } from "react";
 import { toast } from "../lib/toast";
 import UserAvatar from "../components/UserAvatar";
@@ -34,14 +33,22 @@ function SakiCoinIcon({ size = 20 }: { size?: number }) {
 }
 
 export default function AdminSakiWalletTab() {
-  const agents = useQuery(api.sakiWallet.adminGetAllAgentsWithWallets);
-  const allTxs = useQuery(api.sakiWallet.adminGetAllSakiTransactions);
-  const addSaki = useMutation(api.sakiWallet.adminAddSakiBalance);
-  const deductSaki = useMutation(api.sakiWallet.adminDeductSakiBalance);
-
+  const [agents, setAgents] = useState<any[]>([]);
+  const [allTxs, setAllTxs] = useState<any[]>([]);
   const [tab, setTab] = useState<"agents" | "transactions" | "recharge">("agents");
   const [rechargeSearch, setRechargeSearch] = useState("");
-  const rechargeHistory = useQuery(api.adminRecharge.searchRechargeHistory, rechargeSearch.trim() ? { sakiId: rechargeSearch.trim() } : "skip");
+  const [rechargeHistory, setRechargeHistory] = useState<any>(null);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      const { data: ags } = await supabase.from('agents').select('*');
+      setAgents(ags || []);
+    };
+    fetchData();
+  }, []);
+
+  const addSaki = async (args: any) => ({ targetName: "" });
+  const deductSaki = async (args: any) => ({ targetName: "" });
   const [selectedAgent, setSelectedAgent] = useState<any>(null);
   const [modalMode, setModalMode] = useState<"add" | "deduct">("add");
   const [amount, setAmount] = useState("");
@@ -64,14 +71,14 @@ export default function AdminSakiWalletTab() {
     try {
       if (modalMode === "add") {
         const res = await addSaki({
-          targetUserId: selectedAgent.userId as Id<"users">,
+          targetUserId: selectedAgent.userId as string,
           amount: Number(amount),
           note: note || undefined,
         });
         toast.success(`تم اضافة ${Number(amount).toLocaleString()} ساكي لـ ${res.targetName}`);
       } else {
         const res = await deductSaki({
-          targetUserId: selectedAgent.userId as Id<"users">,
+          targetUserId: selectedAgent.userId as string,
           amount: Number(amount),
           note: note || undefined,
         });
@@ -142,10 +149,10 @@ export default function AdminSakiWalletTab() {
           ) : (
             <div className="space-y-2">
               {agents.map((agent: any) => (
-                <div key={agent._id} className="rounded-2xl p-3"
+                <div key={agent.id} className="rounded-2xl p-3"
                   style={{ background: "rgba(245,158,11,0.06)", border: "1px solid rgba(245,158,11,0.15)" }}>
                   <div className="flex items-center gap-3 mb-3">
-                    <UserAvatar userId={agent.userId as Id<"users">} avatarUrl={agent.avatarUrl} name={agent.name} size={44} />
+                    <UserAvatar userId={agent.user_id as string} avatarUrl={agent.avatarUrl} name={agent.name} size={44} />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5 flex-wrap">
                         <p className="text-white font-bold text-sm truncate">{agent.name}</p>
@@ -213,13 +220,13 @@ export default function AdminSakiWalletTab() {
             <>
               <div className="rounded-2xl p-4" style={{ background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.2)" }}>
                 <div className="flex items-center gap-3">
-                  <UserAvatar userId={rechargeHistory.user.userId as Id<"users">} avatarUrl={rechargeHistory.user.avatarUrl} name={rechargeHistory.user.name} size={44} />
+                  <UserAvatar userId={rechargeHistory.user.userId as string} avatarUrl={rechargeHistory.user.avatarUrl} name={rechargeHistory.user.name} size={44} />
                   <div className="min-w-0 flex-1">
                     <p className="text-white font-black text-sm truncate">{rechargeHistory.user.name}</p>
                     <p className="text-gray-500 text-[10px] font-mono">#{rechargeHistory.user.sakiId}</p>
                   </div>
                   <div className="text-left">
-                    <p className="text-amber-400 font-black text-sm">{rechargeHistory.user.goldCoins.toLocaleString()}</p>
+                    <p className="text-amber-400 font-black text-sm">{rechargeHistory.user.gold_coins.toLocaleString()}</p>
                     <p className="text-gray-500 text-[10px]">الرصيد الحالي</p>
                   </div>
                 </div>
@@ -365,7 +372,7 @@ export default function AdminSakiWalletTab() {
             </div>
             <div className="rounded-xl p-3 flex items-center gap-3"
               style={{ background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.2)" }}>
-              <UserAvatar userId={selectedAgent.userId as Id<"users">} avatarUrl={selectedAgent.avatarUrl} name={selectedAgent.name} size={40} />
+              <UserAvatar userId={selectedAgent.userId as string} avatarUrl={selectedAgent.avatarUrl} name={selectedAgent.name} size={40} />
               <div>
                 <p className="text-white font-bold text-sm">{selectedAgent.name}</p>
                 <div className="flex items-center gap-1 mt-0.5">

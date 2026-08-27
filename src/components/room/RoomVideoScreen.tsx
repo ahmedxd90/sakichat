@@ -1,8 +1,6 @@
 // @ts-nocheck
 import { useState, useEffect, useRef, useCallback } from "react";
-import { useAction, useMutation } from "convex/react";
-import { api } from "../../../convex/_generated/api";
-import { Id } from "../../../convex/_generated/dataModel";
+import { supabase } from "../../lib/supabaseClient";
 import { toast } from "../../lib/toast";
 
 function getYoutubeId(videoId: string): string | null {
@@ -28,7 +26,7 @@ interface RoomVideoScreenProps {
   volume: number;
   isOwner: boolean;
   onOpenSheet: () => void;
-  roomId?: Id<"rooms">;
+  roomId?: string;
 }
 
 // ── Register MediaSession so the OS media controls keep the audio alive ──────
@@ -413,9 +411,9 @@ export default function RoomVideoScreen({
   const [searching, setSearching] = useState(false);
   const [volumeDraft, setVolumeDraft] = useState(volume);
 
-  const searchYoutube = useAction(api.youtubeSearch.searchYoutube);
-  const setYoutubeVideo = useMutation(api.rooms.setYoutubeVideo);
-  const updateYoutubePlayback = useMutation(api.rooms.updateYoutubePlayback);
+  const searchYoutube = async (args: any) => [];
+  const setYoutubeVideo = async (args: any) => {};
+  const updateYoutubePlayback = async (args: any) => {};
 
   const ytId = videoId ? getYoutubeId(videoId) : null;
 
@@ -429,34 +427,29 @@ export default function RoomVideoScreen({
       const ytMatch = q.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/);
       const directId = ytMatch ? ytMatch[1] : (q.match(/^[a-zA-Z0-9_-]{11}$/) ? q : null);
       if (directId) {
-        await setYoutubeVideo({ roomId, videoId: directId });
+        await supabase.from('rooms').update({ youtube_video_id: directId, video_started_at: Date.now(), is_playing: true }).eq('id', roomId);
         toast.success("تم تشغيل الفيديو 🎬");
         setShowSearch(false);
         setSearchQuery("");
         setSearching(false);
         return;
       }
-      const results = await searchYoutube({ query: q });
-      setSearchResults(results as YTResult[]);
+      const { data } = await supabase.functions.invoke('youtube-search', { body: { query: q } });
+      setSearchResults(data || []);
     } catch (e: any) {
-      const msg = e?.message ?? "";
-      if (msg.includes("YOUTUBE_API_KEY")) {
-        toast.error("⚠️ أضف YOUTUBE_API_KEY في إعدادات Convex");
-      } else {
-        toast.error("فشل البحث");
-      }
+      toast.error("فشل البحث");
     } finally { setSearching(false); }
   };
 
   const handlePlayResult = async (result: YTResult) => {
     if (!roomId) return;
     try {
-      await setYoutubeVideo({ roomId, videoId: result.videoId });
+      await supabase.from('rooms').update({ youtube_video_id: result.videoId, video_started_at: Date.now(), is_playing: true }).eq('id', roomId);
       toast.success(`▶ ${result.title}`);
       setShowSearch(false);
       setSearchQuery("");
       setSearchResults([]);
-    } catch (e: any) { toast.error(e); }
+    } catch (e: any) { toast.error(e.message); }
   };
 
   const getCurrentPosition = () => {
@@ -467,31 +460,31 @@ export default function RoomVideoScreen({
   const handleTogglePlayback = async () => {
     if (!roomId || !isOwner) return;
     try {
-      await updateYoutubePlayback({ roomId, isPlaying: !isPlaying, position: getCurrentPosition() });
-    } catch (e: any) { toast.error(e); }
+      await supabase.from('rooms').update({ is_playing: !isPlaying, video_started_at: isPlaying ? null : Date.now() }).eq('id', roomId);
+    } catch (e: any) { toast.error(e.message); }
   };
 
   const handleToggleMute = async () => {
     if (!roomId || !isOwner) return;
     try {
-      await updateYoutubePlayback({ roomId, isMuted: !isMutedByOwner, volume: volumeDraft });
-    } catch (e: any) { toast.error(e); }
+      await supabase.from('rooms').update({ is_muted_by_owner: !isMutedByOwner }).eq('id', roomId);
+    } catch (e: any) { toast.error(e.message); }
   };
 
   const handleVolumeChange = async (nextVolume: number) => {
     if (!roomId || !isOwner) return;
     setVolumeDraft(nextVolume);
     try {
-      await updateYoutubePlayback({ roomId, volume: nextVolume, isMuted: nextVolume === 0 });
-    } catch (e: any) { toast.error(e); }
+      await supabase.from('rooms').update({ volume: nextVolume, is_muted_by_owner: nextVolume === 0 }).eq('id', roomId);
+    } catch (e: any) { toast.error(e.message); }
   };
 
   const handleStop = async () => {
     if (!roomId || !isOwner) return;
     try {
-      await setYoutubeVideo({ roomId, videoId: undefined });
+      await supabase.from('rooms').update({ youtube_video_id: null, video_started_at: null, is_playing: false }).eq('id', roomId);
       toast.success("تم إيقاف الفيديو");
-    } catch (e: any) { toast.error(e); }
+    } catch (e: any) { toast.error(e.message); }
   };
 
   // ── SEARCH OVERLAY (owner only) ──

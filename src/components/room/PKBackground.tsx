@@ -1,12 +1,10 @@
 // @ts-nocheck
 import { useState, useEffect, useRef } from "react";
-import { useQuery } from "convex/react";
-import { api } from "../../../convex/_generated/api";
-import { Id } from "../../../convex/_generated/dataModel";
+import { supabase } from "../../lib/supabaseClient";
 import { formatNumber } from "../../lib/formatNumber";
 
 interface PKBackgroundProps {
-  roomId: Id<"rooms">;
+  roomId: string;
 }
 
 /* ── Firework particle ── */
@@ -62,11 +60,21 @@ function SoundWaveBar({ color, delay, height }: { color: string; delay: number; 
 }
 
 export default function PKBackground({ roomId }: PKBackgroundProps) {
-  const activePK = useQuery(api.pk.getActivePKBattle, { roomId });
+  const [activePK, setActivePK] = useState<any>(null);
   const [now, setNow] = useState(() => Date.now());
   const [fireworks, setFireworks] = useState<Array<{ id: number; x: number; y: number }>>([]);
   const fwIdRef = useRef(0);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const fetchPK = async () => {
+      const { data } = await supabase.from('pk_battles').select('*').or(`room1_id.eq.${roomId},room2_id.eq.${roomId}`).in('status', ['pending', 'active']).single();
+      setActivePK(data);
+    };
+    fetchPK();
+    const sub = supabase.channel(`pk_bg_${roomId}`).on('postgres_changes', { event: '*', schema: 'public', table: 'pk_battles' }, fetchPK).subscribe();
+    return () => { sub.unsubscribe(); };
+  }, [roomId]);
 
   useEffect(() => {
     if (!activePK || activePK.status !== "active") return;
@@ -93,14 +101,14 @@ export default function PKBackground({ roomId }: PKBackgroundProps) {
   const isPending = activePK.status === "pending";
   const isActive = activePK.status === "active";
 
-  const timeLeft = activePK.endsAt ? Math.max(0, activePK.endsAt - now) : 0;
+  const timeLeft = activePK.ends_at ? Math.max(0, activePK.ends_at - now) : 0;
   const minutes = Math.floor(timeLeft / 60000);
   const seconds = Math.floor((timeLeft % 60000) / 1000);
 
-  const totalCoins = (activePK.room1Coins ?? 0) + (activePK.room2Coins ?? 0);
-  const room1Pct = totalCoins > 0 ? ((activePK.room1Coins ?? 0) / totalCoins) * 100 : 50;
+  const totalCoins = (activePK.room1_coins ?? 0) + (activePK.room2_coins ?? 0);
+  const room1Pct = totalCoins > 0 ? ((activePK.room1_coins ?? 0) / totalCoins) * 100 : 50;
   const room2Pct = 100 - room1Pct;
-  const room1Winning = (activePK.room1Coins ?? 0) >= (activePK.room2Coins ?? 0);
+  const room1Winning = (activePK.room1_coins ?? 0) >= (activePK.room2_coins ?? 0);
 
   const blueColor = "#3b82f6";
   const redColor = "#ef4444";
@@ -167,12 +175,12 @@ export default function PKBackground({ roomId }: PKBackgroundProps) {
               <div className="w-full h-full flex items-center justify-center text-xl" style={{ background: "rgba(59,130,246,0.2)" }}>🏠</div>
             </div>
             <p className="text-[10px] font-black truncate max-w-[75px] text-center" style={{ color: room1Winning && isActive ? blueColor : "rgba(255,255,255,0.9)" }}>
-              {activePK.room1Name}
+              {activePK.room1_name}
             </p>
             <p className="text-[8px] font-bold" style={{ color: blueColor }}>🐯 النمور</p>
             <div className="px-2 py-0.5 rounded-full text-[9px] font-black tabular-nums animate-pk-bar-blue"
               style={{ background: "rgba(59,130,246,0.15)", border: "1px solid rgba(59,130,246,0.5)", color: blueColor }}>
-              🎁 {formatNumber(activePK.room1Coins ?? 0)}
+              🎁 {formatNumber(activePK.room1_coins ?? 0)}
             </div>
           </div>
 
@@ -197,12 +205,12 @@ export default function PKBackground({ roomId }: PKBackgroundProps) {
               <div className="w-full h-full flex items-center justify-center text-xl" style={{ background: "rgba(239,68,68,0.2)" }}>🏠</div>
             </div>
             <p className="text-[10px] font-black truncate max-w-[75px] text-center" style={{ color: !room1Winning && isActive ? redColor : "rgba(255,255,255,0.9)" }}>
-              {activePK.room2Name}
+              {activePK.room2_name}
             </p>
             <p className="text-[8px] font-bold" style={{ color: redColor }}>🦁 الأسود</p>
             <div className="px-2 py-0.5 rounded-full text-[9px] font-black tabular-nums animate-pk-bar-red"
               style={{ background: "rgba(239,68,68,0.15)", border: "1px solid rgba(239,68,68,0.5)", color: redColor }}>
-              🎁 {formatNumber(activePK.room2Coins ?? 0)}
+              🎁 {formatNumber(activePK.room2_coins ?? 0)}
             </div>
           </div>
         </div>
@@ -231,9 +239,9 @@ export default function PKBackground({ roomId }: PKBackgroundProps) {
             style={{ background: "rgba(249,115,22,0.08)", border: "1px solid rgba(249,115,22,0.2)" }}>
             <span className="text-[9px] animate-pulse">⏳</span>
             <span className="text-[9px] font-bold text-orange-400/80">
-              {activePK.room2Id === roomId
-                ? `"${activePK.room1Name}" تتحداك!`
-                : `في انتظار قبول "${activePK.room2Name}"`}
+              {activePK.room2_id === roomId
+                ? `"${activePK.room1_name}" تتحداك!`
+                : `في انتظار قبول "${activePK.room2_name}"`}
             </span>
           </div>
         )}

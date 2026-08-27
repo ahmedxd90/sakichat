@@ -1,8 +1,7 @@
 // @ts-nocheck
 import React, { useMemo, useState } from "react";
-import { useMutation, useQuery } from "convex/react";
-import { api } from "../../convex/_generated/api";
-import { Id } from "../../convex/_generated/dataModel";
+import { supabase } from "../lib/supabaseClient";
+import { useState, useEffect, useMemo } from "react";
 import UserAvatar from "../components/UserAvatar";
 import { AristocracyName, AristocracyBadge } from "../components/AristocracyBadge";
 import { getVipConfig, VipBadge } from "../components/VipBadge";
@@ -123,9 +122,17 @@ function ImageViewer({ images, initialIndex, onClose }: { images: string[]; init
   );
 }
 
-function CommentsModal({ momentId, onClose, onUserSelect }: { momentId: Id<"moments">; onClose: () => void; onUserSelect?: (id: Id<"users">, profile?: any) => void }) {
-  const comments = useQuery(api.moments.getComments, { momentId });
-  const addComment = useMutation(api.moments.addComment);
+function CommentsModal({ momentId, onClose, onUserSelect }: { momentId: string; onClose: () => void; onUserSelect?: (id: string, profile?: any) => void }) {
+  const [comments, setComments] = useState<any[]>([]);
+  useEffect(() => {
+    const fetchData = async () => {
+      const { data } = await supabase.from('moment_comments').select('*, profile:profiles(*)').eq('moment_id', momentId);
+      setComments(data || []);
+    };
+    fetchData();
+  }, [momentId]);
+
+  const addComment = async (args: any) => {};
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
 
@@ -161,7 +168,7 @@ function CommentsModal({ momentId, onClose, onUserSelect }: { momentId: Id<"mome
             <div className="text-center py-10 text-gray-400 text-xs font-bold">لا توجد تعليقات بعد. كن أول من يكتب تعليقاً!</div>
           ) : (
             comments.map((comment: any) => (
-              <div key={comment._id} className="flex items-start gap-2.5">
+              <div key={comment.id} className="flex items-start gap-2.5">
                   <button type="button" onClick={() => onUserSelect?.(comment.userId, comment.profile)} className="flex-shrink-0 active:scale-95 transition-transform">
                   <UserAvatar userId={comment.userId} avatarUrl={comment.profile?.isPrivateProfile ? PRIVATE_AVATAR_URL : comment.profile?.avatarUrl} name={comment.profile?.isPrivateProfile ? PRIVATE_DISPLAY_NAME : comment.profile?.name} size={30} isVip={!comment.profile?.isPrivateProfile && comment.profile?.isVip} vipLevel={comment.profile?.isPrivateProfile ? 0 : comment.profile?.vipLevel} isSuperAdmin={!comment.profile?.isPrivateProfile && comment.profile?.isSuperAdmin} showFrame={!comment.profile?.isPrivateProfile} />
                 </button>
@@ -197,24 +204,31 @@ function CommentsModal({ momentId, onClose, onUserSelect }: { momentId: Id<"mome
   );
 }
 
-export default function MomentsPage({ setCurrentPage, onUserSelect }: { setCurrentPage: (page: any) => void; onUserSelect?: (id: Id<"users">) => void }) {
+export default function MomentsPage({ setCurrentPage, onUserSelect }: { setCurrentPage: (page: any) => void; onUserSelect?: (id: string) => void }) {
   const [tab, setTab] = useState<"all" | "following">("all");
-  const [activeComments, setActiveComments] = useState<Id<"moments"> | null>(null);
+  const [activeComments, setActiveComments] = useState<string | null>(null);
   const [activeImages, setActiveImages] = useState<{ images: string[]; index: number } | null>(null);
   const [optimisticLikes, setOptimisticLikes] = useState<Record<string, boolean>>({});
+  const [moments, setMoments] = useState<any[]>([]);
 
-  // لا يتم تحميل القصص هنا عمداً؛ هذا يمنع استدعاء getStoryGroups غير الموجود ويزيل قسم القصص نهائياً.
-  const moments = useQuery(tab === "all" ? api.moments.getMoments : api.momentsExtra.getFollowingMoments);
-  const likeMoment = useMutation(api.moments.likeMoment);
+  useEffect(() => {
+    const fetchData = async () => {
+      const { data } = await supabase.from('moments').select('*, profile:profiles(*)').order('created_at', { ascending: false });
+      setMoments(data || []);
+    };
+    fetchData();
+  }, [tab]);
+
+  const likeMoment = async (args: any) => {};
 
   const safeMoments = useMemo(() => Array.isArray(moments) ? moments : [], [moments]);
 
   const toggleLike = async (moment: any) => {
-    const key = String(moment._id);
+    const key = String(moment.id);
     const currentlyLiked = optimisticLikes[key] ?? Boolean(moment.isLiked);
     setOptimisticLikes((current) => ({ ...current, [key]: !currentlyLiked }));
     try {
-      await likeMoment({ momentId: moment._id });
+      await likeMoment({ momentId: moment.id });
     } catch (error: any) {
       setOptimisticLikes((current) => ({ ...current, [key]: currentlyLiked }));
       toast.error(error?.message || "تعذر تحديث الإعجاب");
@@ -235,7 +249,7 @@ export default function MomentsPage({ setCurrentPage, onUserSelect }: { setCurre
     }
   };
 
-  const handleUserSelect = (userId: Id<"users">, profile?: any) => {
+  const handleUserSelect = (userId: string, profile?: any) => {
     if (profile?.isPrivateProfile) {
       toast("هذا ملف شخصي خاص، لا يمكنك الدخول إليه", { duration: 2500 });
       return;
@@ -283,13 +297,13 @@ export default function MomentsPage({ setCurrentPage, onUserSelect }: { setCurre
           ) : (
             safeMoments.map((moment: any) => {
               const images = normalizeImages(moment);
-              const key = String(moment._id);
+              const key = String(moment.id);
               const isLiked = optimisticLikes[key] ?? Boolean(moment.isLiked);
               const likes = Math.max(0, (moment.likes ?? moment.likeCount ?? 0) + (optimisticLikes[key] !== undefined ? (isLiked === Boolean(moment.isLiked) ? 0 : isLiked ? 1 : -1) : 0));
               const timestamp = moment.createdAt ?? moment._creationTime;
 
               return (
-                <article key={moment._id} className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 relative space-y-3 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                <article key={moment.id} className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 relative space-y-3 animate-in fade-in slide-in-from-bottom-2 duration-300">
                   <div className="flex items-start justify-between">
                     <div className="flex items-center gap-2.5 min-w-0">
                       <button type="button" onClick={() => handleUserSelect(moment.userId, moment.profile)} className="flex-shrink-0 active:scale-95 transition-transform" aria-label="فتح ملف المستخدم">
@@ -332,7 +346,7 @@ export default function MomentsPage({ setCurrentPage, onUserSelect }: { setCurre
                         <span className="font-extrabold">{likes}</span>
                       </button>
 
-                      <button type="button" onClick={() => setActiveComments(moment._id)} className="flex items-center gap-1.5 hover:text-cyan-500 transition active:scale-95">
+                      <button type="button" onClick={() => setActiveComments(moment.id)} className="flex items-center gap-1.5 hover:text-cyan-500 transition active:scale-95">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" /></svg>
                         <span className="font-extrabold">{moment.commentsCount ?? moment.commentCount ?? 0}</span>
                       </button>

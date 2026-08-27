@@ -1,18 +1,19 @@
 import { useState } from "react";
-import { useMutation } from "convex/react";
-import { api } from "../../convex/_generated/api";
-import { Id } from "../../convex/_generated/dataModel";
+import { supabase } from "../lib/supabaseClient";
 import { toast } from "sonner";
 
 interface RoomPasswordModalProps {
-  roomId: Id<"rooms">;
+  roomId: string;
   roomName: string;
   onSuccess: () => void;
   onCancel: () => void;
 }
 
 export default function RoomPasswordModal({ roomId, roomName, onSuccess, onCancel }: RoomPasswordModalProps) {
-  const verifyPassword = useMutation(api.rooms.verifyRoomPassword);
+  const verifyPassword = async (args: any) => {
+    const { data } = await supabase.from('rooms').select('password').eq('id', args.roomId).single();
+    if (data?.password !== args.password) throw new Error("Incorrect password");
+  };
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");

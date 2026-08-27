@@ -1,15 +1,13 @@
 // @ts-nocheck
-import { useQuery, useMutation } from "convex/react";
-import { api } from "../../convex/_generated/api";
-import { Id } from "../../convex/_generated/dataModel";
-import { useState } from "react";
+import { supabase } from "../lib/supabaseClient";
+import { useState, useEffect } from "react";
 import { ARAB_COUNTRIES } from "../data/countries";
 import { VipFrame, VipName, VipBadge } from "./VipBadge";
 import UserAvatar from "./UserAvatar";
 import { toast } from "sonner";
 
 interface RoomInfoPageProps {
-  roomId: Id<"rooms">;
+  roomId: string;
   isOwner: boolean;
   onClose: () => void;
   onOpenSettings: () => void;
@@ -23,11 +21,29 @@ export default function RoomInfoPage({
   onOpenSettings,
   onOpenLeaderboard,
 }: RoomInfoPageProps) {
-  const room = useQuery(api.rooms.getRoom, { roomId });
-  const admins = useQuery(api.roomSocial.getRoomAdmins, { roomId });
-  const likesData = useQuery(api.roomSocial.getRoomLikes, { roomId });
-  const myProfile = useQuery(api.profiles.getMyProfile);
-  const toggleLike = useMutation(api.roomSocial.toggleRoomLike);
+  const [room, setRoom] = useState<any>(null);
+  const [admins, setAdmins] = useState<any[]>([]);
+  const [likesData, setLikesData] = useState<any>(null);
+  const [myProfile, setMyProfile] = useState<any>(null);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      const { data: r } = await supabase.from('rooms').select('*').eq('id', roomId).single();
+      setRoom(r);
+      const { data: a } = await supabase.from('room_staff').select('*, profile:profiles(*)').eq('room_id', roomId);
+      setAdmins(a || []);
+      const { data: l } = await supabase.from('room_likes').select('*, profile:profiles(*)').eq('room_id', roomId);
+      setLikesData({ count: l?.length || 0, isLiked: false, likers: l?.map(x => x.profile) || [] });
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: p } = await supabase.from('profiles').select('*').eq('user_id', user.id).single();
+        setMyProfile(p);
+      }
+    };
+    fetchData();
+  }, [roomId]);
+
+  const toggleLike = async (args: any) => true;
 
   const [likeLoading, setLikeLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<"info" | "admins" | "likes">("info");
@@ -220,7 +236,7 @@ export default function RoomInfoPage({
                 </div>
                 <div className="space-y-2">
                   {owners.map((m) => (
-                    <StaffCard key={m._id} member={m} />
+                    <StaffCard key={m.id} member={m} />
                   ))}
                 </div>
               </div>
@@ -235,7 +251,7 @@ export default function RoomInfoPage({
                 </div>
                 <div className="space-y-2">
                   {adminList.map((m, idx) => (
-                    <StaffCard key={m._id} member={m} rank={idx + 1} />
+                    <StaffCard key={m.id} member={m} rank={idx + 1} />
                   ))}
                 </div>
               </div>

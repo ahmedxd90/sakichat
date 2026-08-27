@@ -1,5 +1,4 @@
 // @ts-nocheck
-import { Id } from "../../../../convex/_generated/dataModel";
 import PKDurationPicker from "./PKDurationPicker";
 
 interface PKStatusTabProps {

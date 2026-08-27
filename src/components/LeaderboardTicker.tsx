@@ -3,8 +3,7 @@
 // يحترم prefers-reduced-motion عبر CSS.
 // @ts-nocheck
 import { useEffect, useMemo, useState } from "react";
-import { useQuery } from "convex/react";
-import { api } from "../../convex/_generated/api";
+import { supabase } from "../lib/supabaseClient";
 
 const MODES = [
   { key: "wealth", label: "ترتيب الثروة", icon: "▣", className: "wealth" },
@@ -24,18 +23,32 @@ function Avatar({ src, name, rank }: { src?: string; name?: string; rank: number
 
 export default function LeaderboardTicker({ onOpen, onUserSelect, onRoomSelect }: { onOpen: () => void; onUserSelect: (id: any) => void; onRoomSelect: (id: any) => void }) {
   const [modeIndex, setModeIndex] = useState(0);
-  const wealth = useQuery(api.leaderboards.getWealthLeaderboard, { period: "daily" });
-  const charisma = useQuery(api.leaderboards.getCharismaLeaderboard, { period: "daily" });
-  const rooms = useQuery(api.leaderboards.getRoomsLeaderboard, { period: "daily" });
-  const mode = MODES[modeIndex];
-  const loading = wealth === undefined || charisma === undefined || rooms === undefined;
-  const rows = mode.key === "wealth" ? (wealth ?? []) : mode.key === "charisma" ? (charisma ?? []) : (rooms ?? []);
-  const top = useMemo(() => rows.slice(0, 3), [rows]);
+  const [wealth, setWealth] = useState<any[]>([]);
+  const [charisma, setCharisma] = useState<any[]>([]);
+  const [rooms, setRooms] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true);
+      const { data: wealthData } = await supabase.from('profiles').select('user_id, name, avatar_url, gold_coins').order('gold_coins', { ascending: false }).limit(3);
+      setWealth(wealthData?.map(d => ({ userId: d.user_id, name: d.name, avatarUrl: d.avatar_url, total: d.gold_coins })) || []);
+      
+      const { data: charismaData } = await supabase.from('profiles').select('user_id, name, avatar_url, charisma_level').order('charisma_level', { ascending: false }).limit(3);
+      setCharisma(charismaData?.map(d => ({ userId: d.user_id, name: d.name, avatarUrl: d.avatar_url, total: d.charisma_level })) || []);
+
+      const { data: roomsData } = await supabase.from('rooms').select('id, name, cover_url').limit(3);
+      setRooms(roomsData?.map(d => ({ roomId: d.id, name: d.name, coverUrl: d.cover_url, total: 0 })) || []);
+      setLoading(false);
+    };
+    fetchData();
     const timer = window.setInterval(() => setModeIndex((value) => (value + 1) % MODES.length), 10000);
     return () => window.clearInterval(timer);
   }, []);
+
+  const mode = MODES[modeIndex];
+  const rows = mode.key === "wealth" ? wealth : mode.key === "charisma" ? charisma : rooms;
+  const top = useMemo(() => rows.slice(0, 3), [rows]);
 
   const activate = (item: any) => {
     if (mode.key === "rooms" && item?.roomId) onRoomSelect(item.roomId);

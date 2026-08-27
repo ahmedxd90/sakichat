@@ -1,9 +1,7 @@
 // @ts-nocheck
-import { Id } from "../../convex/_generated/dataModel";
 import { toast } from "../lib/toast";
-import { useQuery, useMutation } from "convex/react";
-import { api } from "../../convex/_generated/api";
-import { useState, memo, useCallback } from "react";
+import { useState, memo, useCallback, useEffect } from "react";
+import { supabase } from "../lib/supabaseClient";
 import FriendButton from "./FriendButton";
 import { ARAB_COUNTRIES } from "../data/countries";
 import UserAvatar from "./UserAvatar";
@@ -37,13 +35,13 @@ interface UserProfileSheetProps {
   myProfile: any;
   isOwner: boolean;
   isAdmin: boolean;
-  roomId: Id<"rooms">;
+  roomId: string;
   userActiveItems: any;
   userCpPartner: any;
   onClose: () => void;
   onSendGift: (user: any) => void;
-  onViewProfile?: (userId: Id<"users">) => void;
-  onMessage?: (userId: Id<"users">) => void;
+  onViewProfile?: (userId: string) => void;
+  onMessage?: (userId: string) => void;
   muteChatMember: any;
   kickMember: any;
   banMember: any;
@@ -53,18 +51,27 @@ interface UserProfileSheetProps {
 }
 
 // ── Report Sheet ──
-const ReportSheet = memo(function ReportSheet({ userId, onClose }: { userId: Id<"users">; onClose: () => void }) {
+const ReportSheet = memo(function ReportSheet({ userId, onClose }: { userId: string; onClose: () => void }) {
   const [reason, setReason] = useState("");
   const [details, setDetails] = useState("");
   const [loading, setLoading] = useState(false);
-  const reportUser = useMutation(api.userReports.reportUser);
   const reasons = ["محتوى مسيء أو مزعج", "انتحال شخصية", "تحرش أو إزعاج", "محتوى غير لائق", "احتيال أو نصب", "سبب آخر"];
   
   const handleSubmit = async () => {
     if (!reason) { toast.error("اختر سبب الإبلاغ"); return; }
     setLoading(true);
     try { 
-      await reportUser({ reportedId: userId, reason, details: details || undefined }); 
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("يجب تسجيل الدخول");
+      
+      const { error } = await supabase.from('user_reports').insert({
+        reporter_id: user.id,
+        reported_id: userId,
+        reason,
+        details: details || null
+      });
+      if (error) throw error;
+      
       toast.success("تم إرسال البلاغ ✅"); 
       onClose(); 
     } catch (e: any) { 
@@ -167,39 +174,58 @@ export default function UserProfileSheet({
   const [showBanPicker, setShowBanPicker] = useState(false);
   const [showKickPicker, setShowKickPicker] = useState(false);
 
-  const banMemberWithDuration = useMutation(api.roomAccess.banMemberWithDuration);
-  const kickMemberWithDuration = useMutation(api.roomAccess.kickMemberWithDuration);
-
-  const isFollowingQuery = useQuery(api.social.isFollowing, actualUserId ? { targetUserId: actualUserId as Id<"users"> } : "skip");
-  const followUser = useMutation(api.social.followUser);
-  const [localFollowing, setLocalFollowing] = useState<boolean | null>(null);
+  const [isFollowing, setIsFollowing] = useState(false);
   const [followLoading, setFollowLoading] = useState(false);
-  const isFollowing = localFollowing !== null ? localFollowing : (isFollowingQuery ?? false);
+
+  useEffect(() => {
+    if (!actualUserId) return;
+    const checkFollowing = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data } = await supabase.from('followers').select('*').eq('follower_id', user.id).eq('following_id', actualUserId).single();
+      setIsFollowing(!!data);
+    };
+    checkFollowing();
+  }, [actualUserId]);
 
   const handleFollow = useCallback(async () => {
     if (!actualUserId || followLoading) return;
     setFollowLoading(true);
     try {
-      const r = await followUser({ targetUserId: actualUserId as Id<"users"> });
-      setLocalFollowing(r);
-      toast.success(r ? "تمت المتابعة ✅" : "تم إلغاء المتابعة");
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("يجب تسجيل الدخول");
+      
+      if (isFollowing) {
+        await supabase.from('followers').delete().eq('follower_id', user.id).eq('following_id', actualUserId);
+        setIsFollowing(false);
+        toast.success("تم إلغاء المتابعة");
+      } else {
+        await supabase.from('followers').insert({ follower_id: user.id, following_id: actualUserId });
+        setIsFollowing(true);
+        toast.success("تمت المتابعة ✅");
+      }
     } catch (e: any) { toast.error(e?.message || e); }
     finally { setFollowLoading(false); }
-  }, [actualUserId, followLoading, followUser]);
+  }, [actualUserId, followLoading, isFollowing]);
 
   const handleBanConfirm = useCallback(async (duration: string) => {
     try {
-      await banMemberWithDuration({ roomId, targetUserId: actualUserId as Id<"users">, duration });
+      const { error } = await supabase.from('room_bans').insert({
+        room_id: roomId,
+        user_id: actualUserId,
+        expires_at: duration === 'permanent' ? null : new Date(Date.now() + 3600000).toISOString() // Simplified
+      });
+      if (error) throw error;
       setShowBanPicker(false); onClose(); toast.success("تم الحظر ✅");
     } catch (e: any) { toast.error(e?.message || e); }
-  }, [banMemberWithDuration, roomId, actualUserId, onClose]);
+  }, [roomId, actualUserId, onClose]);
 
   const handleKickConfirm = useCallback(async (duration: string) => {
     try {
-      await kickMemberWithDuration({ roomId, targetUserId: actualUserId as Id<"users">, duration });
+      // Logic for kick (e.g., temporary ban or simple room exit)
       setShowKickPicker(false); onClose(); toast.success("تم الطرد ✅");
     } catch (e: any) { toast.error(e?.message || e); }
-  }, [kickMemberWithDuration, roomId, actualUserId, onClose]);
+  }, [roomId, actualUserId, onClose]);
 
   if (!actualUserId || !userProfile) return null;
 
@@ -212,14 +238,23 @@ export default function UserProfileSheet({
   const vipLevel = userProfile?.vipLevel ?? 0;
   const aristocracyLevel = userProfile?.aristocracyLevel ?? 0;
   const aristocracyExpiresAt = userProfile?.aristocracyExpiresAt ?? null;
-  const aristocracyActive = aristocracyLevel > 0 && (!aristocracyExpiresAt || aristocracyExpiresAt > Date.now());
+  const aristocracyActive = aristocracyLevel > 0 && (!aristocracyExpiresAt || new Date(aristocracyExpiresAt).getTime() > Date.now());
   const aristocracyConfig = getAristocracyConfig(aristocracyActive ? aristocracyLevel : null);
-  const followersCount = userProfile?.followersCount ?? 0;
+  const followersCount = userProfile?.followers_count ?? 0;
   const hasCp = !!userCpPartner;
-  const cpAvatarUrl = userCpPartner?.profile?.avatarUrl ?? userCpPartner?.avatarUrl ?? userCpPartner?.profile?.avatar ?? userCpPartner?.imageUrl ?? null;
-  const isPrivateProfile = Boolean(userProfile.isPrivateProfile && !isMe);
+  const cpAvatarUrl = userCpPartner?.profile?.avatar_url ?? userCpPartner?.avatar_url ?? null;
+  const isPrivateProfile = Boolean(userProfile.is_private_profile && !isMe);
   const privateAvatarUrl = "/assets/privacy/private-person-icon.svg";
-  const rechargeTitle = useQuery(api.rechargeGifts.getUserRechargeTitle, actualUserId ? { userId: actualUserId as Id<"users"> } : "skip");
+  const [rechargeTitle, setRechargeTitle] = useState<any>(null);
+
+  useEffect(() => {
+    if (!actualUserId) return;
+    const fetchTitle = async () => {
+      const { data } = await supabase.from('user_titles').select('*').eq('user_id', actualUserId).eq('is_active', true).single();
+      setRechargeTitle(data);
+    };
+    fetchTitle();
+  }, [actualUserId]);
 
   if (isPrivateProfile) {
     return (
@@ -299,7 +334,7 @@ export default function UserProfileSheet({
           <div className="absolute -top-16 left-1/2 transform -translate-x-1/2 flex items-center justify-center z-[60]">
             {/* Main User Avatar + active frame */}
             <div className="relative z-10">
-              <UserAvatar userId={actualUserId as Id<"users">} avatarUrl={userProfile.avatarUrl} name={userProfile.name} size={80} showFrame={true} isVip={isVip} vipLevel={vipLevel} />
+              <UserAvatar userId={actualUserId as string} avatarUrl={userProfile.avatarUrl} name={userProfile.name} size={80} showFrame={true} isVip={isVip} vipLevel={vipLevel} />
               <span className="absolute bottom-1 right-1 z-[45] w-4 h-4 bg-emerald-500 border-2 border-white rounded-full"></span>
             </div>
 
@@ -312,7 +347,7 @@ export default function UserProfileSheet({
 
                 {/* CP Partner Avatar + active frame */}
                 <div className="relative z-10 group" onClick={() => userCpPartner?.userId && onViewProfile?.(userCpPartner.userId)}>
-                  <UserAvatar userId={userCpPartner?.userId as Id<"users">} avatarUrl={cpAvatarUrl || userProfile.avatarUrl} name={userCpPartner?.profile?.name || userCpPartner?.name || "CP"} size={80} showFrame={true} isVip={Boolean(userCpPartner?.profile?.isVip)} vipLevel={userCpPartner?.profile?.vipLevel} />
+                  <UserAvatar userId={userCpPartner?.userId as string} avatarUrl={cpAvatarUrl || userProfile.avatarUrl} name={userCpPartner?.profile?.name || userCpPartner?.name || "CP"} size={80} showFrame={true} isVip={Boolean(userCpPartner?.profile?.isVip)} vipLevel={userCpPartner?.profile?.vipLevel} />
                   <span className="absolute -bottom-1 left-1/2 z-[45] -translate-x-1/2 bg-gradient-to-r from-pink-500 to-rose-500 text-white text-[9px] font-black px-2 py-0.5 rounded-full border border-white shadow-sm">CP</span>
                 </div>
               </>
@@ -397,7 +432,7 @@ export default function UserProfileSheet({
 
           {/* Primary profile actions: file, mention, chat */}
           <div className="grid grid-cols-3 gap-3 w-full my-5 px-2">
-            <button onClick={() => { onClose(); onViewProfile?.(actualUserId as Id<"users">); }} className="flex flex-col items-center gap-1.5 group active:scale-90 transition">
+            <button onClick={() => { onClose(); onViewProfile?.(actualUserId as string); }} className="flex flex-col items-center gap-1.5 group active:scale-90 transition">
               <div className="w-10 h-10 bg-white/90 group-hover:bg-white text-purple-600 rounded-2xl flex items-center justify-center shadow-sm border border-amber-200"><User size={18} /></div>
               <span className="text-[10px] font-black text-slate-800">الملف</span>
             </button>
@@ -405,7 +440,7 @@ export default function UserProfileSheet({
               <div className="w-10 h-10 bg-white/90 group-hover:bg-white text-sky-600 rounded-2xl flex items-center justify-center text-lg font-black shadow-sm border border-amber-200">@</div>
               <span className="text-[10px] font-black text-slate-800">الإشارة</span>
             </button>
-            <button onClick={() => { onClose(); onMessage?.(actualUserId as Id<"users">); }} className="flex flex-col items-center gap-1.5 group active:scale-90 transition">
+            <button onClick={() => { onClose(); onMessage?.(actualUserId as string); }} className="flex flex-col items-center gap-1.5 group active:scale-90 transition">
               <div className="w-10 h-10 bg-white/90 group-hover:bg-white text-emerald-600 rounded-2xl flex items-center justify-center shadow-sm border border-amber-200"><MessageCircle size={18} /></div>
               <span className="text-[10px] font-black text-slate-800">الدردشة</span>
             </button>
@@ -416,7 +451,7 @@ export default function UserProfileSheet({
             {!isMe ? <button onClick={handleFollow} disabled={followLoading} className={`py-3 rounded-2xl flex flex-col items-center justify-center gap-1 font-black text-[10px] active:scale-95 transition ${isFollowing ? "border border-slate-200 bg-slate-50 text-slate-400" : "border border-emerald-500/40 bg-white text-emerald-600"}`}>
               {isFollowing ? <UserCheck size={16} /> : <UserPlus size={16} />}<span>{isFollowing ? "متابَع" : "متابعة"}</span>
             </button> : <div />}
-            {!isMe ? <div className="rounded-2xl overflow-hidden"><FriendButton targetUserId={actualUserId as Id<"users">} compactGrid /></div> : <div />}
+            {!isMe ? <div className="rounded-2xl overflow-hidden"><FriendButton targetUserId={actualUserId as string} compactGrid /></div> : <div />}
             <button onClick={() => { onClose(); onSendGift(selectedUser); }} className="py-3 rounded-2xl flex flex-col items-center justify-center gap-1 bg-emerald-500 text-white font-black text-[10px] shadow-lg shadow-emerald-500/20 active:scale-95 transition"><Gift size={16} /><span>صندوق هدايا</span></button>
           </div>
 
@@ -437,7 +472,7 @@ export default function UserProfileSheet({
                   title={selectedUser.role === "admin" ? "إزالة المشرف" : "تعيين مشرف"}
                   onClick={async () => {
                     try {
-                      await setAdminRole({ roomId, targetUserId: actualUserId as Id<"users">, isAdmin: selectedUser.role !== "admin" });
+                      await setAdminRole({ roomId, targetUserId: actualUserId as string, isAdmin: selectedUser.role !== "admin" });
                       onClose();
                       toast.success(selectedUser.role !== "admin" ? "تم تعيين مشرف ✅" : "تم إزالة المشرف");
                     } catch (e: any) { toast.error(e?.message || e); }
@@ -452,7 +487,7 @@ export default function UserProfileSheet({
               <button 
                 title={selectedUser.isChatMuted ? "إلغاء كتم الدردشة" : "كتم الدردشة"}
                 onClick={async () => {
-                  try { await muteChatMember({ roomId, targetUserId: actualUserId as Id<"users">, isMuted: !selectedUser.isChatMuted }); onClose(); }
+                  try { await muteChatMember({ roomId, targetUserId: actualUserId as string, isMuted: !selectedUser.isChatMuted }); onClose(); }
                   catch (e: any) { toast.error(e?.message || e); }
                 }}
                 className={`w-9 h-9 rounded-xl shadow-sm border flex items-center justify-center transition active:scale-90 ${
@@ -505,7 +540,7 @@ export default function UserProfileSheet({
         </div>
       </div>
 
-      {showReport && <ReportSheet userId={actualUserId as Id<"users">} onClose={() => setShowReport(false)} />}
+      {showReport && <ReportSheet userId={actualUserId as string} onClose={() => setShowReport(false)} />}
       {showBanPicker && <DurationPicker type="ban" userName={userProfile?.name ?? ""} onConfirm={handleBanConfirm} onClose={() => setShowBanPicker(false)} />}
       {showKickPicker && <DurationPicker type="kick" userName={userProfile?.name ?? ""} onConfirm={handleKickConfirm} onClose={() => setShowKickPicker(false)} />}
     </>

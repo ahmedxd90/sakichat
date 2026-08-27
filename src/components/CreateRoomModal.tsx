@@ -1,6 +1,5 @@
 import { useState } from "react";
-import { useMutation } from "convex/react";
-import { api } from "../../convex/_generated/api";
+import { supabase } from "../lib/supabaseClient";
 import { toast } from "../lib/toast";
 import { ARAB_COUNTRIES } from "../data/countries";
 
@@ -9,7 +8,6 @@ interface CreateRoomModalProps {
 }
 
 export default function CreateRoomModal({ onClose }: CreateRoomModalProps) {
-  const createRoom = useMutation(api.rooms.createRoom);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [country, setCountry] = useState("");
@@ -21,11 +19,18 @@ export default function CreateRoomModal({ onClose }: CreateRoomModalProps) {
 
     setLoading(true);
     try {
-      await createRoom({
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("يجب تسجيل الدخول");
+
+      const { error } = await supabase.from('rooms').insert({
         name: name.trim(),
-        description: description.trim() || undefined,
+        description: description.trim() || null,
         country,
+        owner_id: user.id,
       });
+      
+      if (error) throw error;
+      
       toast.success("تم إنشاء الغرفة!");
       onClose();
     } catch (e: any) {

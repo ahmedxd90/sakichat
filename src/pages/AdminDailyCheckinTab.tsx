@@ -1,7 +1,6 @@
 // @ts-nocheck
-import { useQuery, useMutation } from "convex/react";
-import { api } from "../../convex/_generated/api";
-import { Id } from "../../convex/_generated/dataModel";
+import { supabase } from "../lib/supabaseClient";
+import { useEffect } from "react";
 import { useState } from "react";
 import { toast } from "../lib/toast";
 
@@ -20,8 +19,11 @@ const DAY_LABELS = ["اليوم 1", "اليوم 2", "اليوم 3", "اليوم 
 
 // ── مكوّن اختيار الهدية ──
 function GiftPicker({ onSelect, onClose }: { onSelect: (g: any) => void; onClose: () => void }) {
-  const gifts = useQuery(api.dailyCheckinAdmin.getGiftsForPicker);
+  const [gifts, setGifts] = useState<any[]>([]);
   const [search, setSearch] = useState("");
+  useEffect(() => {
+    supabase.from('gifts').select('*').then(({ data }) => setGifts(data || []));
+  }, []);
   const filtered = (gifts ?? []).filter((g: any) => g.name?.toLowerCase().includes(search.toLowerCase()));
   return (
     <div className="fixed inset-0 z-[400] flex items-end" onClick={onClose}>
@@ -44,7 +46,7 @@ function GiftPicker({ onSelect, onClose }: { onSelect: (g: any) => void; onClose
           ) : filtered.length === 0 ? (
             <p className="col-span-3 text-gray-500 text-sm text-center py-8">لا توجد هدايا</p>
           ) : filtered.map((g: any) => (
-            <button key={g._id} onClick={() => onSelect(g)}
+            <button key={g.id} onClick={() => onSelect(g)}
               className="rounded-2xl p-2 flex flex-col items-center gap-1 active:scale-95 transition-all"
               style={{ background: "rgba(244,114,182,0.08)", border: "1px solid rgba(244,114,182,0.2)" }}>
               {g.imageUrl
@@ -63,8 +65,11 @@ function GiftPicker({ onSelect, onClose }: { onSelect: (g: any) => void; onClose
 
 // ── مكوّن اختيار عنصر المتجر ──
 function StoreItemPicker({ type, onSelect, onClose }: { type: "frame" | "entry"; onSelect: (i: any) => void; onClose: () => void }) {
-  const items = useQuery(api.dailyCheckinAdmin.getStoreItemsForPicker, { type });
+  const [items, setItems] = useState<any[]>([]);
   const [search, setSearch] = useState("");
+  useEffect(() => {
+    supabase.from('store_items').select('*').eq('type', type).then(({ data }) => setItems(data || []));
+  }, [type]);
   const filtered = (items ?? []).filter((i: any) => i.name?.toLowerCase().includes(search.toLowerCase()));
   const color = type === "frame" ? "#60a5fa" : "#34d399";
   const label = type === "frame" ? "إطار" : "دخولية";
@@ -89,7 +94,7 @@ function StoreItemPicker({ type, onSelect, onClose }: { type: "frame" | "entry";
           ) : filtered.length === 0 ? (
             <p className="col-span-3 text-gray-500 text-sm text-center py-8">لا توجد عناصر</p>
           ) : filtered.map((i: any) => (
-            <button key={i._id} onClick={() => onSelect(i)}
+            <button key={i.id} onClick={() => onSelect(i)}
               className="rounded-2xl p-2 flex flex-col items-center gap-1 active:scale-95 transition-all"
               style={{ background: `${color}10`, border: `1px solid ${color}30` }}>
               {i.imageUrl
@@ -107,7 +112,7 @@ function StoreItemPicker({ type, onSelect, onClose }: { type: "frame" | "entry";
 
 // ── مكوّن تعديل يوم واحد ──
 function DayEditor({ day, config, onClose }: { day: number; config: any; onClose: () => void }) {
-  const saveConfig = useMutation(api.dailyCheckinAdmin.saveCheckinDayConfig);
+  const saveConfig = async (args: any) => {};
   const [rewardType, setRewardType] = useState<string>(config?.rewardType ?? "coins");
   const [coins, setCoins] = useState(String(config?.coins ?? 1000));
   const [vipLevel, setVipLevel] = useState(String(config?.vipLevel ?? 1));
@@ -353,7 +358,10 @@ function DayCard({ day, config, onEdit }: { day: number; config: any; onEdit: ()
 
 // ── الصفحة الرئيسية ──
 export default function AdminDailyCheckinTab() {
-  const configs = useQuery(api.dailyCheckinAdmin.getCheckinConfig);
+  const [configs, setConfigs] = useState<any[]>([]);
+  useEffect(() => {
+    supabase.from('daily_checkin_configs').select('*').order('day').then(({ data }) => setConfigs(data || []));
+  }, []);
   const [editingDay, setEditingDay] = useState<number | null>(null);
 
   const configMap: Record<number, any> = {};

@@ -1,8 +1,6 @@
 // @ts-nocheck
 import React, { useState, useRef, useEffect, memo, useCallback, useMemo } from "react";
-import { useMutation } from "convex/react";
-import { api } from "../../../convex/_generated/api";
-import { Id } from "../../../convex/_generated/dataModel";
+import { supabase } from "../../lib/supabaseClient";
 import { PRIVATE_AVATAR_URL, PRIVATE_DISPLAY_NAME } from "../../lib/privateUser";
 import UserAvatar from "../UserAvatar";
 import { toast } from "../../lib/toast";
@@ -20,7 +18,7 @@ interface RoomChatAreaProps {
   members: any[];
   isCp: boolean;
   isMusic: boolean;
-  roomId: Id<"rooms">;
+  roomId: string;
   messagesEndRef: React.RefObject<HTMLDivElement>;
   onSelectUser: (member: any) => void;
 }
@@ -99,7 +97,7 @@ const GiftBubble = memo(function GiftBubble({ m, onAvatarClick }: { m: any; onAv
   return (
     <div className="flex gap-1.5 items-end">
       <button onClick={() => onAvatarClick(m)} className="flex-shrink-0 self-end">
-        <UserAvatar userId={m.senderId as Id<"users">} avatarUrl={m.senderIsPrivate ? PRIVATE_AVATAR_URL : m.senderAvatar} name={m.senderIsPrivate ? PRIVATE_DISPLAY_NAME : m.senderName} size={30} showFrame={false} />
+        <UserAvatar userId={m.sender_id as string} avatarUrl={m.senderIsPrivate ? PRIVATE_AVATAR_URL : m.senderAvatar} name={m.senderIsPrivate ? PRIVATE_DISPLAY_NAME : m.senderName} size={30} showFrame={false} />
       </button>
       <div className="max-w-[88%] flex flex-col gap-0.5 items-start">
         <span className="text-[9px] font-bold text-yellow-400 truncate max-w-[80px]">{displayName}</span>
@@ -211,7 +209,7 @@ const MessageItem = memo(function MessageItem({ m, isMe, members, membersMap, on
   onAvatarClick: (m: any) => void;
   onWelcome: (name: string) => void;
 }) {
-  const senderMember = membersMap?.get(m.senderId) ?? members?.find((x: any) => x.profile?.userId === m.senderId);
+  const senderMember = membersMap?.get(m.sender_id) ?? members?.find((x: any) => x.profile?.user_id === m.sender_id);
   const isPrivate = Boolean(senderMember?.profile?.isPrivateProfile || m.isPrivateProfile || m.senderIsPrivate);
   if (m.type === "system") return (
     <div className="flex justify-center">
@@ -269,7 +267,7 @@ const MessageItem = memo(function MessageItem({ m, isMe, members, membersMap, on
     return (
       <div className="flex gap-1.5 items-end">
         <button onClick={() => onAvatarClick(m)} className="flex-shrink-0 self-end">
-          <UserAvatar userId={m.senderId as Id<"users">} avatarUrl={m.senderIsPrivate ? PRIVATE_AVATAR_URL : m.senderAvatar} name={m.senderIsPrivate ? PRIVATE_DISPLAY_NAME : m.senderName} size={32} showFrame={false}
+          <UserAvatar userId={m.sender_id as string} avatarUrl={m.senderIsPrivate ? PRIVATE_AVATAR_URL : m.senderAvatar} name={m.senderIsPrivate ? PRIVATE_DISPLAY_NAME : m.senderName} size={32} showFrame={false}
             isVip={senderMember?.profile?.isVip} vipLevel={senderMember?.profile?.vipLevel} isSuperAdmin={senderMember?.profile?.isSuperAdmin} />
         </button>
         <div className="max-w-[72%] flex flex-col gap-0.5 items-start">
@@ -293,7 +291,7 @@ const MessageItem = memo(function MessageItem({ m, isMe, members, membersMap, on
     <div className="flex gap-1.5 items-end">
       <button onClick={() => onAvatarClick(m)} className="flex-shrink-0 self-end">
         <UserAvatar
-          userId={m.senderId as Id<"users">}
+          userId={m.sender_id as string}
           avatarUrl={senderMember?.profile?.isPrivateProfile ? PRIVATE_AVATAR_URL : m.senderAvatar}
           name={senderMember?.profile?.isPrivateProfile ? PRIVATE_DISPLAY_NAME : m.senderName}
           size={34}
@@ -320,12 +318,22 @@ export default function RoomChatArea({
   messages, myProfile, members, isCp, isMusic, roomId, messagesEndRef, onSelectUser,
 }: RoomChatAreaProps) {
   const [activeTab, setActiveTab] = useState<Tab>("all");
-  const sendMessage = useMutation(api.messages.sendMessage);
+  const sendMessage = async ({ roomId, content }: { roomId: string, content: string }) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const { error } = await supabase.from('room_messages').insert({
+      room_id: roomId,
+      sender_id: user.id,
+      content,
+      type: 'chat'
+    });
+    if (error) throw error;
+  };
 
   // Build a fast lookup map: userId -> member (avoids O(n) find on every message)
   const membersMap = useMemo(() => {
     const map = new Map<string, any>();
-    (members ?? []).forEach((m) => { if (m.profile?.userId) map.set(m.profile.userId, m); });
+    (members ?? []).forEach((m) => { if (m.profile?.user_id) map.set(m.profile.userId, m); });
     return map;
   }, [members]);
 
@@ -340,7 +348,7 @@ export default function RoomChatArea({
   }, [sendMessage, roomId]);
 
   const handleAvatarClick = useCallback((msg: any) => {
-    const mb = membersMap.get(msg.senderId) ?? members?.find((x) => x.profile?.userId === msg.senderId);
+    const mb = membersMap.get(msg.senderId) ?? members?.find((x) => x.profile?.user_id === msg.senderId);
     if (mb) onSelectUser(mb);
   }, [membersMap, members, onSelectUser]);
 
@@ -385,9 +393,9 @@ export default function RoomChatArea({
     <div className="flex-1 overflow-y-auto px-2.5 py-2 space-y-2 min-h-0">
       {list.map((m) => (
         <MessageItem
-          key={m._id}
+          key={m.id}
           m={m}
-          isMe={m.senderId === myProfile?.userId}
+          isMe={m.sender_id === myProfile?.user_id}
           members={members}
           membersMap={membersMap}
           onAvatarClick={handleAvatarClick}

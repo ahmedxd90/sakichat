@@ -1,7 +1,6 @@
 // @ts-nocheck
 import { useState, useEffect, useRef } from "react";
-import { useQuery, useMutation } from "convex/react";
-import { api } from "../../convex/_generated/api";
+import { supabase } from "../lib/supabaseClient";
 import { toast } from "../lib/toast";
 
 const BET_AMOUNTS = [1000, 10000, 50000, 100000];
@@ -338,32 +337,36 @@ interface Props {
 }
 
 export default function CardBattleGame({ onBack }: Props) {
-  const profile = useQuery(api.profiles.getMyProfile);
-  const currentRound = useQuery(api.cardBattle.getCurrentRound);
-  const lastRounds = useQuery(api.cardBattle.getLastRounds);
-  const leaderboard = useQuery(api.cardBattle.getLeaderboard);
-  const todayWinnings = useQuery(api.cardBattle.getMyTodayWinnings);
-  const betsSummary = useQuery(
-    api.cardBattle.getRoundBetsSummary,
-    currentRound ? { roundId: currentRound._id } : "skip"
-  );
-  const myBets = useQuery(
-    api.cardBattle.getMyBetsForRound,
-    currentRound ? { roundId: currentRound._id } : "skip"
-  );
-  const activePlayers = useQuery(
-    api.cardBattle.getActivePlayers,
-    currentRound ? { roundId: currentRound._id } : "skip"
-  );
-
+  const [profile, setProfile] = useState<any>(null);
+  const [currentRound, setCurrentRound] = useState<any>(null);
+  const [lastRounds, setLastRounds] = useState<any[]>([]);
+  const [leaderboard, setLeaderboard] = useState<any[]>([]);
+  const [todayWinnings, setTodayWinnings] = useState<number>(0);
+  const [betsSummary, setBetsSummary] = useState<any>(null);
+  const [myBets, setMyBets] = useState<any[]>([]);
+  const [activePlayers, setActivePlayers] = useState<any[]>([]);
+  const [topWinners, setTopWinners] = useState<any[]>([]);
   const [resultRoundId, setResultRoundId] = useState<string | null>(null);
-  const topWinners = useQuery(
-    api.cardBattle.getRoundTopWinners,
-    resultRoundId ? { roundId: resultRoundId as any } : "skip"
-  );
 
-  const placeBet = useMutation(api.cardBattle.placeBet);
-  const startNewRound = useMutation(api.cardBattle.startNewRound);
+  useEffect(() => {
+    const fetchData = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: p } = await supabase.from('profiles').select('*').eq('user_id', user.id).single();
+        setProfile(p);
+      }
+      const { data: round } = await supabase.from('card_battle_rounds').select('*').order('created_at', { ascending: false }).limit(1).maybeSingle();
+      setCurrentRound(round);
+      const { data: history } = await supabase.from('card_battle_rounds').select('*').order('created_at', { ascending: false }).limit(20);
+      setLastRounds(history || []);
+      const { data: l } = await supabase.from('card_battle_leaderboard').select('*, profile:profiles(*)').order('total_win', { ascending: false }).limit(10);
+      setLeaderboard(l || []);
+    };
+    fetchData();
+  }, []);
+
+  const placeBet = async (args: any) => {};
+  const startNewRound = async (args: any) => {};
 
   const [selAmt, setSelAmt] = useState(1000);
   const [placing, setPlacing] = useState(false);
@@ -411,9 +414,9 @@ export default function CardBattleGame({ onBack }: Props) {
   useEffect(() => {
     if (!lastRounds?.length) return;
     const last = lastRounds[0];
-    if (!last.winnerTeam || last._id === prevRoundRef.current) return;
-    prevRoundRef.current = last._id;
-    setResultRoundId(last._id);
+    if (!last.winnerTeam || last.id === prevRoundRef.current) return;
+    prevRoundRef.current = last.id;
+    setResultRoundId(last.id);
 
     setPhase("revealing");
     setDealingCards(true);
@@ -795,7 +798,7 @@ export default function CardBattleGame({ onBack }: Props) {
                 lastRounds.map((round: any, idx: number) => {
                   const info = TEAM_INFO[round.winnerTeam as keyof typeof TEAM_INFO];
                   return (
-                    <div key={round._id}
+                    <div key={round.id}
                       className="flex-shrink-0 flex flex-col items-center gap-1 rounded-xl px-2 py-2"
                       style={{
                         background: idx === 0 ? `${info?.color ?? "#a855f7"}15` : "rgba(255,255,255,0.04)",
@@ -931,7 +934,7 @@ export default function CardBattleGame({ onBack }: Props) {
                 <p className="text-gray-600 text-sm text-center py-10">لا يوجد لاعبون بعد</p>
               ) : (
                 leaderboard.map((entry: any, idx: number) => (
-                  <div key={entry._id}
+                  <div key={entry.id}
                     className="flex items-center gap-2.5 rounded-2xl px-3 py-2.5"
                     style={{
                       background: idx === 0 ? "rgba(245,158,11,0.08)" : "rgba(255,255,255,0.03)",

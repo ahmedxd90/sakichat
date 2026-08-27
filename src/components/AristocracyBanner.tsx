@@ -1,5 +1,4 @@
 // @ts-nocheck
-import { ARISTOCRACY_RANKS } from "../../convex/aristocracy";
 import { AristocracyName, AristocracyBadge } from "./AristocracyBadge";
 
 export function AristocracyBanner({ profile, onOpen }: { profile: any; onOpen?: () => void }) {

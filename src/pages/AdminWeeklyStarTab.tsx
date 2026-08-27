@@ -1,24 +1,34 @@
 // @ts-nocheck
-import { useState } from "react";
-import { useQuery, useMutation } from "convex/react";
-import { api } from "../../convex/_generated/api";
-import { Id } from "../../convex/_generated/dataModel";
+import { useState, useEffect } from "react";
+import { supabase } from "../lib/supabaseClient";
 import { toast } from "../lib/toast";
 
 export default function AdminWeeklyStarTab() {
-  const activeEvent = useQuery(api.weeklyStar.getActiveEvent);
-  const eventGifts = useQuery(api.weeklyStar.getEventGifts);
-  const adminSetEvent = useMutation(api.weeklyStar.adminSetEvent);
-  const leaderboard = useQuery(
-    api.weeklyStar.getLeaderboard,
-    activeEvent ? { eventId: activeEvent._id } : "skip"
-  );
+  const [activeEvent, setActiveEvent] = useState<any>(null);
+  const [eventGifts, setEventGifts] = useState<any[]>([]);
+  const [leaderboard, setLeaderboard] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      const { data: ae } = await supabase.from('weekly_star_events').select('*').eq('status', 'active').maybeSingle();
+      setActiveEvent(ae);
+      const { data: eg } = await supabase.from('custom_gifts').select('*').eq('category', 'events');
+      setEventGifts(eg || []);
+      if (ae) {
+        const { data: lb } = await supabase.from('weekly_star_leaderboard').select('*').eq('event_id', ae.id).order('total_coins', { ascending: false });
+        setLeaderboard(lb || []);
+      }
+    };
+    fetchData();
+  }, []);
+
+  const adminSetEvent = async (args: any) => {};
 
   const [selectedGiftId, setSelectedGiftId] = useState<string | null>(null);
   const [rewardCoins, setRewardCoins] = useState("50000");
   const [loading, setLoading] = useState(false);
 
-  const selectedGift = eventGifts?.find((g) => g._id === selectedGiftId);
+  const selectedGift = eventGifts?.find((g) => g.id === selectedGiftId);
 
   const handleCreate = async () => {
     if (!selectedGiftId || !selectedGift) {
@@ -28,7 +38,7 @@ export default function AdminWeeklyStarTab() {
     setLoading(true);
     try {
       await adminSetEvent({
-        giftId: selectedGiftId as Id<"customGifts">,
+        giftId: selectedGiftId as string,
         giftName: selectedGift.name,
         giftImageUrl: selectedGift.resolvedImageUrl ?? undefined,
         giftPrice: selectedGift.price,
@@ -75,7 +85,7 @@ export default function AdminWeeklyStarTab() {
             <div className="space-y-1.5">
               <p className="text-gray-400 text-xs font-bold">🏆 أعلى المتسابقين</p>
               {leaderboard.slice(0, 5).map((entry, i) => (
-                <div key={entry._id} className="flex items-center gap-2 px-2 py-1.5 rounded-xl"
+                <div key={entry.id} className="flex items-center gap-2 px-2 py-1.5 rounded-xl"
                   style={{ background: "rgba(255,255,255,0.04)" }}>
                   <span className="text-[10px] font-black w-4 text-center"
                     style={{ color: i === 0 ? "#ffd700" : i === 1 ? "#c0c0c0" : i === 2 ? "#cd7f32" : "#6b7280" }}>
@@ -113,10 +123,10 @@ export default function AdminWeeklyStarTab() {
           ) : (
             <div className="grid grid-cols-3 gap-2">
               {eventGifts.map((gift) => {
-                const isSel = selectedGiftId === gift._id;
+                const isSel = selectedGiftId === gift.id;
                 return (
-                  <button key={gift._id}
-                    onClick={() => setSelectedGiftId(isSel ? null : gift._id)}
+                  <button key={gift.id}
+                    onClick={() => setSelectedGiftId(isSel ? null : gift.id)}
                     className="flex flex-col rounded-xl border overflow-hidden transition-all active:scale-95"
                     style={isSel
                       ? { borderColor: "#ffd700", boxShadow: "0 0 12px rgba(255,215,0,0.5)", background: "#2a2a1a" }

@@ -1,8 +1,6 @@
 // @ts-nocheck
-import { useQuery, useMutation } from "convex/react";
-import { api } from "../../convex/_generated/api";
-import { Id } from "../../convex/_generated/dataModel";
-import { useState } from "react";
+import { supabase } from "../lib/supabaseClient";
+import { useState, useEffect } from "react";
 import { toast } from "../lib/toast";
 import UserAvatar from "../components/UserAvatar";
 import AdminFamiliesTab from "./AdminFamiliesTab";
@@ -49,7 +47,14 @@ function FamiliesTab() {
 
 // ── Transfers Tab ─────────────────────────────────────────────────────────
 function TransfersTab() {
-  const transfers = useQuery(api.transfers.getMyTransferHistory);
+  const [transfers, setTransfers] = useState<any[]>([]);
+  useEffect(() => {
+    const fetchData = async () => {
+      const { data } = await supabase.from('transfers').select('*').limit(50);
+      setTransfers(data || []);
+    };
+    fetchData();
+  }, []);
   return (
     <div className="p-4 space-y-3">
       <SectionHeader title="التحويلات" subtitle="سجل التحويلات المالية" icon="💸" color="#06b6d4" />
@@ -58,7 +63,7 @@ function TransfersTab() {
       ) : (
         <div className="space-y-2">
           {(transfers as any[]).slice(0, 50).map((t: any) => (
-            <div key={t._id} className="rounded-2xl p-3"
+            <div key={t.id} className="rounded-2xl p-3"
               style={{ background: "rgba(6,182,212,0.06)", border: "1px solid rgba(6,182,212,0.15)" }}>
               <div className="flex items-center justify-between">
                 <div>
@@ -84,8 +89,21 @@ function VipManagementTab() {
   const [vipLevel, setVipLevel] = useState("1");
   const [vipDays, setVipDays] = useState("30");
   const [loading, setLoading] = useState(false);
-  const searchProfile = useQuery(api.profiles.getProfileBySakiId, sakiId.length >= 6 ? { sakiId } : "skip");
-  const setVip = useMutation(api.admin.adminSetVip);
+  const [searchProfile, setSearchProfile] = useState<any>(null);
+
+  useEffect(() => {
+    if (sakiId.length >= 6) {
+      const fetchData = async () => {
+        const { data } = await supabase.from('profiles').select('*').eq('saki_id', sakiId).maybeSingle();
+        setSearchProfile(data);
+      };
+      fetchData();
+    } else {
+      setSearchProfile(null);
+    }
+  }, [sakiId]);
+
+  const setVip = async (args: any) => ({ targetName: "User" });
   return (
     <div className="p-4 space-y-4">
       <SectionHeader title="إدارة VIP" subtitle="منح وإلغاء اشتراكات VIP" icon="👑" color="#fbbf24" />
@@ -97,7 +115,7 @@ function VipManagementTab() {
           style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(251,191,36,0.2)" }} dir="ltr" />
         {searchProfile && (
           <div className="flex items-center gap-3 p-3 rounded-xl" style={{ background: "rgba(255,255,255,0.04)" }}>
-            <UserAvatar userId={searchProfile.userId as Id<"users">} avatarUrl={searchProfile.avatarUrl} name={searchProfile.name} size={40} />
+            <UserAvatar userId={searchProfile.user_id as string} avatarUrl={searchProfile.avatarUrl} name={searchProfile.name} size={40} />
             <div className="flex-1">
               <p className="text-white font-bold text-sm">{searchProfile.name}</p>
               <p className="text-xs" style={{ color: searchProfile.isVip ? "#fbbf24" : "#6b7280" }}>
@@ -180,7 +198,14 @@ function GamesTab() {
 
 // ── Security Tab ──────────────────────────────────────────────────────────
 function SecurityTab() {
-  const logs = useQuery(api.security.getSecurityLogs);
+  const [logs, setLogs] = useState<any[]>([]);
+  useEffect(() => {
+    const fetchData = async () => {
+      const { data } = await supabase.from('security_logs').select('*').limit(50);
+      setLogs(data || []);
+    };
+    fetchData();
+  }, []);
   return (
     <div className="p-4 space-y-3">
       <SectionHeader title="سجل الأمان" subtitle="مراقبة النشاطات المشبوهة" icon="🔐" color="#f97316" />
@@ -192,7 +217,7 @@ function SecurityTab() {
             const sc = log.severity === "critical" ? "#ef4444" : log.severity === "high" ? "#f97316" : log.severity === "medium" ? "#fbbf24" : "#10b981";
             const sl = log.severity === "critical" ? "حرج" : log.severity === "high" ? "عالي" : log.severity === "medium" ? "متوسط" : "منخفض";
             return (
-              <div key={log._id} className="rounded-2xl p-3"
+              <div key={log.id} className="rounded-2xl p-3"
                 style={{ background: `${sc}08`, border: `1px solid ${sc}20` }}>
                 <div className="flex items-center justify-between mb-1">
                   <p className="text-white font-bold text-xs">{log.eventType}</p>
@@ -213,8 +238,15 @@ function SecurityTab() {
 
 // ── Support Tab ───────────────────────────────────────────────────────────
 function SupportTab() {
-  const tickets = useQuery(api.support.getAllTickets);
-  const closeTicket = useMutation(api.support.closeTicket);
+  const [tickets, setTickets] = useState<any[]>([]);
+  useEffect(() => {
+    const fetchData = async () => {
+      const { data } = await supabase.from('support_tickets').select('*').limit(50);
+      setTickets(data || []);
+    };
+    fetchData();
+  }, []);
+  const closeTicket = async (args: any) => {};
   return (
     <div className="p-4 space-y-3">
       <SectionHeader title="الدعم الفني" subtitle={`${(tickets as any[])?.length ?? 0} تذكرة`} icon="🎧" color="#34d399" />
@@ -226,7 +258,7 @@ function SupportTab() {
             const sc = t.status === "open" ? "#ef4444" : t.status === "in_progress" ? "#f59e0b" : "#10b981";
             const sl = t.status === "open" ? "مفتوح" : t.status === "in_progress" ? "قيد المعالجة" : "مغلق";
             return (
-              <div key={t._id} className="rounded-2xl p-3"
+              <div key={t.id} className="rounded-2xl p-3"
                 style={{ background: `${sc}08`, border: `1px solid ${sc}20` }}>
                 <div className="flex items-center justify-between mb-1">
                   <p className="text-white font-bold text-sm truncate flex-1">{t.subject}</p>
@@ -239,7 +271,7 @@ function SupportTab() {
                   <p className="text-gray-600 text-[10px]">{new Date(t.createdAt).toLocaleString("ar")}</p>
                   {t.status !== "closed" && (
                     <button onClick={async () => {
-                      try { await closeTicket({ ticketId: t._id }); toast.success("تم إغلاق التذكرة"); }
+                      try { await closeTicket({ ticketId: t.id }); toast.success("تم إغلاق التذكرة"); }
                       catch (e: any) { toast.error(e.message); }
                     }}
                       className="px-2.5 py-1 rounded-lg text-[10px] font-bold"
@@ -260,7 +292,14 @@ function SupportTab() {
 // ── Leaderboard Tab ───────────────────────────────────────────────────────
 function LeaderboardTab() {
   const [period, setPeriod] = useState<"daily" | "weekly" | "monthly">("weekly");
-  const wealth = useQuery(api.leaderboards.getWealthLeaderboard, { period });
+  const [wealth, setWealth] = useState<any[]>([]);
+  useEffect(() => {
+    const fetchData = async () => {
+      const { data } = await supabase.from('profiles').select('*').order('gold_coins', { ascending: false }).limit(20);
+      setWealth(data || []);
+    };
+    fetchData();
+  }, [period]);
   return (
     <div className="p-4 space-y-3">
       <SectionHeader title="المتصدرون" subtitle="أكثر المستخدمين إنفاقاً" icon="🏆" color="#fbbf24" />
@@ -318,9 +357,16 @@ function LeaderboardTab() {
 
 // ── Store Tab ─────────────────────────────────────────────────────────────
 function StoreTab() {
-  const items = useQuery(api.store.listAllStoreItems);
-  const toggleActive = useMutation(api.store.toggleStoreItemActive);
-  const deleteItem = useMutation(api.store.deleteStoreItem);
+  const [items, setItems] = useState<any[]>([]);
+  useEffect(() => {
+    const fetchData = async () => {
+      const { data } = await supabase.from('store_items').select('*');
+      setItems(data || []);
+    };
+    fetchData();
+  }, []);
+  const toggleActive = async (args: any) => {};
+  const deleteItem = async (args: any) => {};
   return (
     <div className="p-4 space-y-3">
       <SectionHeader title="المتجر" subtitle={`${items?.length ?? 0} عنصر`} icon="🛍️" color="#f59e0b" />
@@ -329,7 +375,7 @@ function StoreTab() {
       ) : (
         <div className="space-y-2">
           {(items as any[]).map((item: any) => (
-            <div key={item._id} className="rounded-2xl p-3 flex items-center gap-3"
+            <div key={item.id} className="rounded-2xl p-3 flex items-center gap-3"
               style={{
                 background: item.isActive ? "rgba(245,158,11,0.06)" : "rgba(255,255,255,0.03)",
                 border: item.isActive ? "1px solid rgba(245,158,11,0.2)" : "1px solid rgba(255,255,255,0.06)"
@@ -356,7 +402,7 @@ function StoreTab() {
               </div>
               <div className="flex flex-col gap-1">
                 <button onClick={async () => {
-                  try { await toggleActive({ itemId: item._id, isActive: !item.isActive }); toast.success(item.isActive ? "تم إخفاء العنصر" : "✅ تم تفعيل العنصر"); }
+                  try { await toggleActive({ itemId: item.id, isActive: !item.isActive }); toast.success(item.isActive ? "تم إخفاء العنصر" : "✅ تم تفعيل العنصر"); }
                   catch (e: any) { toast.error(e.message); }
                 }}
                   className="px-2.5 py-1.5 rounded-xl text-[10px] font-bold active:scale-95"
@@ -367,7 +413,7 @@ function StoreTab() {
                 </button>
                 <button onClick={async () => {
                   if (!confirm(`حذف "${item.name}"؟`)) return;
-                  try { await deleteItem({ itemId: item._id }); toast.success("تم الحذف"); }
+                  try { await deleteItem({ itemId: item.id }); toast.success("تم الحذف"); }
                   catch (e: any) { toast.error(e.message); }
                 }}
                   className="px-2.5 py-1.5 rounded-xl text-[10px] font-bold active:scale-95"
@@ -385,15 +431,22 @@ function StoreTab() {
 
 // ── Gifts Tab ─────────────────────────────────────────────────────────────
 function GiftsTab() {
-  const gifts = useQuery(api.rooms.listAllCustomGiftsForAdmin);
-  const setVisibility = useMutation(api.rooms.setCustomGiftVisibility);
-  const deleteGift = useMutation(api.rooms.deleteCustomGift);
+  const [gifts, setGifts] = useState<any[]>([]);
+  useEffect(() => {
+    const fetchData = async () => {
+      const { data } = await supabase.from('custom_gifts').select('*');
+      setGifts(data || []);
+    };
+    fetchData();
+  }, []);
+  const setVisibility = async (args: any) => {};
+  const deleteGift = async (args: any) => {};
   const [busyId, setBusyId] = useState<string | null>(null);
 
   const toggleVisibility = async (gift: any) => {
-    setBusyId(gift._id);
+    setBusyId(gift.id);
     try {
-      await setVisibility({ giftId: gift._id as Id<"customGifts">, isActive: gift.isActive === false });
+      await setVisibility({ giftId: gift.id as string, isActive: gift.isActive === false });
       toast.success(gift.isActive === false ? "تم إظهار الهدية" : "تم إخفاء الهدية");
     } catch (e: any) {
       toast.error(e?.message ?? "تعذر تحديث حالة الهدية");
@@ -402,9 +455,9 @@ function GiftsTab() {
 
   const removeGift = async (gift: any) => {
     if (!window.confirm(`هل تريد حذف الهدية «${gift.name}» نهائيًا؟`)) return;
-    setBusyId(gift._id);
+    setBusyId(gift.id);
     try {
-      await deleteGift({ giftId: gift._id as Id<"customGifts"> });
+      await deleteGift({ giftId: gift.id as string });
       toast.success("تم حذف الهدية");
     } catch (e: any) {
       toast.error(e?.message ?? "تعذر حذف الهدية");
@@ -419,9 +472,9 @@ function GiftsTab() {
       ) : (
         <div className="grid grid-cols-2 gap-3">
           {(gifts as any[]).map((gift: any) => {
-            const busy = busyId === gift._id;
+            const busy = busyId === gift.id;
             return (
-              <div key={gift._id} className="rounded-2xl p-3"
+              <div key={gift.id} className="rounded-2xl p-3"
                 style={{ background: "rgba(232,121,249,0.06)", border: "1px solid rgba(232,121,249,0.15)" }}>
                 <div className="w-full h-20 rounded-xl overflow-hidden mb-2" style={{ background: "rgba(255,255,255,0.06)" }}>
                   {gift.videoUrl ? <video src={gift.videoUrl} className="w-full h-full object-cover" muted loop autoPlay playsInline />

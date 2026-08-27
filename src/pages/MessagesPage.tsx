@@ -1,7 +1,5 @@
-import React, { useState } from "react";
-import { useQuery } from "convex/react";
-import { api } from "../../convex/_generated/api";
-import { Id } from "../../convex/_generated/dataModel";
+import React, { useState, useEffect } from "react";
+import { supabase } from "../lib/supabaseClient";
 import ChatPage from "./ChatPage";
 import { VipName, VipBadge } from "../components/VipBadge";
 import SystemNotificationsPage from "./SystemNotificationsPage";
@@ -15,7 +13,7 @@ type TabType = "messages" | "friends";
 type SubPageType = "system" | "social" | "requests" | null;
 
 interface MessagesPageProps {
-  onUserSelect?: (userId: Id<"users">) => void;
+  onUserSelect?: (userId: string) => void;
 }
 
 function LineIcon({ name, className = "w-6 h-6" }: { name: string; className?: string }) {
@@ -33,17 +31,44 @@ function LineIcon({ name, className = "w-6 h-6" }: { name: string; className?: s
 
 export default function MessagesPage({ onUserSelect }: MessagesPageProps) {
   const { lang } = useLang();
-  const conversations = useQuery(api.messages.getConversations);
-  const [openChat, setOpenChat] = useState<Id<"users"> | null>(null);
+  const [conversations, setConversations] = useState<any[]>([]);
+  const [openChat, setOpenChat] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TabType>("messages");
   const [subPage, setSubPage] = useState<SubPageType>(null);
   const [searchQuery, setSearchBar] = useState("");
 
-  const unreadCount = useQuery(api.messages.getTotalUnreadCount) ?? 0;
-  const systemUnreadCount = useQuery(api.notifications.getUnreadCount) ?? 0;
-  const requestsCount = useQuery(api.friends.getPendingRequestsCount) ?? 0;
-  const friends = useQuery(api.friends.getFriends) ?? [];
-  const onlineFriendsCount = friends.filter(f => f.isOnline).length;
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [systemUnreadCount, setSystemUnreadCount] = useState(0);
+  const [requestsCount, setRequestsCount] = useState(0);
+  const [friends, setFriends] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        // Conversations
+        const { data: convs } = await supabase.from('conversations').select('*, otherProfile:profiles(*)').eq('user_id', user.id);
+        setConversations(convs || []);
+        
+        // Unread counts
+        const { count: unread } = await supabase.from('messages').select('*', { count: 'exact', head: true }).eq('receiver_id', user.id).eq('is_read', false);
+        setUnreadCount(unread || 0);
+        
+        const { count: sysUnread } = await supabase.from('notifications').select('*', { count: 'exact', head: true }).eq('user_id', user.id).eq('is_read', false);
+        setSystemUnreadCount(sysUnread || 0);
+        
+        // Friends
+        const { data: fr } = await supabase.from('friends').select('*, profile:profiles(*)').eq('user_id', user.id);
+        setFriends(fr?.map(f => f.profile) || []);
+        
+        const { count: reqs } = await supabase.from('friend_requests').select('*', { count: 'exact', head: true }).eq('receiver_id', user.id).eq('status', 'pending');
+        setRequestsCount(reqs || 0);
+      }
+    };
+    fetchData();
+  }, []);
+
+  const onlineFriendsCount = friends.filter(f => f.is_online).length;
 
   if (openChat) {
     return (
@@ -62,7 +87,7 @@ export default function MessagesPage({ onUserSelect }: MessagesPageProps) {
   if (subPage === "requests") return <div className="fixed inset-0 z-[300] bg-white"><FriendsPage onBack={() => setSubPage(null)} onViewProfile={onUserSelect} onMessage={setOpenChat} /></div>;
 
   const filteredFriends = searchQuery.trim() 
-    ? friends.filter(f => f.name.toLowerCase().includes(searchQuery.toLowerCase()) || f.sakiId?.includes(searchQuery))
+    ? friends.filter(f => f.name.toLowerCase().includes(searchQuery.toLowerCase()) || f.saki_id?.includes(searchQuery))
     : friends;
 
   return (
@@ -140,13 +165,13 @@ export default function MessagesPage({ onUserSelect }: MessagesPageProps) {
                 const isVip = conv.otherProfile?.isVip ?? false;
                 return (
                   <div 
-                    key={conv.otherId}
-                    onClick={() => setOpenChat(conv.otherId as Id<"users">)}
+                    key={conv.other_id}
+                    onClick={() => setOpenChat(conv.other_id as string)}
                     className="conversation-item item-press"
                   >
                     <div className="relative">
                       <UserAvatar
-                        userId={conv.otherId as Id<"users">}
+                        userId={conv.other_id as string}
                         avatarUrl={conv.otherProfile?.avatarUrl}
                         name={conv.otherProfile?.name}
                         size={52}
@@ -210,26 +235,26 @@ export default function MessagesPage({ onUserSelect }: MessagesPageProps) {
               </div>
             ) : (
               filteredFriends.map((friend) => (
-                <div key={friend.userId} className="friend-item">
+                <div key={friend.user_id} className="friend-item">
                   <div className="flex items-center gap-3">
                     <div className="relative">
                       <UserAvatar
-                        userId={friend.userId}
-                        avatarUrl={friend.avatarUrl}
+                        userId={friend.user_id}
+                        avatarUrl={friend.avatar_url}
                         name={friend.name}
                         size={48}
                       />
-                      {friend.isOnline && <span className="online-indicator"></span>}
+                      {friend.is_online && <span className="online-indicator"></span>}
                     </div>
                     <div>
                       <h4 className="text-sm font-bold text-gray-800">{friend.name}</h4>
-                      <p className={`text-[11px] font-medium ${friend.isOnline ? "text-emerald-600" : "text-gray-400"}`}>
-                        {friend.isOnline ? (lang === "en" ? "Online" : "متصل الآن") : (lang === "en" ? "Offline" : "غير متصل")}
+                      <p className={`text-[11px] font-medium ${friend.is_online ? "text-emerald-600" : "text-gray-400"}`}>
+                        {friend.is_online ? (lang === "en" ? "Online" : "متصل الآن") : (lang === "en" ? "Offline" : "غير متصل")}
                       </p>
                     </div>
                   </div>
                   <button 
-                    onClick={() => setOpenChat(friend.userId)}
+                    onClick={() => setOpenChat(friend.user_id)}
                     className="message-btn"
                   >
                     {lang === "en" ? "Message" : "مراسلة"}

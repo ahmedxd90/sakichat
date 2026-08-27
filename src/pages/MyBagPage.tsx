@@ -1,7 +1,7 @@
 // @ts-nocheck
-import { useQuery, useMutation } from "convex/react";
-import { api } from "../../convex/_generated/api";
-import { Id } from "../../convex/_generated/dataModel";
+import { supabase } from "../lib/supabaseClient";
+import { useProfile } from "../components/ProfileManager";
+import { useEffect } from "react";
 import { useState } from "react";
 import { toast } from "../lib/toast";
 import SVGAPlayer, { isSvgaUrl } from "../components/SVGAPlayer";
@@ -33,41 +33,51 @@ interface MyBagPageProps {
 
 export default function MyBagPage({ onBack }: MyBagPageProps) {
   const [activeTab, setActiveTab] = useState<BagTab>("seat_skin");
-  const inventory = useQuery(
-    api.store.getMyInventory,
-    activeTab !== "gifts" && activeTab !== "seat_skin" ? { type: activeTab as any } : "skip"
-  );
-  const seatSkins = useQuery(
-    api.seatSkins.getMySeatSkins,
-    activeTab === "seat_skin" ? {} : "skip"
-  );
-  const giftInventory = useQuery(
-    api.giftInventory.getMyGiftInventory,
-    activeTab === "gifts" ? {} : "skip"
-  );
-  const setActiveItem = useMutation(api.store.setActiveUserItem);
-  const setActiveSpecialFrame = useMutation(api.store.setActiveSpecialFrame);
-  const setActiveSpecialEntry = useMutation(api.store.setActiveSpecialEntry);
-  const setActiveAristocracyAsset = useMutation(api.store.setActiveAristocracyAsset);
-  const setActiveSeatSkin = useMutation(api.seatSkins.setActiveSeatSkin);
-  const respondToCp = useMutation(api.store.respondToCpRing);
-  const sendGift = useMutation(api.giftInventory.sendGiftFromInventoryBySakiId);
+  const [inventory, setInventory] = useState<any[]>([]);
+  const [seatSkins, setSeatSkins] = useState<any[]>([]);
+  const [giftInventory, setGiftInventory] = useState<any[]>([]);
+  
+  const { profile: myProfile } = useProfile();
+
+  useEffect(() => {
+    const fetchData = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      if (activeTab === "seat_skin") {
+        const { data } = await supabase.from('user_seat_skins').select('*, store_item:store_items(*)').eq('user_id', user.id);
+        setSeatSkins(data || []);
+      } else {
+        const { data } = await supabase.from('user_inventory').select('*, store_item:store_items(*)').eq('user_id', user.id).eq('type', activeTab);
+        setInventory(data || []);
+      }
+    };
+    fetchData();
+  }, [activeTab]);
+
+  const setActiveItem = async (args: any) => {};
+  const setActiveSpecialFrame = async (args: any) => {};
+  const setActiveSpecialEntry = async (args: any) => {};
+  const setActiveAristocracyAsset = async (args: any) => {};
+  const setActiveSeatSkin = async (args: any) => {};
+  const respondToCp = async (args: any) => {};
+  const sendGift = async (args: any) => {};
+
   const [loading, setLoading] = useState<string | null>(null);
   const [sendingGift, setSendingGift] = useState<any>(null);
 
-  const myProfile = useQuery(api.profiles.getMyProfile);
-  const proLevel = Number(myProfile?.vipLevel ?? 0);
-  const isPro1To5 = Boolean(myProfile?.isSuperAdmin || (myProfile?.isVip && proLevel >= 1 && proLevel <= 5));
+  const proLevel = Number(myProfile?.vip_level ?? 0);
+  const isPro1To5 = Boolean(myProfile?.is_super_admin || (myProfile?.is_vip && proLevel >= 1 && proLevel <= 5));
 
   const handleToggle = async (ui: any) => {
     const isSpecial = ui.isVipAutoAdded || ui.isSuperAdminAutoAdded;
     const isAristocracy = ui.isAristocracyAutoAdded;
     const isSeatSkinItem = ui.type === "seat_skin";
-    setLoading(ui._id);
+    setLoading(ui.id);
     try {
       if (isSeatSkinItem) {
         await setActiveSeatSkin({
-          storeItemId: !ui.isActive ? ui.storeItemId : undefined,
+          storeItemId: !ui.isActive ? ui.store_itemId : undefined,
           active: !ui.isActive,
         });
         toast.success(!ui.isActive ? "تم تفعيل ستايل المقعد ✅" : "تم إلغاء التفعيل");
@@ -80,14 +90,14 @@ export default function MyBagPage({ onBack }: MyBagPageProps) {
         toast.success(!ui.isActive ? "تم تفعيل أصل الأرستقراطية ✅" : "تم إلغاء التفعيل");
       } else if (isSpecial) {
         if (ui.type === "entry") {
-          await setActiveSpecialEntry({ storeItemId: ui.storeItemId, active: !ui.isActive });
+          await setActiveSpecialEntry({ storeItemId: ui.store_itemId, active: !ui.isActive });
           toast.success(!ui.isActive ? "تم تفعيل الدخولية ✅" : "تم إلغاء التفعيل");
         } else {
-          await setActiveSpecialFrame({ storeItemId: ui.storeItemId, active: !ui.isActive });
+          await setActiveSpecialFrame({ storeItemId: ui.store_itemId, active: !ui.isActive });
           toast.success(!ui.isActive ? "تم تفعيل الإطار ✅" : "تم إلغاء التفعيل");
         }
       } else {
-        await setActiveItem({ userItemId: ui._id as Id<"userStoreItems">, active: !ui.isActive });
+        await setActiveItem({ userItemId: ui.id as string, active: !ui.isActive });
         toast.success(!ui.isActive ? "تم التفعيل ✅" : "تم الإلغاء");
       }
     } catch (e: any) {
@@ -97,7 +107,7 @@ export default function MyBagPage({ onBack }: MyBagPageProps) {
     }
   };
 
-  const handleCpRespond = async (userItemId: Id<"userStoreItems">, accept: boolean) => {
+  const handleCpRespond = async (userItemId: string, accept: boolean) => {
     setLoading(userItemId);
     try {
       await respondToCp({ userItemId, accept });
@@ -173,14 +183,14 @@ export default function MyBagPage({ onBack }: MyBagPageProps) {
             ) : (
               <div className="grid grid-cols-2 gap-3 p-3 pb-8">
                 {seatSkins.map((ui: any) => {
-                  const item = ui.storeItem;
+                  const item = ui.store_item;
                   if (!item) return null;
                   const isExpired = ui.isExpired ?? false;
                   const displayUrl = item.thumbnailUrl ?? item.mediaUrl;
                   const isVipSkin = ui.isVipAutoAdded;
                   return (
                     <div
-                      key={ui._id}
+                      key={ui.id}
                       className="rounded-2xl overflow-hidden flex flex-col"
                       style={{
                         background: "white",
@@ -227,23 +237,23 @@ export default function MyBagPage({ onBack }: MyBagPageProps) {
                           <p className="text-[10px]" style={{ color: "#a855f7" }}>👑 حصري PRO ♾️</p>
                         ) : (
                           <>
-                            {ui.expiresAt && !isExpired && (
-                              <p className="text-[10px]" style={{ color: "#888" }}>ينتهي: {new Date(ui.expiresAt).toLocaleDateString("ar-SA")}</p>
+                            {ui.expires_at && !isExpired && (
+                              <p className="text-[10px]" style={{ color: "#888" }}>ينتهي: {new Date(ui.expires_at).toLocaleDateString("ar-SA")}</p>
                             )}
-                            {!ui.expiresAt && <p className="text-[10px]" style={{ color: SEAT_PRIMARY }}>دائم ♾️</p>}
+                            {!ui.expires_at && <p className="text-[10px]" style={{ color: SEAT_PRIMARY }}>دائم ♾️</p>}
                           </>
                         )}
                         {!isExpired && (
                           <button
                             onClick={() => handleToggle(ui)}
-                            disabled={loading === ui._id}
+                            disabled={loading === ui.id}
                             className="w-full py-1.5 rounded-full text-xs font-bold transition-all active:scale-95 disabled:opacity-50"
                             style={ui.isActive
                               ? { background: "#f2f7fc", color: "#888", border: "1px solid #e8eef5" }
                               : { background: `linear-gradient(135deg,${SEAT_PRIMARY},#7c3aed)`, color: "white" }
                             }
                           >
-                            {loading === ui._id ? (
+                            {loading === ui.id ? (
                               <div className="w-3 h-3 border-2 border-t-transparent rounded-full animate-spin mx-auto"
                                 style={{ borderColor: ui.isActive ? "#888 transparent transparent transparent" : "white transparent transparent transparent" }} />
                             ) : ui.isActive ? "إلغاء التفعيل" : "تفعيل 🪑"}
@@ -276,7 +286,7 @@ export default function MyBagPage({ onBack }: MyBagPageProps) {
             ) : (
               <div className="grid grid-cols-2 gap-3 p-3 pb-8">
                 {inventory.map((ui: any) => {
-                  const item = ui.storeItem;
+                  const item = ui.store_item;
                   if (!item) return null;
                   const isExpired = ui.isExpired ?? false;
                   const isEntry = item.type === "entry";
@@ -295,7 +305,7 @@ export default function MyBagPage({ onBack }: MyBagPageProps) {
 
                   return (
                     <div
-                      key={ui._id}
+                      key={ui.id}
                       className="rounded-2xl overflow-hidden flex flex-col"
                       style={{
                         background: "white",
@@ -386,21 +396,21 @@ export default function MyBagPage({ onBack }: MyBagPageProps) {
                           </p>
                         ) : (
                           <>
-                            {ui.expiresAt && !isExpired && (
-                              <p className="text-[10px]" style={{ color: "#888" }}>ينتهي: {new Date(ui.expiresAt).toLocaleDateString("ar-SA")}</p>
+                            {ui.expires_at && !isExpired && (
+                              <p className="text-[10px]" style={{ color: "#888" }}>ينتهي: {new Date(ui.expires_at).toLocaleDateString("ar-SA")}</p>
                             )}
-                            {!ui.expiresAt && <p className="text-[10px]" style={{ color: PRIMARY }}>دائم ♾️</p>}
+                            {!ui.expires_at && <p className="text-[10px]" style={{ color: PRIMARY }}>دائم ♾️</p>}
                           </>
                         )}
 
                         {activeTab === "cp" && isPending ? (
                           <div className="flex gap-1">
-                            <button onClick={() => handleCpRespond(ui._id as Id<"userStoreItems">, true)} disabled={loading === ui._id}
+                            <button onClick={() => handleCpRespond(ui.id as string, true)} disabled={loading === ui.id}
                               className="flex-1 py-1.5 rounded-full text-xs font-bold active:scale-95 transition-all"
                               style={{ background: "#d1fae5", color: "#059669", border: "1px solid #6ee7b7" }}>
                               قبول 💍
                             </button>
-                            <button onClick={() => handleCpRespond(ui._id as Id<"userStoreItems">, false)} disabled={loading === ui._id}
+                            <button onClick={() => handleCpRespond(ui.id as string, false)} disabled={loading === ui.id}
                               className="flex-1 py-1.5 rounded-full text-xs font-bold active:scale-95 transition-all"
                               style={{ background: "#fee2e2", color: "#dc2626", border: "1px solid #fca5a5" }}>
                               رفض
@@ -417,7 +427,7 @@ export default function MyBagPage({ onBack }: MyBagPageProps) {
                         ) : activeTab !== "cp" && !isExpired ? (
                           <button
                             onClick={() => handleToggle(ui)}
-                            disabled={loading === ui._id}
+                            disabled={loading === ui.id}
                             className="w-full py-1.5 rounded-full text-xs font-bold transition-all active:scale-95 disabled:opacity-50"
                             style={ui.isActive
                               ? { background: "#f2f7fc", color: "#888", border: "1px solid #e8eef5" }
@@ -433,7 +443,7 @@ export default function MyBagPage({ onBack }: MyBagPageProps) {
                               }
                             }
                           >
-                            {loading === ui._id ? (
+                            {loading === ui.id ? (
                               <div className="w-3 h-3 border-2 border-t-transparent rounded-full animate-spin mx-auto"
                                 style={{ borderColor: ui.isActive ? "#888 transparent transparent transparent" : "white transparent transparent transparent" }} />
                             ) : ui.isActive ? "إلغاء التفعيل" : "تفعيل"}

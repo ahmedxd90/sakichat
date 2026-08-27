@@ -1,11 +1,9 @@
-import { useQuery } from "convex/react";
-import { api } from "../../convex/_generated/api";
+import { supabase } from "../lib/supabaseClient";
 import { useState, useEffect } from "react";
-import { Id } from "../../convex/_generated/dataModel";
 
 interface RoomsLeaderboardPageProps {
   onBack: () => void;
-  onRoomSelect?: (id: Id<"rooms">) => void;
+  onRoomSelect?: (id: string) => void;
 }
 type Period = "daily" | "weekly" | "monthly";
 
@@ -13,8 +11,16 @@ interface Particle { id: number; x: number; y: number; size: number; delay: numb
 
 export default function RoomsLeaderboardPage({ onBack, onRoomSelect }: RoomsLeaderboardPageProps) {
   const [period, setPeriod] = useState<Period>("daily");
-  const data = useQuery(api.leaderboards.getRoomsLeaderboard, { period });
+  const [data, setData] = useState<any[]>([]);
   const [particles, setParticles] = useState<Particle[]>([]);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      const { data: roomsData } = await supabase.from('rooms').select('*, owner:profiles(name)').order('total_coins', { ascending: false }).limit(20);
+      setData(roomsData || []);
+    };
+    fetchData();
+  }, [period]);
 
   useEffect(() => {
     const emojis = ["🏠", "🎙️", "🌊", "⭐", "💫", "🎵", "🎶"];
@@ -112,7 +118,7 @@ export default function RoomsLeaderboardPage({ onBack, onRoomSelect }: RoomsLead
                 {podium.map((entry, idx) => {
                   if (!entry) return <div key={idx} className="flex-1" />;
                   return (
-                    <button key={idx} className="flex flex-col items-center gap-1 flex-1 active:scale-95 transition-transform" onClick={() => entry && onRoomSelect?.(entry.roomId as Id<"rooms">)}>
+                    <button key={idx} className="flex flex-col items-center gap-1 flex-1 active:scale-95 transition-transform" onClick={() => entry && onRoomSelect?.(entry.id as string)}>
                       <div className="text-xl" style={{ filter: idx === 1 ? "drop-shadow(0 0 6px rgba(6,182,212,0.9))" : "none" }}>{crowns[idx]}</div>
                       <div className="relative">
                         <div className={`${podiumSizes[idx]} rounded-2xl overflow-hidden`} style={{ boxShadow: `0 0 24px ${podiumGlows[idx]}`, border: `2px solid ${podiumColors[idx]}` }}>
@@ -143,7 +149,7 @@ export default function RoomsLeaderboardPage({ onBack, onRoomSelect }: RoomsLead
                   <div className="flex-1 h-px" style={{ background: "rgba(6,182,212,0.2)" }} />
                 </div>
                 {rest.filter(Boolean).map((entry) => entry && (
-                  <button key={entry.roomId} onClick={() => onRoomSelect?.(entry.roomId as Id<"rooms">)} className="w-full flex items-center gap-3 rounded-2xl px-3 py-2.5 active:scale-95 transition-transform" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}>
+                  <button key={entry.roomId} onClick={() => onRoomSelect?.(entry.id as string)} className="w-full flex items-center gap-3 rounded-2xl px-3 py-2.5 active:scale-95 transition-transform" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}>
                     <div className="w-7 h-7 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: "rgba(6,182,212,0.12)", border: "1px solid rgba(6,182,212,0.2)" }}>
                       <span className="text-cyan-400 font-black text-xs">{entry.rank}</span>
                     </div>

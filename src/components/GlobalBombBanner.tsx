@@ -1,7 +1,6 @@
 // @ts-nocheck
 import { useEffect, useRef, useState } from "react";
-import { useQuery } from "convex/react";
-import { api } from "../../convex/_generated/api";
+import { supabase } from "../lib/supabaseClient";
 
 function formatCoins(n: number) {
   if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + "M";
@@ -15,7 +14,7 @@ const LEVEL_COLORS = [
 ];
 
 export default function GlobalBombBanner() {
-  const latestEvent = useQuery(api.roomBomb.getLatestBombExplosionEvent);
+  const [latestEvent, setLatestEvent] = useState<any>(null);
   const [banner, setBanner] = useState<any>(null);
   const [visible, setVisible] = useState(false);
   const [leaving, setLeaving] = useState(false);
@@ -24,10 +23,20 @@ export default function GlobalBombBanner() {
   const doneTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
+    const channel = supabase
+      .channel('global_bombs')
+      .on('postgres_changes', { event: 'INSERT', table: 'bomb_explosions' }, (payload) => {
+        setLatestEvent(payload.new);
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, []);
+
+  useEffect(() => {
     if (!latestEvent) return;
-    if (lastIdRef.current === null) { lastIdRef.current = latestEvent._id; return; }
-    if (latestEvent._id === lastIdRef.current) return;
-    lastIdRef.current = latestEvent._id;
+    if (lastIdRef.current === null) { lastIdRef.current = latestEvent.id; return; }
+    if (latestEvent.id === lastIdRef.current) return;
+    lastIdRef.current = latestEvent.id;
 
     setBanner(latestEvent);
     setVisible(false);

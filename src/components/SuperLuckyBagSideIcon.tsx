@@ -1,9 +1,8 @@
 // @ts-nocheck
 import { useEffect, useRef, useState } from "react";
-import { Id } from "../../convex/_generated/dataModel";
 
 interface SuperLuckyBagSideIconProps {
-  bagId: Id<"luckyBags">;
+  bagId: string;
   bagType?: "normal" | "super";
   expiresAt: number;
   totalCoins: number;

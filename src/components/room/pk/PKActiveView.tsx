@@ -1,5 +1,4 @@
 // @ts-nocheck
-import { Id } from "../../../../convex/_generated/dataModel";
 import { formatNumber } from "../../../lib/formatNumber";
 
 function GiftSVG({ color, size = 14 }: { color: string; size?: number }) {
@@ -36,7 +35,7 @@ function MedalSVG({ color, size = 12 }: { color: string; size?: number }) {
 
 interface PKActiveViewProps {
   activePK: any;
-  roomId: Id<"rooms">;
+  roomId: string;
   canManage: boolean;
   myCoins: number;
   loading: boolean;

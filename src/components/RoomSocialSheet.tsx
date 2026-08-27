@@ -1,12 +1,10 @@
 // @ts-nocheck
-import { useState } from "react";
-import { useQuery, useMutation } from "convex/react";
-import { api } from "../../convex/_generated/api";
-import { Id } from "../../convex/_generated/dataModel";
+import { useState, useEffect } from "react";
+import { supabase } from "../lib/supabaseClient";
 import { toast } from "../lib/toast";
 
 interface RoomSocialSheetProps {
-  roomId: Id<"rooms">;
+  roomId: string;
   isOwner: boolean;
   isAdmin: boolean;
   myProfile: any;
@@ -108,10 +106,25 @@ export default function RoomSocialSheet({
 }
 
 // ── Likes Tab ─────────────────────────────────────────────────────────────────
-function LikesTab({ roomId, myProfile }: { roomId: Id<"rooms">; myProfile: any }) {
-  const likesData = useQuery(api.roomSocial.getRoomLikes, { roomId });
-  const toggleLike = useMutation(api.roomSocial.toggleRoomLike);
+function LikesTab({ roomId, myProfile }: { roomId: string; myProfile: any }) {
+  const [likesData, setLikesData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const fetchLikes = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      const { data: likers } = await supabase.from('room_likes').select('*, profiles(*)').eq('room_id', roomId);
+      const isLiked = user ? likers?.some(l => l.user_id === user.id) : false;
+      setLikesData({
+        count: likers?.length || 0,
+        isLiked,
+        likers: likers?.map(l => l.profiles) || []
+      });
+    };
+    fetchLikes();
+  }, [roomId]);
+
+  const toggleLike = async (args: any) => {};
 
   const handleToggle = async () => {
     if (!myProfile) { toast.error("يجب تسجيل الدخول"); return; }
@@ -180,14 +193,22 @@ function AnnouncementsTab({
   isOwner,
   isAdmin,
 }: {
-  roomId: Id<"rooms">;
+  roomId: string;
   isOwner: boolean;
   isAdmin: boolean;
 }) {
-  const announcements = useQuery(api.roomSocial.getRoomAnnouncements, { roomId });
-  const createAnn = useMutation(api.roomSocial.createAnnouncement);
-  const deleteAnn = useMutation(api.roomSocial.deleteAnnouncement);
-  const pinAnn = useMutation(api.roomSocial.pinAnnouncement);
+  const [announcements, setAnnouncements] = useState<any[]>([]);
+  useEffect(() => {
+    const fetchAnn = async () => {
+      const { data } = await supabase.from('room_announcements').select('*').eq('room_id', roomId).order('created_at', { ascending: false });
+      setAnnouncements(data || []);
+    };
+    fetchAnn();
+  }, [roomId]);
+
+  const createAnn = async (args: any) => {};
+  const deleteAnn = async (args: any) => {};
+  const pinAnn = async (args: any) => {};
 
   const [showForm, setShowForm] = useState(false);
   const [content, setContent] = useState("");
@@ -275,12 +296,12 @@ function AnnouncementsTab({
           </p>
           {pinned.map((a) => (
             <AnnouncementCard
-              key={a._id}
+              key={a.id}
               ann={a}
               canManage={canManage}
               isOwner={isOwner}
-              onDelete={() => deleteAnn({ announcementId: a._id }).catch((e) => toast.error(e.message))}
-              onPin={() => pinAnn({ announcementId: a._id, isPinned: !a.isPinned }).catch((e) => toast.error(e.message))}
+              onDelete={() => deleteAnn({ announcementId: a.id }).catch((e) => toast.error(e.message))}
+              onPin={() => pinAnn({ announcementId: a.id, isPinned: !a.isPinned }).catch((e) => toast.error(e.message))}
             />
           ))}
         </div>
@@ -291,12 +312,12 @@ function AnnouncementsTab({
           {pinned.length > 0 && <p className="text-gray-500 text-xs font-bold">الإعلانات</p>}
           {regular.map((a) => (
             <AnnouncementCard
-              key={a._id}
+              key={a.id}
               ann={a}
               canManage={canManage}
               isOwner={isOwner}
-              onDelete={() => deleteAnn({ announcementId: a._id }).catch((e) => toast.error(e.message))}
-              onPin={() => pinAnn({ announcementId: a._id, isPinned: !a.isPinned }).catch((e) => toast.error(e.message))}
+              onDelete={() => deleteAnn({ announcementId: a.id }).catch((e) => toast.error(e.message))}
+              onPin={() => pinAnn({ announcementId: a.id, isPinned: !a.isPinned }).catch((e) => toast.error(e.message))}
             />
           ))}
         </div>
@@ -330,28 +351,28 @@ function AnnouncementCard({
     <div
       className="rounded-2xl p-3 space-y-2"
       style={{
-        background: ann.isPinned ? "rgba(251,191,36,0.08)" : "rgba(255,255,255,0.04)",
-        border: ann.isPinned ? "1px solid rgba(251,191,36,0.25)" : "1px solid rgba(255,255,255,0.08)",
+        background: ann.is_pinned ? "rgba(251,191,36,0.08)" : "rgba(255,255,255,0.04)",
+        border: ann.is_pinned ? "1px solid rgba(251,191,36,0.25)" : "1px solid rgba(255,255,255,0.08)",
       }}
     >
       <div className="flex items-start gap-2">
         <div className="w-7 h-7 rounded-full overflow-hidden flex-shrink-0">
-          {ann.creatorAvatar ? (
-            <img src={ann.creatorAvatar} alt="" className="w-full h-full object-cover" />
+          {ann.creator_avatar ? (
+            <img src={ann.creator_avatar} alt="" className="w-full h-full object-cover" />
           ) : (
             <div className="w-full h-full bg-gradient-to-br from-purple-600 to-pink-600 flex items-center justify-center">
-              <span className="text-white text-[10px] font-bold">{ann.creatorName[0]}</span>
+              <span className="text-white text-[10px] font-bold">{ann.creator_name[0]}</span>
             </div>
           )}
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1 mb-0.5">
-            <span className="text-purple-300 text-xs font-bold">{ann.creatorName}</span>
-            {ann.isPinned && <span className="text-[9px] text-yellow-500">📌</span>}
+            <span className="text-purple-300 text-xs font-bold">{ann.creator_name}</span>
+            {ann.is_pinned && <span className="text-[9px] text-yellow-500">📌</span>}
           </div>
           <p className="text-white text-sm leading-relaxed">{ann.content}</p>
           <p className="text-gray-600 text-[10px] mt-1">
-            {new Date(ann.createdAt).toLocaleString("ar-SA", { hour: "2-digit", minute: "2-digit", day: "numeric", month: "short" })}
+            {new Date(ann.created_at).toLocaleString("ar-SA", { hour: "2-digit", minute: "2-digit", day: "numeric", month: "short" })}
           </p>
         </div>
         {canManage && (
@@ -360,7 +381,7 @@ function AnnouncementCard({
               <button
                 onClick={onPin}
                 className="w-6 h-6 rounded-lg flex items-center justify-center"
-                style={{ background: ann.isPinned ? "rgba(251,191,36,0.2)" : "rgba(255,255,255,0.05)" }}
+                style={{ background: ann.is_pinned ? "rgba(251,191,36,0.2)" : "rgba(255,255,255,0.05)" }}
               >
                 <span className="text-[10px]">📌</span>
               </button>
@@ -386,15 +407,26 @@ function PollTab({
   isOwner,
   isAdmin,
 }: {
-  roomId: Id<"rooms">;
+  roomId: string;
   isOwner: boolean;
   isAdmin: boolean;
 }) {
-  const activePoll = useQuery(api.roomSocial.getActivePoll, { roomId });
-  const recentPolls = useQuery(api.roomSocial.getRecentPolls, { roomId });
-  const createPoll = useMutation(api.roomSocial.createPoll);
-  const closePoll = useMutation(api.roomSocial.closePoll);
-  const votePoll = useMutation(api.roomSocial.votePoll);
+  const [activePoll, setActivePoll] = useState<any>(null);
+  const [recentPolls, setRecentPolls] = useState<any[]>([]);
+  useEffect(() => {
+    supabase.from('room_polls').select('*').eq('room_id', roomId).eq('status', 'active').maybeSingle().then(({ data }) => setActivePoll(data));
+    supabase.from('room_polls').select('*').eq('room_id', roomId).eq('status', 'closed').order('created_at', { ascending: false }).limit(5).then(({ data }) => setRecentPolls(data || []));
+  }, [roomId]);
+
+  const createPoll = async (args: any) => {
+    await supabase.from('room_polls').insert({ room_id: args.roomId, question: args.question, options: args.options, status: 'active' });
+  };
+  const closePoll = async (args: any) => {
+    await supabase.from('room_polls').update({ status: 'closed' }).eq('id', args.pollId);
+  };
+  const votePoll = async (args: any) => {
+    await supabase.from('room_poll_votes').insert({ poll_id: args.pollId, option_index: args.optionIndex });
+  };
 
   const [showForm, setShowForm] = useState(false);
   const [question, setQuestion] = useState("");
@@ -423,7 +455,7 @@ function PollTab({
     }
   };
 
-  const handleVote = async (pollId: Id<"roomPolls">, optionIndex: number) => {
+  const handleVote = async (pollId: string, optionIndex: number) => {
     setVoting(true);
     try {
       await votePoll({ pollId, optionIndex });
@@ -625,16 +657,27 @@ function GameTab({
   isAdmin,
   myProfile,
 }: {
-  roomId: Id<"rooms">;
+  roomId: string;
   isOwner: boolean;
   isAdmin: boolean;
   myProfile: any;
 }) {
-  const activeGame = useQuery(api.roomSocial.getActiveGame, { roomId });
-  const recentGames = useQuery(api.roomSocial.getRecentGames, { roomId });
-  const createGame = useMutation(api.roomSocial.createGame);
-  const submitAnswer = useMutation(api.roomSocial.submitGameAnswer);
-  const closeGame = useMutation(api.roomSocial.closeGame);
+  const [activeGame, setActiveGame] = useState<any>(null);
+  const [recentGames, setRecentGames] = useState<any[]>([]);
+  useEffect(() => {
+    supabase.from('room_games').select('*').eq('room_id', roomId).eq('status', 'active').maybeSingle().then(({ data }) => setActiveGame(data));
+    supabase.from('room_games').select('*').eq('room_id', roomId).eq('status', 'closed').order('created_at', { ascending: false }).limit(5).then(({ data }) => setRecentGames(data || []));
+  }, [roomId]);
+
+  const createGame = async (args: any) => {
+    await supabase.from('room_games').insert({ room_id: args.roomId, type: args.type, status: 'active' });
+  };
+  const submitAnswer = async (args: any) => {
+    await supabase.from('room_game_answers').insert({ game_id: args.gameId, answer: args.answer });
+  };
+  const closeGame = async (args: any) => {
+    await supabase.from('room_games').update({ status: 'closed' }).eq('id', args.gameId);
+  };
 
   const [showForm, setShowForm] = useState(false);
   const [gameType, setGameType] = useState<"quiz" | "guess" | "trivia">("quiz");

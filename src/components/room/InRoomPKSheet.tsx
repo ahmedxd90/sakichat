@@ -1,13 +1,11 @@
 // @ts-nocheck
-import { useState } from "react";
-import { useQuery, useMutation } from "convex/react";
-import { api } from "../../../convex/_generated/api";
-import { Id } from "../../../convex/_generated/dataModel";
+import { useState, useEffect } from "react";
+import { supabase } from "../../lib/supabaseClient";
 import { toast } from "../../lib/toast";
 import { formatNumber } from "../../lib/formatNumber";
 
 interface InRoomPKSheetProps {
-  roomId: Id<"rooms">;
+  roomId: string;
   isOwner: boolean;
   isAdmin: boolean;
   myProfile: any;
@@ -15,27 +13,41 @@ interface InRoomPKSheetProps {
 }
 
 export default function InRoomPKSheet({ roomId, isOwner, isAdmin, myProfile, onClose }: InRoomPKSheetProps) {
-  const activePK = useQuery(api.pkInRoom.getActiveInRoomPK, { roomId });
-  const lastFinished = useQuery(api.pkInRoom.getLastFinishedInRoomPK, { roomId });
-  const history = useQuery(api.pkInRoom.getInRoomPKHistory, { roomId });
-  const contributors = useQuery(
-    api.pkInRoom.getInRoomPKContributors,
-    activePK ? { pkId: activePK._id } : "skip"
-  );
-  const members = useQuery(
-    api.pkInRoom.getInRoomPKMembers,
-    activePK ? { pkId: activePK._id } : "skip"
-  );
-  const myTeam = useQuery(
-    api.pkInRoom.getMyPKTeam,
-    activePK ? { pkId: activePK._id } : "skip"
-  );
-
-  const startPK = useMutation(api.pkInRoom.startInRoomPK);
-  const endPK = useMutation(api.pkInRoom.endInRoomPKEarly);
-  const joinTeam = useMutation(api.pkInRoom.joinPKTeam);
+  const [activePK, setActivePK] = useState<any>(null);
+  const [lastFinished, setLastFinished] = useState<any>(null);
+  const [history, setHistory] = useState<any[]>([]);
+  const [contributors, setContributors] = useState<any[]>([]);
+  const [members, setMembers] = useState<any[]>([]);
+  const [myTeam, setMyTeam] = useState<string | null>(null);
 
   const [tab, setTab] = useState<"battle" | "history">("battle");
+
+  useEffect(() => {
+    const fetchPKData = async () => {
+      const { data: active } = await supabase.from('in_room_pks').select('*').eq('room_id', roomId).eq('status', 'active').order('created_at', { ascending: false }).limit(1).single();
+      setActivePK(active);
+      
+      if (active) {
+        const { data: contribs } = await supabase.from('pk_contributors').select('*, profiles(name, avatar_url)').eq('pk_id', active.id);
+        setContributors(contribs || []);
+        
+        const { data: mems } = await supabase.from('pk_members').select('*, profiles(name, avatar_url)').eq('pk_id', active.id);
+        setMembers(mems || []);
+        
+        const { data: myT } = await supabase.from('pk_members').select('team').eq('pk_id', active.id).eq('user_id', myProfile?.user_id).single();
+        setMyTeam(myT?.team || null);
+      }
+
+      const { data: last } = await supabase.from('in_room_pks').select('*').eq('room_id', roomId).eq('status', 'finished').order('created_at', { ascending: false }).limit(1).single();
+      setLastFinished(last);
+
+      const { data: hist } = await supabase.from('in_room_pks').select('*').eq('room_id', roomId).eq('status', 'finished').order('created_at', { ascending: false }).limit(20);
+      setHistory(hist || []);
+    };
+    fetchPKData();
+    const sub = supabase.channel(`pk_room_${roomId}`).on('postgres_changes', { event: '*', schema: 'public', table: 'in_room_pks' }, fetchPKData).subscribe();
+    return () => { sub.unsubscribe(); };
+  }, [roomId, myProfile?.user_id]);
   const [duration, setDuration] = useState(10);
   const [team1Name, setTeam1Name] = useState("الفريق الأحمر 🔴");
   const [team2Name, setTeam2Name] = useState("الفريق الأزرق 🔵");
@@ -47,10 +59,19 @@ export default function InRoomPKSheet({ roomId, isOwner, isAdmin, myProfile, onC
   const handleStart = async () => {
     setLoading(true);
     try {
-      await startPK({ roomId, durationMinutes: duration, team1Name, team2Name });
+      const endsAt = new Date(Date.now() + duration * 60000).toISOString();
+      const { error } = await supabase.from('in_room_pks').insert({
+        room_id: roomId,
+        duration_minutes: duration,
+        team1_name: team1Name,
+        team2_name: team2Name,
+        ends_at: endsAt,
+        status: 'active'
+      });
+      if (error) throw error;
       setShowStart(false);
       toast.success("🔥 بدأ تحدي PK!");
-    } catch (e: any) { toast.error(e); }
+    } catch (e: any) { toast.error(e.message); }
     finally { setLoading(false); }
   };
 
@@ -58,18 +79,24 @@ export default function InRoomPKSheet({ roomId, isOwner, isAdmin, myProfile, onC
     if (!activePK) return;
     setLoading(true);
     try {
-      await endPK({ pkId: activePK._id });
+      const { error } = await supabase.from('in_room_pks').update({ status: 'finished' }).eq('id', activePK.id);
+      if (error) throw error;
       toast.success("انتهى التحدي");
-    } catch (e: any) { toast.error(e); }
+    } catch (e: any) { toast.error(e.message); }
     finally { setLoading(false); }
   };
 
   const handleJoin = async (team: "team1" | "team2") => {
     if (!activePK) return;
     try {
-      await joinTeam({ pkId: activePK._id, team });
-      toast.success(team === "team1" ? `انضممت لـ ${activePK.team1Name}` : `انضممت لـ ${activePK.team2Name}`);
-    } catch (e: any) { toast.error(e); }
+      const { error } = await supabase.from('pk_members').upsert({
+        pk_id: activePK.id,
+        user_id: myProfile.user_id,
+        team
+      });
+      if (error) throw error;
+      toast.success(team === "team1" ? `انضممت لـ ${activePK.team1_name}` : `انضممت لـ ${activePK.team2_name}`);
+    } catch (e: any) { toast.error(e.message); }
   };
 
   const team1Members = members?.filter((m: any) => m.team === "team1") ?? [];
@@ -273,16 +300,16 @@ function ActivePKDisplay({ pk }: { pk: any }) {
     return () => clearInterval(t);
   });
 
-  const timeLeft = Math.max(0, pk.endsAt - now);
+  const timeLeft = Math.max(0, new Date(pk.ends_at).getTime() - now);
   const mins = Math.floor(timeLeft / 60000);
   const secs = Math.floor((timeLeft % 60000) / 1000);
-  const total = (pk.team1Coins ?? 0) + (pk.team2Coins ?? 0);
-  const t1Pct = total > 0 ? ((pk.team1Coins ?? 0) / total) * 100 : 50;
+  const total = (pk.team1_coins ?? 0) + (pk.team2_coins ?? 0);
+  const t1Pct = total > 0 ? ((pk.team1_coins ?? 0) / total) * 100 : 50;
   const t2Pct = 100 - t1Pct;
 
   return (
     <div className="rounded-2xl p-3" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(251,146,60,0.2)" }}>
-      {pk.isFeverTime && (
+      {pk.is_fever_time && (
         <div className="text-center text-[10px] font-black py-1 rounded-xl mb-2"
           style={{ background: "linear-gradient(90deg,#ef4444,#f97316,#fbbf24)", color: "#000" }}>
           🔥 FEVER TIME × 2
@@ -296,8 +323,8 @@ function ActivePKDisplay({ pk }: { pk: any }) {
       </div>
       <div className="flex items-center gap-3 mb-3">
         <div className="flex-1 text-center">
-          <p className="text-[10px] font-black truncate" style={{ color: "#ef4444" }}>{pk.team1Name}</p>
-          <p className="text-lg font-black" style={{ color: "#ef4444" }}>{formatNumber(pk.team1Coins ?? 0)}</p>
+          <p className="text-[10px] font-black truncate" style={{ color: "#ef4444" }}>{pk.team1_name}</p>
+          <p className="text-lg font-black" style={{ color: "#ef4444" }}>{formatNumber(pk.team1_coins ?? 0)}</p>
           <p className="text-[9px] text-white/40">🎁 عملة</p>
         </div>
         <div className="text-center">

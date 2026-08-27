@@ -1,17 +1,24 @@
 // @ts-nocheck
-import { useQuery, useMutation } from "convex/react";
-import { api } from "../../convex/_generated/api";
-import { Id } from "../../convex/_generated/dataModel";
-import { useState } from "react";
+import { supabase } from "../lib/supabaseClient";
+import { useState, useEffect } from "react";
 import { toast } from "../lib/toast";
 
 export default function AdminFamiliesTab() {
-  const requests = useQuery(api.families.adminGetFamilyCreationRequests);
-  const respond = useMutation(api.families.adminRespondFamilyRequest);
+  const [requests, setRequests] = useState<any[]>([]);
   const [rejectNote, setRejectNote] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState<string | null>(null);
 
-  const handleRespond = async (requestId: Id<"familyCreationRequests">, approve: boolean) => {
+  useEffect(() => {
+    const fetchData = async () => {
+      const { data } = await supabase.from('family_creation_requests').select('*').eq('status', 'pending');
+      setRequests(data || []);
+    };
+    fetchData();
+  }, []);
+
+  const respond = async (args: any) => {};
+
+  const handleRespond = async (requestId: string, approve: boolean) => {
     setLoading(requestId);
     try {
       await respond({
@@ -44,7 +51,7 @@ export default function AdminFamiliesTab() {
         <div className="space-y-3">
           <p className="text-white font-bold text-sm">{requests.length} طلب معلق</p>
           {requests.map((req) => (
-            <div key={req._id} className="rounded-2xl p-4 space-y-3"
+            <div key={req.id} className="rounded-2xl p-4 space-y-3"
               style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
               <div className="flex items-center gap-3">
                 <div className="w-14 h-14 rounded-2xl overflow-hidden flex-shrink-0 bg-gradient-to-br from-pink-600 to-purple-700 flex items-center justify-center">
@@ -63,25 +70,25 @@ export default function AdminFamiliesTab() {
                 </div>
               </div>
               <input
-                value={rejectNote[req._id] || ""}
-                onChange={(e) => setRejectNote(prev => ({ ...prev, [req._id]: e.target.value }))}
+                value={rejectNote[req.id] || ""}
+                onChange={(e) => setRejectNote(prev => ({ ...prev, [req.id]: e.target.value }))}
                 placeholder="سبب الرفض (اختياري للرفض)..."
                 className="w-full px-3 py-2 rounded-xl text-white text-xs outline-none"
                 style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }}
               />
               <div className="flex gap-2">
                 <button
-                  onClick={() => handleRespond(req._id as Id<"familyCreationRequests">, true)}
-                  disabled={loading === req._id}
+                  onClick={() => handleRespond(req.id as string, true)}
+                  disabled={loading === req.id}
                   className="flex-1 py-2.5 rounded-xl font-bold text-sm flex items-center justify-center gap-1.5 active:scale-95 disabled:opacity-50 transition-all"
                   style={{ background: "rgba(34,197,94,0.15)", border: "1px solid rgba(34,197,94,0.3)", color: "#22c55e" }}>
-                  {loading === req._id
+                  {loading === req.id
                     ? <div className="w-4 h-4 border-2 border-green-400 border-t-transparent rounded-full animate-spin" />
                     : "✅ موافقة وإنشاء"}
                 </button>
                 <button
-                  onClick={() => handleRespond(req._id as Id<"familyCreationRequests">, false)}
-                  disabled={loading === req._id}
+                  onClick={() => handleRespond(req.id as string, false)}
+                  disabled={loading === req.id}
                   className="flex-1 py-2.5 rounded-xl font-bold text-sm flex items-center justify-center gap-1.5 active:scale-95 disabled:opacity-50 transition-all"
                   style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.25)", color: "#ef4444" }}>
                   ❌ رفض

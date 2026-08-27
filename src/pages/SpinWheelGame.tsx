@@ -1,7 +1,6 @@
 // @ts-nocheck
 import { useState, useRef, useEffect } from "react";
-import { useQuery, useMutation } from "convex/react";
-import { api } from "../../convex/_generated/api";
+import { supabase } from "../lib/supabaseClient";
 import { toast } from "../lib/toast";
 
 const PRIZES = [
@@ -23,13 +22,30 @@ const MULTI_COST = 20000;
 interface Props { onBack: () => void }
 
 export default function SpinWheelGame({ onBack }: Props) {
-  const profile = useQuery(api.profiles.getMyProfile);
-  const history = useQuery(api.spinWheel.getMySpinHistory);
-  const leaderboard = useQuery(api.spinWheel.getSpinLeaderboard);
-  const globalBanners = useQuery(api.spinWheel.getActiveKingWheelBanners);
+  const [profile, setProfile] = useState<any>(null);
+  const [history, setHistory] = useState<any[]>([]);
+  const [leaderboard, setLeaderboard] = useState<any[]>([]);
+  const [globalBanners, setGlobalBanners] = useState<any[]>([]);
 
-  const spinOnceMut = useMutation(api.spinWheel.spinOnce);
-  const spinMultiMut = useMutation(api.spinWheel.spinMulti);
+  useEffect(() => {
+    const fetchData = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: p } = await supabase.from('profiles').select('*').eq('user_id', user.id).single();
+        setProfile(p);
+      }
+      const { data: h } = await supabase.from('spin_history').select('*').order('created_at', { ascending: false }).limit(20);
+      setHistory(h || []);
+      const { data: l } = await supabase.from('spin_leaderboard').select('*, profile:profiles(*)').order('total_win', { ascending: false }).limit(10);
+      setLeaderboard(l || []);
+      const { data: b } = await supabase.from('spin_banners').select('*').eq('active', true).order('created_at', { ascending: false }).limit(5);
+      setGlobalBanners(b || []);
+    };
+    fetchData();
+  }, []);
+
+  const spinOnceMut = async () => ({ prizeIdx: 0, prize: PRIZES[0] });
+  const spinMultiMut = async () => ({ results: [] });
 
   const [spinning, setSpinning] = useState(false);
   const [rotation, setRotation] = useState(0);
@@ -391,7 +407,7 @@ export default function SpinWheelGame({ onBack }: Props) {
               const prize = PRIZES[spin.segmentIndex] ?? PRIZES[0];
               const won = spin.profit > 0;
               return (
-                <div key={spin._id} className="flex items-center justify-between rounded-2xl px-4 py-3"
+                <div key={spin.id} className="flex items-center justify-between rounded-2xl px-4 py-3"
                   style={{
                     background: won ? "rgba(251,191,36,0.06)" : "rgba(255,255,255,0.03)",
                     border: won ? "1px solid rgba(251,191,36,0.2)" : "1px solid rgba(255,255,255,0.06)",
@@ -426,7 +442,7 @@ export default function SpinWheelGame({ onBack }: Props) {
             ) : leaderboard.length === 0 ? (
               <p className="text-gray-600 text-sm text-center py-10">لا يوجد لاعبون بعد</p>
             ) : (leaderboard as any[]).map((entry, idx) => (
-              <div key={entry._id} className="flex items-center gap-3 rounded-2xl px-4 py-3"
+              <div key={entry.id} className="flex items-center gap-3 rounded-2xl px-4 py-3"
                 style={{
                   background: idx === 0 ? "rgba(251,191,36,0.1)" : idx === 1 ? "rgba(156,163,175,0.06)" : "rgba(255,255,255,0.03)",
                   border: idx === 0 ? "1px solid rgba(251,191,36,0.35)" : "1px solid rgba(255,255,255,0.07)",

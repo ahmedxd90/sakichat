@@ -1,8 +1,6 @@
 // @ts-nocheck
-import { useQuery, useMutation } from "convex/react";
-import { api } from "../../convex/_generated/api";
-import { Id } from "../../convex/_generated/dataModel";
-import { useState } from "react";
+import { supabase } from "../lib/supabaseClient";
+import { useState, useEffect } from "react";
 import { formatNumber } from "../lib/formatNumber";
 import UserAvatar from "../components/UserAvatar";
 import { VipBadge } from "../components/VipBadge";
@@ -12,7 +10,7 @@ type Tab = "followers" | "following" | "visitors";
 interface FollowersPageProps {
   initialTab?: Tab;
   onBack: () => void;
-  onViewProfile?: (userId: Id<"users">) => void;
+  onViewProfile?: (userId: string) => void;
 }
 
 // ── SVG Icons ────────────────────────────────────────────────────────────────
@@ -58,11 +56,29 @@ function IcBack() {
 
 export default function FollowersPage({ initialTab = "followers", onBack, onViewProfile }: FollowersPageProps) {
   const [tab, setTab] = useState<Tab>(initialTab);
-  const followers = useQuery(api.socialLists.getMyFollowers);
-  const following = useQuery(api.socialLists.getMyFollowing);
-  const visitorsData = useQuery(api.socialLists.getMyVisitors);
-  const followUser = useMutation(api.social.followUser);
-  const myProfile = useQuery(api.profiles.getMyProfile);
+  const [followers, setFollowers] = useState<any[]>([]);
+  const [following, setFollowing] = useState<any[]>([]);
+  const [visitorsData, setVisitorsData] = useState<any>(null);
+  const [myProfile, setMyProfile] = useState<any>(null);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: me } = await supabase.from('profiles').select('*').eq('user_id', user.id).single();
+        setMyProfile(me);
+        const { data: flwers } = await supabase.from('follows').select('*, profile:profiles!follows_follower_id_fkey(*)').eq('following_id', user.id);
+        setFollowers(flwers || []);
+        const { data: flwing } = await supabase.from('follows').select('*, profile:profiles!follows_following_id_fkey(*)').eq('follower_id', user.id);
+        setFollowing(flwing || []);
+        const { data: v } = await supabase.from('profile_visitors').select('*').eq('profile_id', user.id);
+        setVisitorsData({ visitors: v || [], locked: (me?.vip_level || 0) < 4 });
+      }
+    };
+    fetchData();
+  }, []);
+
+  const followUser = async (args: any) => {};
 
   const tabs = [
     { key: "following" as Tab, label: "متابَعة", Icon: IcFollowing },
@@ -112,7 +128,7 @@ export default function FollowersPage({ initialTab = "followers", onBack, onView
         <div className="divide-y" style={{ borderColor: "#f5f5f5" }}>
           {sorted.map((v: any) => (
             <UserRow
-              key={v._id}
+              key={v.id}
               userId={v.visitorId}
               name={v.visitorName ?? "مستخدم"}
               avatarUrl={v.visitorAvatarUrl}
@@ -238,8 +254,14 @@ function UserRow({ userId, name, avatarUrl, isVip, vipLevel, subtitle, onPress, 
 }
 
 function FollowButton({ targetUserId, myUserId, onFollow }: any) {
-  const isFollowing = useQuery(api.social.isFollowing, targetUserId ? { targetUserId } : "skip");
+  const [isFollowing, setIsFollowing] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (targetUserId && myUserId) {
+      supabase.from('follows').select('*').eq('follower_id', myUserId).eq('following_id', targetUserId).single().then(({ data }) => setIsFollowing(!!data));
+    }
+  }, [targetUserId, myUserId]);
 
   const handleFollow = async () => {
     if (loading) return;

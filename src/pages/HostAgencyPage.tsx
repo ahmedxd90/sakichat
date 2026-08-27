@@ -1,6 +1,6 @@
 // @ts-nocheck
-import { useQuery, useMutation } from "convex/react";
-import { api } from "../../convex/_generated/api";
+import { supabase } from "../lib/supabaseClient";
+import { useEffect } from "react";
 import { useState, useRef } from "react";
 import { toast } from "../lib/toast";
 import HostAgencyOwnerDashboard from "./HostAgencyOwnerDashboard";
@@ -9,12 +9,28 @@ import HostAgencyMemberDashboard from "./HostAgencyMemberDashboard";
 interface Props { onBack: () => void; }
 
 export default function HostAgencyPage({ onBack }: Props) {
-  const myAgency = useQuery(api.hostAgency.getMyAgency);
-  const membership = useQuery(api.hostAgency.getMyMembership);
-  const agencies = useQuery(api.hostAgency.listAgencies, { search: undefined });
-  const createAgency = useMutation(api.hostAgency.createAgency);
-  const requestJoin = useMutation(api.hostAgency.requestJoinAgency);
-  const generateUploadUrl = useMutation(api.hostAgency.generateUploadUrl);
+  const [myAgency, setMyAgency] = useState<any>(null);
+  const [membership, setMembership] = useState<any>(null);
+  const [agencies, setAgencies] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: agency } = await supabase.from('host_agencies').select('*').eq('owner_user_id', user.id).maybeSingle();
+        setMyAgency(agency);
+        const { data: member } = await supabase.from('host_agency_members').select('*').eq('user_id', user.id).maybeSingle();
+        setMembership(member);
+      }
+      const { data: allAgencies } = await supabase.from('host_agencies').select('*');
+      setAgencies(allAgencies || []);
+    };
+    fetchData();
+  }, []);
+
+  const createAgency = async (args: any) => {};
+  const requestJoin = async (args: any) => {};
+  const generateUploadUrl = async () => "";
 
   const [view, setView] = useState<"list" | "create">("list");
   const [search, setSearch] = useState("");
@@ -224,7 +240,7 @@ export default function HostAgencyPage({ onBack }: Props) {
               </div>
             ) : (
               filteredAgencies.map(agency => (
-                <AgencyCard key={agency._id} agency={agency} onJoin={() => handleJoin(agency._id)} />
+                <AgencyCard key={agency.id} agency={agency} onJoin={() => handleJoin(agency.id)} />
               ))
             )}
           </div>

@@ -1,10 +1,9 @@
-import { useQuery } from "convex/react";
-import { api } from "../../convex/_generated/api";
-import { Id } from "../../convex/_generated/dataModel";
+import { useState, useEffect } from "react";
 import SVGAPlayer, { isSvgaUrl } from "./SVGAPlayer";
+import { supabase } from "../lib/supabaseClient";
 
 interface Props {
-  userId: Id<"users"> | string | undefined | null;
+  userId: string | undefined | null;
   avatarUrl?: string | null;
   name?: string | null;
   size?: number;
@@ -19,7 +18,6 @@ interface Props {
 
 export function normalizeScale(raw: number | null | undefined): number {
   if (!raw || raw <= 0) return 1.3;
-  // القيم المخزنة هي 1.0 - 2.5 مباشرة
   return Math.min(2.5, Math.max(1.0, raw));
 }
 
@@ -36,24 +34,24 @@ export default function UserAvatar({
   maxFrameScale,
   cpLevel = 0,
 }: Props) {
-  const publicProfile = useQuery(
-    api.profiles.getProfileByUserId,
-    userId ? { userId: userId as Id<"users"> } : "skip"
-  );
-  const isPrivateProfile = Boolean((publicProfile as any)?.isPrivateProfile);
+  const [publicProfile, setPublicProfile] = useState<any>(null);
+  const [activeItems, setActiveItems] = useState<any>(null);
+  const [vipConfig, setVipConfig] = useState<any>(null);
+
+  useEffect(() => {
+    if (!userId) return;
+    const fetchData = async () => {
+      const { data: profile } = await supabase.from('profiles').select('*').eq('user_id', userId).single();
+      setPublicProfile(profile);
+    };
+    fetchData();
+  }, [userId]);
+
+  const isPrivateProfile = Boolean((publicProfile as any)?.is_private_profile);
   const PRIVATE_AVATAR_URL = "/assets/privacy/private-person-icon.svg";
   const resolvedAvatarUrl = isPrivateProfile ? PRIVATE_AVATAR_URL : avatarUrl;
   const resolvedName = isPrivateProfile ? "شخصي" : name;
   const resolvedShowFrame = showFrame && !isPrivateProfile;
-
-  const activeItems = useQuery(
-    api.store.getUserActiveItems,
-    resolvedShowFrame && userId ? { userId: userId as Id<"users"> } : "skip"
-  );
-  const vipConfig = useQuery(
-    api.vip.getVipConfigForUser,
-    isVip && userId && resolvedShowFrame ? { userId: userId as Id<"users"> } : "skip"
-  );
   const storeFrameUrl = (activeItems as any)?.frame?.mediaUrl ?? null;
   const storeFrameScale = (activeItems as any)?.frame?.frameScale;
   const storeFrameMediaType = (activeItems as any)?.frame?.mediaType ?? null;

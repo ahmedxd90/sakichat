@@ -1,8 +1,7 @@
 
 // @ts-nocheck
 import React, { useState, useEffect } from "react";
-import { useQuery, useMutation } from "convex/react";
-import { api } from "../../convex/_generated/api";
+import { supabase } from "../lib/supabaseClient";
 import { toast } from "../lib/toast";
 import { 
   PRO1_BADGE_URL,
@@ -139,9 +138,23 @@ const LEVELS_DATA = [
 ];
 
 export default function ProMembershipPage({ onBack, onOpenSettings }: ProMembershipPageProps) {
-  const proStatus = useQuery(api.proMembership.getMyProStatus);
-  const myProfile = useQuery(api.profiles.getMyProfile);
-  const purchasePro = useMutation(api.proMembership.purchasePro);
+  const [proStatus, setProStatus] = useState<any>(null);
+  const [myProfile, setMyProfile] = useState<any>(null);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: p } = await supabase.from('profiles').select('*').eq('user_id', user.id).single();
+        setMyProfile(p);
+        const { data: ps } = await supabase.from('pro_status').select('*').eq('user_id', user.id).single();
+        setProStatus(ps);
+      }
+    };
+    fetchData();
+  }, []);
+
+  const purchasePro = async (args: any) => {};
   
   const [currentIndex, setCurrentIndex] = useState(0);
   const [showCheckout, setShowCheckout] = useState(false);
@@ -149,12 +162,12 @@ export default function ProMembershipPage({ onBack, onOpenSettings }: ProMembers
   const [isPurchasing, setIsPurchasing] = useState(false);
 
   const currentLevel = LEVELS_DATA[currentIndex];
-  const purchasedMaxLevel = proStatus?.isPro ? proStatus.proLevel : 0;
+  const purchasedMaxLevel = proStatus?.is_pro ? proStatus.pro_level : 0;
 
   const handleConfirmPurchase = async () => {
     if (isPurchasing) return;
     
-    const balance = myProfile?.goldCoins ?? 0;
+    const balance = myProfile?.gold_coins ?? 0;
     if (balance < currentLevel.price) {
       toast.error("رصيد العملات غير كافٍ لشراء هذا المستوى");
       setShowCheckout(false);
@@ -314,7 +327,7 @@ export default function ProMembershipPage({ onBack, onOpenSettings }: ProMembers
               <div className="h-px bg-white/10"></div>
               <div className="flex justify-between items-center text-xs">
                 <span className="text-stone-500 font-bold">رصيدك الحالي</span>
-                <span className="font-black text-emerald-400">{(myProfile?.goldCoins ?? 0).toLocaleString()}</span>
+                <span className="font-black text-emerald-400">{(myProfile?.gold_coins ?? 0).toLocaleString()}</span>
               </div>
             </div>
 

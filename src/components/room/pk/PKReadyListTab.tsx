@@ -1,11 +1,10 @@
 // @ts-nocheck
-import { Id } from "../../../../convex/_generated/dataModel";
 
 interface PKReadyListTabProps {
   readyRooms: any[] | undefined;
   canManage: boolean;
   loading: boolean;
-  onChallenge: (roomId: Id<"rooms">, duration: number) => void;
+  onChallenge: (roomId: string, duration: number) => void;
   onGoDirectChallenge: () => void;
 }
 

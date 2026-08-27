@@ -1,6 +1,5 @@
 // @ts-nocheck
 import { useState } from "react";
-import { Id } from "../../../../convex/_generated/dataModel";
 import PKDurationPicker from "./PKDurationPicker";
 
 interface PKChallengeTabProps {
@@ -9,7 +8,7 @@ interface PKChallengeTabProps {
   loading: boolean;
   selectedDuration: number;
   onDurationChange: (v: number) => void;
-  onSendChallenge: (roomId: Id<"rooms">) => void;
+  onSendChallenge: (roomId: string) => void;
 }
 
 export default function PKChallengeTab({
@@ -20,7 +19,7 @@ export default function PKChallengeTab({
   onDurationChange,
   onSendChallenge,
 }: PKChallengeTabProps) {
-  const [selectedRoomId, setSelectedRoomId] = useState<Id<"rooms"> | null>(null);
+  const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null);
 
   return (
     <div className="space-y-4">

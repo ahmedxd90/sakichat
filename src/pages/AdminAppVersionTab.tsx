@@ -1,6 +1,5 @@
 // @ts-nocheck
-import { useQuery, useMutation } from "convex/react";
-import { api } from "../../convex/_generated/api";
+import { supabase } from "../lib/supabaseClient";
 import { useState, useEffect } from "react";
 import { toast } from "../lib/toast";
 
@@ -24,9 +23,18 @@ function SectionHeader({ title, subtitle, icon, color = "#6366f1" }: {
 }
 
 export default function AdminAppVersionTab() {
-  const versionData = useQuery(api.appVersion.getAppVersion);
-  const setAppVersion = useMutation(api.appVersion.setAppVersion);
+  const [versionData, setVersionData] = useState<any>(null);
   const [version, setVersion] = useState("1.0.0");
+
+  useEffect(() => {
+    const fetchData = async () => {
+      const { data } = await supabase.from('app_version').select('*').maybeSingle();
+      setVersionData(data);
+    };
+    fetchData();
+  }, []);
+
+  const setAppVersion = async (args: any) => {};
   const [minVersion, setMinVersion] = useState("1.0.0");
   const [releaseNotes, setReleaseNotes] = useState("");
   const [forceUpdate, setForceUpdate] = useState(false);

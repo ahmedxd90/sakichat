@@ -1,12 +1,10 @@
 // @ts-nocheck
 import { useState, useRef, useEffect } from "react";
-import { useQuery, useMutation } from "convex/react";
-import { api } from "../../convex/_generated/api";
-import { Id } from "../../convex/_generated/dataModel";
+import { supabase } from "../lib/supabaseClient";
 import { toast } from "../lib/toast";
 
 interface RoomSettingsPageProps {
-  roomId: Id<"rooms">;
+  roomId: string;
   onBack: () => void;
 }
 
@@ -48,20 +46,32 @@ const SEAT_OPTIONS = [5, 10, 15, 20];
 type SubPage = null | "name" | "notice" | "category" | "theme" | "backgrounds" | "reward" | "admins" | "banned" | "logs" | "lock" | "seats" | "seatPermission";
 
 export default function RoomSettingsPage({ roomId, onBack }: RoomSettingsPageProps) {
-  const room = useQuery(api.rooms.getRoom, { roomId });
-  const myProfile = useQuery(api.profiles.getMyProfile);
-  const rewardStatus = useQuery(api.rooms.getRoomRewardStatus, { roomId });
-  const logs = useQuery(api.roomLogs.getRoomLogs, { roomId });
-  const members = useQuery(api.roomMembersHelper.getRoomMembersEnhanced, { roomId });
-  const bans = useQuery(api.rooms.getRoomBans, { roomId });
+  const [room, setRoom] = useState<any>(null);
+  const [myProfile, setMyProfile] = useState<any>(null);
+  const [rewardStatus, setRewardStatus] = useState<any>(null);
+  const [logs, setLogs] = useState<any[]>([]);
+  const [members, setMembers] = useState<any[]>([]);
+  const [bans, setBans] = useState<any[]>([]);
 
-  const updateRoom = useMutation(api.rooms.updateRoom);
-  const updateRewardSettings = useMutation(api.rooms.updateRoomRewardSettings);
-  const claimReward = useMutation(api.rooms.claimRoomReward);
-  const setRoomLock = useMutation(api.rooms.setRoomLock);
-  const unbanMember = useMutation(api.rooms.unbanMember);
-  const setAdminRole = useMutation(api.rooms.setAdminRole);
-  const generateUploadUrl = useMutation(api.rooms.generateUploadUrl);
+  useEffect(() => {
+    const fetchData = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: profile } = await supabase.from('profiles').select('*').eq('user_id', user.id).single();
+        setMyProfile(profile);
+      }
+
+      const { data: roomData } = await supabase.from('rooms').select('*').eq('id', roomId).single();
+      setRoom(roomData);
+
+      const { data: membersData } = await supabase.from('room_members').select('*, profile:profiles(*)').eq('room_id', roomId);
+      setMembers(membersData || []);
+
+      const { data: bansData } = await supabase.from('room_bans').select('*, profile:profiles(*)').eq('room_id', roomId);
+      setBans(bansData || []);
+    };
+    fetchData();
+  }, [roomId]);
 
   const [subPage, setSubPage] = useState<SubPage>(null);
   const [uploading, setUploading] = useState(false);
@@ -87,7 +97,9 @@ export default function RoomSettingsPage({ roomId, onBack }: RoomSettingsPagePro
   const handleUpdate = async (patch: any) => {
     setLoading(true);
     try {
-      await updateRoom({ roomId, ...patch });
+      const { error } = await supabase.from('rooms').update(patch).eq('id', roomId);
+      if (error) throw error;
+      setRoom((prev: any) => ({ ...prev, ...patch }));
       toast.success("تم التحديث بنجاح");
     } catch (e: any) {
       toast.error(e.message || "حدث خطأ");
@@ -101,11 +113,13 @@ export default function RoomSettingsPage({ roomId, onBack }: RoomSettingsPagePro
     if (!file) return;
     setUploading(true);
     try {
-      const postUrl = await generateUploadUrl();
-      const result = await fetch(postUrl, { method: "POST", headers: { "Content-Type": file.type }, body: file });
-      const { storageId } = await result.json();
-      await updateRoom({ roomId, coverStorageId: storageId });
-      toast.success("تم التحديث بنجاح");
+      const ext = file.name.split('.').pop();
+      const fileName = `${Math.random().toString(36).substring(2)}.${ext}`;
+      const { data, error: uploadError } = await supabase.storage.from('room-covers').upload(fileName, file);
+      if (uploadError) throw uploadError;
+      
+      const { data: { publicUrl } } = supabase.storage.from('room-covers').getPublicUrl(fileName);
+      await handleUpdate({ coverUrl: publicUrl });
     } catch (e) { toast.error("فشل الرفع"); }
     finally { setUploading(false); }
   };
@@ -115,11 +129,13 @@ export default function RoomSettingsPage({ roomId, onBack }: RoomSettingsPagePro
     if (!file) return;
     setUploadingBg(true);
     try {
-      const postUrl = await generateUploadUrl();
-      const result = await fetch(postUrl, { method: "POST", headers: { "Content-Type": file.type }, body: file });
-      const { storageId } = await result.json();
-      await updateRoom({ roomId, bgStorageId: storageId });
-      toast.success("تم تحديث الخلفية");
+      const ext = file.name.split('.').pop();
+      const fileName = `${Math.random().toString(36).substring(2)}.${ext}`;
+      const { data, error: uploadError } = await supabase.storage.from('room-bgs').upload(fileName, file);
+      if (uploadError) throw uploadError;
+      
+      const { data: { publicUrl } } = supabase.storage.from('room-bgs').getPublicUrl(fileName);
+      await handleUpdate({ bgPresetKey: publicUrl });
     } catch (e) { toast.error("فشل الرفع"); }
     finally { setUploadingBg(false); }
   };

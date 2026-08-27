@@ -1,8 +1,7 @@
 import { createContext, useContext, useRef, useState, ReactNode } from "react";
-import { Id } from "../../convex/_generated/dataModel";
 
 interface BackgroundRoom {
-  roomId: Id<"rooms">;
+  roomId: string;
   roomName: string;
   coverUrl?: string;
   channelName: string;

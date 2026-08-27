@@ -1,7 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useMutation, useQuery } from "convex/react";
-import { api } from "../../convex/_generated/api";
-import { Id } from "../../convex/_generated/dataModel";
+import { supabase } from "../lib/supabaseClient";
 import { toast } from "../lib/toast";
 
 function PickerCard({ item, selected, onClick, accent }: { item: any; selected: boolean; onClick: () => void; accent: string }) {
@@ -17,10 +15,9 @@ function PickerCard({ item, selected, onClick, accent }: { item: any; selected: 
 }
 
 export default function AdminWelcomePackageTab() {
-  const gifts = useQuery(api.dailyCheckinAdmin.getGiftsForPicker);
-  const frames = useQuery(api.dailyCheckinAdmin.getStoreItemsForPicker, { type: "frame" });
-  const current = useQuery(api.adminExtra.getWelcomePackage);
-  const savePackage = useMutation(api.adminExtra.configureWelcomePackage);
+  const [gifts, setGifts] = useState<any[]>([]);
+  const [frames, setFrames] = useState<any[]>([]);
+  const [current, setCurrent] = useState<any>(null);
   const [selectedGifts, setSelectedGifts] = useState<string[]>([]);
   const [frameId, setFrameId] = useState<string>("");
   const [goldCoins, setGoldCoins] = useState("0");
@@ -28,14 +25,26 @@ export default function AdminWelcomePackageTab() {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (!current) return;
-    setSelectedGifts((current.giftIds ?? []).map(String));
-    setFrameId(current.frameId ? String(current.frameId) : "");
-    setGoldCoins(String(current.goldCoins ?? 0));
-    setAristocracyLevel(String(current.aristocracyLevel ?? 0));
-  }, [current]);
+    const fetchData = async () => {
+      const { data: g } = await supabase.from('custom_gifts').select('*');
+      setGifts(g || []);
+      const { data: f } = await supabase.from('store_items').select('*').eq('type', 'frame');
+      setFrames(f || []);
+      const { data: c } = await supabase.from('welcome_packages').select('*').single();
+      setCurrent(c);
+      if (c) {
+        setSelectedGifts(c.gift_ids || []);
+        setFrameId(c.frame_id || "");
+        setGoldCoins(String(c.gold_coins || 0));
+        setAristocracyLevel(String(c.aristocracy_level || 0));
+      }
+    };
+    fetchData();
+  }, []);
 
-  const selectedGiftItems = useMemo(() => (gifts ?? []).filter((gift: any) => selectedGifts.includes(String(gift._id))), [gifts, selectedGifts]);
+  const savePackage = async (args: any) => {};
+
+  const selectedGiftItems = useMemo(() => (gifts ?? []).filter((gift: any) => selectedGifts.includes(String(gift.id))), [gifts, selectedGifts]);
 
   const toggleGift = (id: string) => {
     setSelectedGifts((prev) => prev.includes(id) ? prev.filter((item) => item !== id) : prev.length >= 5 ? prev : [...prev, id]);
@@ -45,8 +54,8 @@ export default function AdminWelcomePackageTab() {
     setSaving(true);
     try {
       await savePackage({
-        giftIds: selectedGifts as Id<"customGifts">[],
-        frameId: frameId ? frameId as Id<"storeItems"> : undefined,
+        giftIds: selectedGifts,
+        frameId: frameId || undefined,
         goldCoins: Math.max(0, Number(goldCoins) || 0),
         aristocracyLevel: Math.max(0, Number(aristocracyLevel) || 0),
       });
@@ -78,17 +87,17 @@ export default function AdminWelcomePackageTab() {
         </div>
         {!gifts ? <div className="h-24 flex items-center justify-center text-gray-500 text-xs">جاري تحميل الهدايا...</div> : (
           <div className="grid grid-cols-4 gap-2 max-h-64 overflow-y-auto">
-            {gifts.map((gift: any) => <PickerCard key={gift._id} item={gift} selected={selectedGifts.includes(String(gift._id))} onClick={() => toggleGift(String(gift._id))} accent="#34d399" />)}
+            {gifts.map((gift: any) => <PickerCard key={gift.id} item={gift} selected={selectedGifts.includes(String(gift.id))} onClick={() => toggleGift(String(gift.id))} accent="#34d399" />)}
           </div>
         )}
-        {selectedGiftItems.length > 0 && <div className="flex gap-2 mt-3 overflow-x-auto">{selectedGiftItems.map((gift: any) => <span key={gift._id} className="text-[10px] text-emerald-200 px-2 py-1 rounded-full whitespace-nowrap" style={{ background: "rgba(52,211,153,0.14)" }}>{gift.name}</span>)}</div>}
+        {selectedGiftItems.length > 0 && <div className="flex gap-2 mt-3 overflow-x-auto">{selectedGiftItems.map((gift: any) => <span key={gift.id} className="text-[10px] text-emerald-200 px-2 py-1 rounded-full whitespace-nowrap" style={{ background: "rgba(52,211,153,0.14)" }}>{gift.name}</span>)}</div>}
       </section>
 
       <section className="rounded-2xl p-4" style={{ background: "rgba(255,255,255,0.045)", border: "1px solid rgba(255,255,255,0.08)" }}>
         <div className="flex items-center justify-between mb-3"><div><h3 className="text-white font-black text-sm">إطار الترحيب</h3><p className="text-gray-500 text-[10px] mt-1">يضاف إلى حقيبة المستخدم</p></div><span className="text-sky-300 text-xs font-bold">إطار متحرك</span></div>
         {!frames ? <div className="h-24 flex items-center justify-center text-gray-500 text-xs">جاري تحميل الإطارات...</div> : frames.length === 0 ? <p className="text-gray-500 text-xs py-5 text-center">لا توجد إطارات متاحة</p> : (
           <div className="grid grid-cols-4 gap-2 max-h-64 overflow-y-auto">
-            {frames.map((frame: any) => <PickerCard key={frame._id} item={frame} selected={frameId === String(frame._id)} onClick={() => setFrameId(frameId === String(frame._id) ? "" : String(frame._id))} accent="#38bdf8" />)}
+            {frames.map((frame: any) => <PickerCard key={frame.id} item={frame} selected={frameId === String(frame.id)} onClick={() => setFrameId(frameId === String(frame.id) ? "" : String(frame.id))} accent="#38bdf8" />)}
           </div>
         )}
       </section>

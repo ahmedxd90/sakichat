@@ -1,9 +1,9 @@
 // @ts-nocheck
-import { useQuery, useMutation } from "convex/react";
-import { api } from "../../convex/_generated/api";
 import { ARAB_COUNTRIES } from "../data/countries";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { toast } from "../lib/toast";
+import { supabase } from "../lib/supabaseClient";
+import { useProfile } from "../components/ProfileManager";
 import { VipBadge, VipName, getVipConfig, SuperAdminBadge } from "../components/VipBadge";
 import EditProfilePage from "./EditProfilePage";
 import SettingsPage from "./SettingsPage";
@@ -45,16 +45,28 @@ function daysLeft(expiresAt: number | null): string {
 }
 
 export default function ProfilePage({ setCurrentPage, onVipOpen, initialSubPage, onBack, onMessage, onViewProfile }: ProfilePageProps) {
-  const profile = useQuery(api.profiles.getMyProfile);
-  const myMoments = useQuery(api.social.getUserMoments, profile ? { userId: profile.userId } : "skip");
-  const myReels = useQuery(api.social.getUserReels, profile ? { userId: profile.userId } : "skip");
-  const activeItems = useQuery(api.store.getUserActiveItems, profile ? { userId: profile.userId } : "skip");
-  const cpPartner = useQuery(api.store.getActiveCpPartner, profile ? { userId: profile.userId } : "skip");
-  const myRoom = useQuery(api.rooms.getMyRoom);
-  const familyInfo = useQuery(api.families.getFamilyByUserId, profile ? { userId: profile.userId } : "skip");
-  const activateAccount = useMutation(api.profiles.activateAccount);
-  const generateCoverUploadUrl = useMutation(api.profiles.generateCoverUploadUrl);
-  const updateCover = useMutation(api.profiles.updateCover);
+  const { profile, refreshProfile } = useProfile();
+  const [myMoments, setMyMoments] = useState<any[]>([]);
+  const [myReels, setMyReels] = useState<any[]>([]);
+  const [activeItems, setActiveItems] = useState<any>(null);
+  const [cpPartner, setCpPartner] = useState<any>(null);
+  const [myRoom, setMyRoom] = useState<any>(null);
+  const [familyInfo, setFamilyInfo] = useState<any>(null);
+
+  useEffect(() => {
+    if (!profile) return;
+    const fetchData = async () => {
+      const { data: moments } = await supabase.from('moments').select('*').eq('user_id', profile.user_id).order('created_at', { ascending: false });
+      setMyMoments(moments || []);
+      
+      const { data: reels } = await supabase.from('reels').select('*').eq('user_id', profile.user_id).order('created_at', { ascending: false });
+      setMyReels(reels || []);
+      
+      const { data: room } = await supabase.from('rooms').select('*').eq('owner_id', profile.user_id).single();
+      setMyRoom(room);
+    };
+    fetchData();
+  }, [profile]);
 
   const [activating, setActivating] = useState(false);
   const [activeTab, setActiveTab] = useState<"posts" | "reels" | "badges" | "cp">("posts");
@@ -64,24 +76,29 @@ export default function ProfilePage({ setCurrentPage, onVipOpen, initialSubPage,
   const coverInputRef = useRef<HTMLInputElement>(null);
 
   const country = ARAB_COUNTRIES.find((c) => c.code === profile?.country);
-  const isVip = profile?.isVip ?? false;
-  const vipLevel = profile?.vipLevel;
+  const isVip = profile?.is_vip ?? false;
+  const vipLevel = profile?.vip_level;
   const vipConfig = getVipConfig(vipLevel);
-  const isAgent = profile?.isAgent ?? false;
-  const isSuperAdmin = profile?.isSuperAdmin ?? false;
-  const aristocracyLevel = profile?.aristocracyLevel;
+  const isAgent = profile?.is_agent ?? false;
+  const isSuperAdmin = profile?.is_super_admin ?? false;
+  const aristocracyLevel = profile?.aristocracy_level;
   const aristocracyConfig = getAristocracyConfig(aristocracyLevel);
-  const hasActiveAristocracy = aristocracyLevel && aristocracyLevel > 0 && profile?.aristocracyExpiresAt && profile.aristocracyExpiresAt > Date.now();
-  const hasCp = cpPartner && (!cpPartner.expiresAt || cpPartner.expiresAt > Date.now());
-  const wealthLevel = profile?.wealthLevel ?? 0;
-  const charismaLevel = profile?.charismaLevel ?? 0;
+  const hasActiveAristocracy = aristocracyLevel && aristocracyLevel > 0 && profile?.aristocracy_expires_at && profile.aristocracy_expires_at > Date.now();
+  const hasCp = cpPartner && (!cpPartner.expires_at || cpPartner.expires_at > Date.now());
+  const wealthLevel = profile?.wealth_level ?? 0;
+  const charismaLevel = profile?.charisma_level ?? 0;
   const accentColor = hasActiveAristocracy && aristocracyConfig ? aristocracyConfig.color : (vipConfig?.nameColor || "#a855f7");
   const accentBorder = hasActiveAristocracy && aristocracyConfig ? `${aristocracyConfig.color}40` : (vipConfig?.glowColor || "rgba(168,85,247,0.25)");
 
   const handleActivate = async () => {
     if (!profile) return;
     setActivating(true);
-    try { await activateAccount({ profileId: profile._id }); toast.success("تم تفعيل حسابك! 🎉"); }
+    try { 
+      const { error } = await supabase.from('profiles').update({ is_active: true }).eq('user_id', profile.user_id);
+      if (error) throw error;
+      await refreshProfile();
+      toast.success("تم تفعيل حسابك! 🎉"); 
+    }
     catch (e: any) { toast.error(e.message); }
     finally { setActivating(false); }
   };
@@ -89,10 +106,20 @@ export default function ProfilePage({ setCurrentPage, onVipOpen, initialSubPage,
   const handleCoverUpload = async (file: File) => {
     setUploadingCover(true);
     try {
-      const uploadUrl = await generateCoverUploadUrl();
-      const res = await fetch(uploadUrl, { method: "POST", headers: { "Content-Type": file.type }, body: file });
-      const { storageId } = await res.json();
-      await updateCover({ coverStorageId: storageId });
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("يجب تسجيل الدخول");
+
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${user.id}-cover-${Math.random()}.${fileExt}`;
+      const { data, error: uploadError } = await supabase.storage.from('covers').upload(fileName, file);
+      if (uploadError) throw uploadError;
+      
+      const { data: { publicUrl } } = supabase.storage.from('covers').getPublicUrl(data.path);
+      
+      const { error: updateError } = await supabase.from('profiles').update({ cover_url: publicUrl }).eq('user_id', user.id);
+      if (updateError) throw updateError;
+      
+      await refreshProfile();
       toast.success("تم تحديث الغلاف ✅");
     } catch (e: any) {
       toast.error(e.message ?? "فشل رفع الغلاف");
@@ -118,13 +145,13 @@ export default function ProfilePage({ setCurrentPage, onVipOpen, initialSubPage,
 
   const badges = buildBadges({
     isVip, vipLevel, isSuperAdmin, isAgent,
-    isActive: profile.isActive,
+    isActive: profile.is_active,
     wealthLevel, charismaLevel,
     familyInfo: familyInfo ? { name: familyInfo.name, role: familyInfo.role } : null,
     isRoomOwner: !!myRoom,
-    isSakiAmbassador: (profile as any).isSakiAmbassador ?? false,
+    isSakiAmbassador: profile.is_saki_ambassador ?? false,
     aristocracyLevel: hasActiveAristocracy ? aristocracyLevel : 0,
-    aristocracyExpiresAt: profile?.aristocracyExpiresAt ?? null,
+    aristocracyExpiresAt: profile?.aristocracy_expires_at ?? null,
   });
 
   const menuItems = [
@@ -178,7 +205,7 @@ export default function ProfilePage({ setCurrentPage, onVipOpen, initialSubPage,
               className="flex items-center gap-1.5 rounded-xl px-2.5 py-1.5"
               style={{ background: "rgba(251,191,36,0.12)", border: "1px solid rgba(251,191,36,0.25)" }}>
               <span className="text-sm">🪙</span>
-              <span className="text-yellow-400 text-xs font-bold">{(profile.goldCoins ?? 0).toLocaleString()}</span>
+              <span className="text-yellow-400 text-xs font-bold">{(profile.gold_coins ?? 0).toLocaleString()}</span>
             </button>
             <button onClick={() => setSubPage("edit")}
               className="w-9 h-9 rounded-xl flex items-center justify-center transition-all active:scale-90"
@@ -204,19 +231,19 @@ export default function ProfilePage({ setCurrentPage, onVipOpen, initialSubPage,
             <div className="p-5 border-b border-white/10"
               style={{ background: `linear-gradient(135deg, ${accentColor}20, rgba(168,85,247,0.1))` }}>
               <div className="flex items-center gap-3">
-                <UserAvatar userId={profile.userId} avatarUrl={profile.avatarUrl} name={profile.name} size={52} showFrame={true} showVipFrame={true} vipLevel={vipLevel} />
+                <UserAvatar userId={profile.user_id} avatarUrl={profile.avatar_url} name={profile.name} size={52} showFrame={true} showVipFrame={true} vipLevel={vipLevel} />
                 <div className="flex-1 min-w-0">
                   {hasActiveAristocracy && aristocracyConfig
                     ? <AristocracyName name={profile.name} level={aristocracyLevel} className="font-bold" />
                     : isVip ? <VipName name={profile.name} level={vipLevel} /> : <p className="text-white font-bold truncate">{profile.name}</p>}
                   <p className="text-xs font-mono font-bold" style={{ color: hasActiveAristocracy && aristocracyConfig ? aristocracyConfig.color : "#6b7280" }}>
-                    <SakiIdDisplay sakiId={profile.sakiId} profile={profile as any} fontSize={11} iconSize={13} showCopy={false} />
+                    <SakiIdDisplay sakiId={profile.saki_id} profile={profile as any} fontSize={11} iconSize={13} showCopy={false} />
                   </p>
                   <div className="flex items-center gap-1 mt-1 flex-wrap">
                     {isVip && <VipBadge size="sm" level={vipLevel} />}
                     {isAgent && <AgentChargeBadgeIf profile={profile} size="xs" />}
                     {isSuperAdmin && <span className="text-[10px] bg-red-500/20 border border-red-500/30 text-red-400 px-1.5 py-0.5 rounded-full font-bold">أدمن</span>}
-                    {(profile as any).isCustomerService && <CustomerServiceBadge size="xs" />}
+                    {profile.is_customer_service && <CustomerServiceBadge size="xs" />}
                   </div>
                 </div>
               </div>
@@ -224,7 +251,7 @@ export default function ProfilePage({ setCurrentPage, onVipOpen, initialSubPage,
                 style={{ background: "rgba(251,191,36,0.1)", border: "1px solid rgba(251,191,36,0.2)" }}>
                 <span className="text-lg">🪙</span>
                 <div className="flex-1">
-                  <p className="text-yellow-400 font-black text-base">{(profile.goldCoins ?? 0).toLocaleString()}</p>
+                  <p className="text-yellow-400 font-black text-base">{(profile.gold_coins ?? 0).toLocaleString()}</p>
                   <p className="text-gray-600 text-[10px]">عملة ذهبية</p>
                 </div>
                 <button onClick={() => { setShowMenu(false); setSubPage("wallet"); }}

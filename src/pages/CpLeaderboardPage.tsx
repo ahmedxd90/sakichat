@@ -1,5 +1,4 @@
-import { useQuery } from "convex/react";
-import { api } from "../../convex/_generated/api";
+import { supabase } from "../lib/supabaseClient";
 import { useEffect, useState } from "react";
 import { VipBadge, VipName } from "../components/VipBadge";
 
@@ -8,8 +7,16 @@ interface CpLeaderboardPageProps { onBack: () => void; }
 interface Particle { id: number; x: number; y: number; size: number; delay: number; duration: number; emoji: string; }
 
 export default function CpLeaderboardPage({ onBack }: CpLeaderboardPageProps) {
-  const data = useQuery(api.leaderboards.getCpLeaderboard);
+  const [data, setData] = useState<any[]>([]);
   const [particles, setParticles] = useState<Particle[]>([]);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      const { data: cpData } = await supabase.from('cp_homes').select('*, user1:profiles!owner_user_id(*), user2:profiles!partner_user_id(*)').order('level', { ascending: false }).limit(20);
+      setData(cpData || []);
+    };
+    fetchData();
+  }, []);
 
   useEffect(() => {
     const emojis = ["💍", "💕", "❤️", "💑", "🌹", "💫", "✨", "💎"];

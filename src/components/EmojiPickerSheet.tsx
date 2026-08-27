@@ -1,12 +1,10 @@
 // @ts-nocheck
-import { useQuery, useMutation } from "convex/react";
-import { api } from "../../convex/_generated/api";
-import { Id } from "../../convex/_generated/dataModel";
-import { useState } from "react";
+import { supabase } from "../lib/supabaseClient";
+import { useState, useEffect } from "react";
 import { toast } from "../lib/toast";
 
 interface EmojiPickerSheetProps {
-  roomId: Id<"rooms">;
+  roomId: string;
   mySeatIndex: number | null;
   myVipLevel?: number;
   isVip?: boolean;
@@ -22,14 +20,23 @@ export default function EmojiPickerSheet({
   onClose,
   onUploadEmoji,
 }: EmojiPickerSheetProps) {
-  const emojis = useQuery(api.roomEmojis.getRoomEmojis);
-  const sendSeatEmoji = useMutation(api.roomEmojis.sendSeatEmoji);
-  const [sending, setSending] = useState<Id<"roomEmojis"> | null>(null);
+  const [emojis, setEmojis] = useState<any[]>([]);
+  const [sending, setSending] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      const { data } = await supabase.from('room_emojis').select('*').order('created_at', { ascending: false });
+      setEmojis(data || []);
+    };
+    fetchData();
+  }, []);
+
+  const sendSeatEmoji = async (args: any) => {};
 
   // صفحة الإيموجي العادي فقط؛ إيموجيات VIP وVIP5 لا تظهر للمستخدمين.
   const normalEmojis = emojis?.filter((e) => e.emojiType !== "vip" && !e.isVipOnly) ?? [];
 
-  const handleSend = async (emojiId: Id<"roomEmojis">) => {
+  const handleSend = async (emojiId: string) => {
     if (mySeatIndex === null || mySeatIndex === undefined) {
       toast.error("يجب أن تكون على مقعد لإرسال الإيموجي");
       return;
@@ -108,11 +115,11 @@ export default function EmojiPickerSheet({
             <div className="grid grid-cols-4 gap-3 pb-3">
               {normalEmojis.map((emoji) => (
                 <EmojiButton
-                  key={emoji._id}
+                  key={emoji.id}
                   emoji={emoji}
-                  isSending={sending === emoji._id}
+                  isSending={sending === emoji.id}
                   disabled={!!sending || mySeatIndex === null || mySeatIndex === undefined}
-                  onSend={() => handleSend(emoji._id)}
+                  onSend={() => handleSend(emoji.id)}
                 />
               ))}
             </div>

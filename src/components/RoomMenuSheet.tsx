@@ -1,11 +1,9 @@
 import { useState, useRef } from "react";
-import { useMutation } from "convex/react";
-import { api } from "../../convex/_generated/api";
-import { Id } from "../../convex/_generated/dataModel";
+import { supabase } from "../lib/supabaseClient";
 import { toast } from "../lib/toast";
 
 interface RoomMenuSheetProps {
-  roomId: Id<"rooms">;
+  roomId: string;
   isOwner: boolean;
   isAdmin: boolean;
   isVip: boolean;
@@ -35,13 +33,6 @@ export default function RoomMenuSheet({ roomId, isOwner, isAdmin, isVip, isEmper
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // @ts-ignore
-  const generateUploadUrl = useMutation(api.rooms.generateUploadUrl);
-  const sendImageMessage = useMutation(api.messages.sendImageMessage);
-  // @ts-ignore
-  const clearChat = useMutation(api.rooms.clearChat);
-  const sendMessage = useMutation(api.messages.sendMessage);
-
   const handleImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -49,11 +40,23 @@ export default function RoomMenuSheet({ roomId, isOwner, isAdmin, isVip, isEmper
     if (file.size > 10 * 1024 * 1024) { toast.error("حجم الصورة يجب أن يكون أقل من 10 ميجابايت"); return; }
     setUploading(true);
     try {
-      const uploadUrl = await generateUploadUrl();
-      const res = await fetch(uploadUrl, { method: "POST", headers: { "Content-Type": file.type }, body: file });
-      if (!res.ok) throw new Error("فشل رفع الصورة");
-      const { storageId } = await res.json();
-      await sendImageMessage({ roomId, imageStorageId: storageId });
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("يجب تسجيل الدخول");
+
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${user.id}-${Math.random()}.${fileExt}`;
+      const { data, error: uploadError } = await supabase.storage.from('chat_images').upload(fileName, file);
+      if (uploadError) throw uploadError;
+      
+      const { data: { publicUrl } } = supabase.storage.from('chat_images').getPublicUrl(data.path);
+      
+      await supabase.from('messages').insert({
+        room_id: roomId,
+        sender_id: user.id,
+        content: publicUrl,
+        type: 'image'
+      });
+      
       toast.success("تم إرسال الصورة 📸");
       onClose();
     } catch (e: any) {
@@ -66,7 +69,7 @@ export default function RoomMenuSheet({ roomId, isOwner, isAdmin, isVip, isEmper
 
   const handleClearChat = async () => {
     try {
-      await clearChat({ roomId });
+      await supabase.from('messages').delete().eq('room_id', roomId);
       toast.success("تم مسح سجل الدردشة 🗑️");
       setShowClearConfirm(false);
       onClose();
@@ -81,7 +84,7 @@ export default function RoomMenuSheet({ roomId, isOwner, isAdmin, isVip, isEmper
     setDiceResult(null);
     setLuckyResult(null);
     let count = 0;
-    const interval = setInterval(() => {
+    const interval = setInterval(async () => {
       setDiceResult(Math.floor(Math.random() * 6) + 1);
       count++;
       if (count >= 10) {
@@ -89,7 +92,15 @@ export default function RoomMenuSheet({ roomId, isOwner, isAdmin, isVip, isEmper
         const final = Math.floor(Math.random() * 6) + 1;
         setDiceResult(final);
         setRolling(false);
-        sendMessage({ roomId, content: `🎲 رمى النرد وحصل على: ${DICE_FACES[final - 1]} (${final})` }).catch(() => {});
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          supabase.from('messages').insert({
+            room_id: roomId,
+            sender_id: user.id,
+            content: `🎲 رمى النرد وحصل على: ${DICE_FACES[final - 1]} (${final})`,
+            type: 'text'
+          }).then();
+        }
       }
     }, 80);
   };
@@ -100,7 +111,7 @@ export default function RoomMenuSheet({ roomId, isOwner, isAdmin, isVip, isEmper
     setDiceResult(null);
     setLuckyResult(null);
     let count = 0;
-    const interval = setInterval(() => {
+    const interval = setInterval(async () => {
       setLuckyResult(LUCKY_NUMBERS[Math.floor(Math.random() * LUCKY_NUMBERS.length)]);
       count++;
       if (count >= 12) {
@@ -108,7 +119,15 @@ export default function RoomMenuSheet({ roomId, isOwner, isAdmin, isVip, isEmper
         const final = LUCKY_NUMBERS[Math.floor(Math.random() * LUCKY_NUMBERS.length)];
         setLuckyResult(final);
         setLuckyPicking(false);
-        sendMessage({ roomId, content: `🍀 رقم الحظ هو: ${final} ✨` }).catch(() => {});
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          supabase.from('messages').insert({
+            room_id: roomId,
+            sender_id: user.id,
+            content: `🍀 رقم الحظ هو: ${final} ✨`,
+            type: 'text'
+          }).then();
+        }
       }
     }, 80);
   };

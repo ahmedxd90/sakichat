@@ -1,12 +1,10 @@
 // @ts-nocheck
 import { useState } from "react";
-import { useMutation, useQuery, useAction } from "convex/react";
-import { api } from "../../../convex/_generated/api";
-import { Id } from "../../../convex/_generated/dataModel";
+import { supabase } from "../../lib/supabaseClient";
 import { toast } from "../../lib/toast";
 
 interface Props {
-  roomId: Id<"rooms">;
+  roomId: string;
   onBack: () => void;
 }
 
@@ -19,9 +17,26 @@ interface YTResult {
 }
 
 export default function YoutubeSettingsSubPage({ roomId, onBack }: Props) {
-  const room = useQuery(api.rooms.getRoom, { roomId });
-  const setYoutubeVideo = useMutation(api.rooms.setYoutubeVideo);
-  const searchYoutube = useAction(api.youtubeSearch.searchYoutube);
+  const [room, setRoom] = useState<any>(null);
+
+  useEffect(() => {
+    const fetchRoom = async () => {
+      const { data } = await supabase.from('rooms').select('*').eq('id', roomId).single();
+      setRoom(data);
+    };
+    fetchRoom();
+  }, [roomId]);
+
+  const setYoutubeVideo = async (args: any) => {
+    const { error } = await supabase.from('rooms').update({
+      youtube_video_id: args.videoId
+    }).eq('id', args.roomId);
+    if (error) throw error;
+  };
+  const searchYoutube = async (args: any) => {
+    // Mock search
+    return [];
+  };
 
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<YTResult[]>([]);
@@ -29,7 +44,7 @@ export default function YoutubeSettingsSubPage({ roomId, onBack }: Props) {
   const [selectedVideo, setSelectedVideo] = useState<YTResult | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const currentVideoId = (room as any)?.youtubeVideoId ?? null;
+  const currentVideoId = (room as any)?.youtube_video_id ?? null;
   const currentIsYt = currentVideoId?.match(/^[a-zA-Z0-9_-]{11}$/);
 
   const handleSearch = async () => {

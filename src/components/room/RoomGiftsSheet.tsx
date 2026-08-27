@@ -1,7 +1,6 @@
 // @ts-nocheck
 import { useState, useEffect, useRef } from "react";
-import { useQuery, useMutation } from "convex/react";
-import { api } from "../../../convex/_generated/api";
+import { supabase } from "../../lib/supabaseClient";
 import { toast } from "../../lib/toast";
 import { VipFrame } from "../VipBadge";
 import { GIFT_QUANTITIES } from "../../types/room";
@@ -100,15 +99,25 @@ export default function RoomGiftsSheet({
   const [floatingBtnVisible, setFloatingBtnVisible] = useState(false);
   const [floatingBtnTimer, setFloatingBtnTimer] = useState(10);
   const timerRef = useRef<any>(null);
-  const giftInventory = useQuery(api.giftInventory.getMyGiftInventory);
-  const sendGiftFromInventory = useMutation(api.giftInventory.sendGiftFromInventory);
+  const [giftInventory, setGiftInventory] = useState<any[]>([]);
   const [selectedInventoryId, setSelectedInventoryId] = useState<any>(null);
   const bagMode = false;
   const countdownRef = useRef<any>(null);
 
-  const othersSeated = seatedMembers.filter((m) => m.profile?.userId !== myProfile?.userId);
+  useEffect(() => {
+    const fetchInventory = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data } = await supabase.from('gift_inventory').select('*, gifts(*)').eq('user_id', user.id).gt('quantity', 0);
+        setGiftInventory(data || []);
+      }
+    };
+    fetchInventory();
+  }, []);
+
+  const othersSeated = seatedMembers.filter((m) => m.profile?.user_id !== myProfile?.user_id);
   const allSeated = seatedMembers;
-  const isTargetSelected = (m: any) => giftTargets.some((t) => t._id === m._id);
+  const isTargetSelected = (m: any) => giftTargets.some((t) => t.id === m.id);
   const allSelected = othersSeated.length > 0 && othersSeated.every((m) => isTargetSelected(m));
   const activeTargets = giftTargets.length > 0 ? giftTargets : (giftTarget ? [giftTarget] : []);
   const totalCost = selectedCustomGift ? selectedCustomGift.price * giftQuantity * Math.max(1, activeTargets.length) : 0;
@@ -136,7 +145,7 @@ export default function RoomGiftsSheet({
       if (timerRef.current) clearTimeout(timerRef.current);
       if (countdownRef.current) clearInterval(countdownRef.current);
     };
-  }, [selectedCustomGift?._id]);
+  }, [selectedCustomGift?.id]);
 
   const handleSend = async () => {
     setSendLoading(true);
@@ -160,7 +169,22 @@ export default function RoomGiftsSheet({
     if (!selectedInventoryId || !target) { toast.error("حدد مستخدمًا وهدية من الحقيبة أولًا"); return; }
     try {
       setSendLoading(true);
-      await sendGiftFromInventory({ inventoryId: selectedInventoryId, receiverId: target.profile?.userId ?? target.userId ?? target._id, roomId, quantity: Math.min(giftQuantity, giftInventory?.find((i: any) => i._id === selectedInventoryId)?.quantity ?? 1) });
+      const { data: invItem } = await supabase.from('gift_inventory').select('*').eq('id', selectedInventoryId).single();
+      if (!invItem || invItem.quantity < 1) throw new Error("لا تملك هذه الهدية");
+      
+      const { error: updateErr } = await supabase.from('gift_inventory').update({ quantity: invItem.quantity - 1 }).eq('id', selectedInventoryId);
+      if (updateErr) throw updateErr;
+
+      const { error: giftErr } = await supabase.from('room_gifts').insert({
+        room_id: roomId,
+        sender_user_id: myProfile.user_id,
+        receiver_user_id: target.profile?.user_id ?? target.user_id ?? target.id,
+        gift_id: invItem.gift_id,
+        quantity: 1,
+        is_from_inventory: true
+      });
+      if (giftErr) throw giftErr;
+
       toast.success("تم إرسال الهدية من الحقيبة مجانًا");
       setSelectedInventoryId(null);
     } catch (e: any) { toast.error(e.message); }

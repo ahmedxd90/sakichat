@@ -1,6 +1,5 @@
-import { useQuery } from "convex/react";
-import { api } from "../../convex/_generated/api";
 import { useState, useEffect } from "react";
+import { supabase } from "../lib/supabaseClient";
 import { VipBadge, VipName } from "../components/VipBadge";
 import { LevelPillBadge } from "../components/LevelBadgeInline";
 
@@ -11,8 +10,35 @@ interface Particle { id: number; x: number; y: number; size: number; delay: numb
 
 export default function CharismaPage({ onBack }: CharismaPageProps) {
   const [period, setPeriod] = useState<Period>("daily");
-  const data = useQuery(api.leaderboards.getCharismaLeaderboard, { period });
+  const [data, setData] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [particles, setParticles] = useState<Particle[]>([]);
+
+  useEffect(() => {
+    const fetchCharisma = async () => {
+      setIsLoading(true);
+      const { data: charismaData } = await supabase
+        .from('profiles')
+        .select('*, user_id, name, avatar_url, saki_id, diamonds')
+        .order('diamonds', { ascending: false })
+        .limit(20);
+      
+      if (charismaData) {
+        setData(charismaData.map((d, i) => ({
+          userId: d.user_id,
+          name: d.name,
+          avatarUrl: d.avatar_url,
+          sakiId: d.saki_id,
+          total: d.diamonds,
+          rank: i + 1,
+          isVip: d.pro_level > 0,
+          vipLevel: d.pro_level
+        })));
+      }
+      setIsLoading(false);
+    };
+    fetchCharisma();
+  }, [period]);
 
   useEffect(() => {
     const emojis = ["✨", "💎", "🌟", "⭐", "💫", "🔮", "🌸"];
@@ -95,7 +121,7 @@ export default function CharismaPage({ onBack }: CharismaPageProps) {
       </div>
 
       <div className="relative z-10 flex-1 overflow-y-auto pb-8">
-        {!data ? (
+        {isLoading ? (
           <div className="flex justify-center py-20"><div className="w-8 h-8 border-2 border-pink-500 border-t-transparent rounded-full animate-spin" /></div>
         ) : data.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 gap-3">

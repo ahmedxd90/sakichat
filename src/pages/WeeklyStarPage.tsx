@@ -1,7 +1,6 @@
 // @ts-nocheck
 import { useState, useEffect } from "react";
-import { useQuery, useMutation } from "convex/react";
-import { api } from "../../convex/_generated/api";
+import { supabase } from "../lib/supabaseClient";
 import WeeklyStarAdminPanel from "../components/WeeklyStarAdminPanel";
 
 interface WeeklyStarPageProps {
@@ -30,14 +29,27 @@ function useCountdown(endsAt: number | undefined) {
 export default function WeeklyStarPage({ onBack }: WeeklyStarPageProps) {
   const [tab, setTab] = useState<"leaderboard" | "rules" | "hall">("leaderboard");
   const [showAdmin, setShowAdmin] = useState(false);
-  const event = useQuery(api.weeklyStar.getActiveEvent);
-  const weeklySettings = useQuery(api.weeklyStar.getWeeklyStarSettings);
-  const leaderboard = useQuery(
-    api.weeklyStar.getLeaderboard,
-    event ? { eventId: event._id } : "skip"
-  );
-  const pastEvents = useQuery(api.weeklyStar.getPastEvents);
+  const [event, setEvent] = useState<any>(null);
+  const [weeklySettings, setWeeklySettings] = useState<any>(null);
+  const [leaderboard, setLeaderboard] = useState<any[]>([]);
+  const [pastEvents, setPastEvents] = useState<any[]>([]);
   const countdown = useCountdown(event?.weekEnd);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      const { data: ae } = await supabase.from('weekly_star_events').select('*').eq('status', 'active').maybeSingle();
+      setEvent(ae);
+      const { data: ws } = await supabase.from('app_settings').select('*').eq('key', 'weekly_star').maybeSingle();
+      setWeeklySettings(ws?.value);
+      if (ae) {
+        const { data: lb } = await supabase.from('weekly_star_leaderboard').select('*').eq('event_id', ae.id).order('total_coins', { ascending: false });
+        setLeaderboard(lb || []);
+      }
+      const { data: pe } = await supabase.from('weekly_star_events').select('*').eq('status', 'completed').order('created_at', { ascending: false });
+      setPastEvents(pe || []);
+    };
+    fetchData();
+  }, []);
 
   const top3 = leaderboard?.slice(0, 3) ?? [];
   const rest = leaderboard?.slice(3) ?? [];

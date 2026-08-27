@@ -1,23 +1,32 @@
 import { useEffect, useRef, useState } from "react";
-import { useQuery } from "convex/react";
-import { api } from "../../convex/_generated/api";
+import { supabase } from "../lib/supabaseClient";
 
 /** High-value gift banner: shown globally only for server-marked gifts >= 100K. */
 export default function GlobalGiftBanner() {
-  const latestGlobal = useQuery(api.rooms.getLatestGlobalGiftEvent) as any;
+  const [latestGlobal, setLatestGlobal] = useState<any>(null);
   const [banner, setBanner] = useState<any>(null);
   const [phase, setPhase] = useState<"enter" | "show" | "exit">("enter");
   const lastIdRef = useRef<string | null>(null);
   const timerRef = useRef<number[]>([]);
 
   useEffect(() => {
+    const channel = supabase
+      .channel('global_gifts')
+      .on('postgres_changes', { event: 'INSERT', table: 'gift_logs', filter: 'price=gte.100000' }, (payload) => {
+        setLatestGlobal(payload.new);
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, []);
+
+  useEffect(() => {
     if (!latestGlobal || latestGlobal.price < 100000) return;
     if (lastIdRef.current === null) {
-      lastIdRef.current = latestGlobal._id;
+      lastIdRef.current = latestGlobal.id;
       return;
     }
-    if (latestGlobal._id === lastIdRef.current) return;
-    lastIdRef.current = latestGlobal._id;
+    if (latestGlobal.id === lastIdRef.current) return;
+    lastIdRef.current = latestGlobal.id;
 
     timerRef.current.forEach((timer) => window.clearTimeout(timer));
     setBanner(latestGlobal);
@@ -27,7 +36,7 @@ export default function GlobalGiftBanner() {
       window.setTimeout(() => setPhase("exit"), 4200),
       window.setTimeout(() => setBanner(null), 5000),
     ];
-  }, [latestGlobal?._id, latestGlobal?.price]);
+  }, [latestGlobal?.id, latestGlobal?.price]);
 
   useEffect(() => () => timerRef.current.forEach((timer) => window.clearTimeout(timer)), []);
 

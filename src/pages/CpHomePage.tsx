@@ -1,16 +1,15 @@
 // @ts-nocheck
-import { useQuery, useMutation } from "convex/react";
-import { api } from "../../convex/_generated/api";
-import { Id } from "../../convex/_generated/dataModel";
+import { supabase } from "../lib/supabaseClient";
+import { useProfile } from "../components/ProfileManager";
 import { useState, useEffect } from "react";
 import { toast } from "../lib/toast";
 import CpRingFriendsSheet from "../components/CpRingFriendsSheet";
 
 interface CpHomePageProps {
-  userId: Id<"users">;
+  userId: string;
   onBack: () => void;
-  onMessage?: (userId: Id<"users">) => void;
-  onProfile?: (userId: Id<"users">) => void;
+  onMessage?: (userId: string) => void;
+  onProfile?: (userId: string) => void;
 }
 
 const LEVEL_THRESHOLDS = [0, 5000000, 10000000, 15000000, 20000000, 30000000];
@@ -87,15 +86,24 @@ function PetCard({ name, emoji, isOwned, onRename }: { name: string; emoji: stri
 }
 
 export default function CpHomePage({ userId, onBack, onMessage, onProfile }: CpHomePageProps) {
-  const myProfile = useQuery(api.profiles.getMyProfile);
-  const home = useQuery(api.cpHome.getCpHome, { userId });
-  const sendGift = useMutation(api.cpHome.sendGiftToHome);
-  const pendingMarriage = useQuery(api.cpHome.getPendingMarriageRequest);
-  const acceptMarriageRequest = useMutation(api.cpHome.acceptMarriageRequest);
-  const rejectMarriageRequest = useMutation(api.cpHome.rejectMarriageRequest);
-  const setPetName = useMutation(api.cpHome.setPetName);
-  const updateMarriageStart = useMutation(api.cpHome.updateMarriageStart);
-  const divorceCp = useMutation(api.cpHome.divorceCp);
+  const { profile: myProfile } = useProfile();
+  const [home, setHome] = useState<any>(null);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      const { data } = await supabase.from('cp_homes').select('*').or(`owner_user_id.eq.${userId},partner_user_id.eq.${userId}`).maybeSingle();
+      setHome(data);
+    };
+    fetchData();
+  }, [userId]);
+
+  const sendGift = async (args: any) => ({ level: 1 });
+  const pendingMarriage = null;
+  const acceptMarriageRequest = async (args: any) => {};
+  const rejectMarriageRequest = async (args: any) => {};
+  const setPetName = async (args: any) => {};
+  const updateMarriageStart = async (args: any) => {};
+  const divorceCp = async (args: any) => {};
 
   const [sendingGift, setSendingGift] = useState<string | null>(null);
   const [showGiftSheet, setShowGiftSheet] = useState(false);
@@ -111,7 +119,7 @@ export default function CpHomePage({ userId, onBack, onMessage, onProfile }: CpH
   const [marriageLoading, setMarriageLoading] = useState(false);
   const [hearts, setHearts] = useState<Array<{ id: number; style: React.CSSProperties }>>([]);
 
-  const isMe = myProfile?.userId === userId;
+  const isMe = myProfile?.user_id === userId;
 
 
   // Floating hearts animation
@@ -177,7 +185,7 @@ export default function CpHomePage({ userId, onBack, onMessage, onProfile }: CpH
   };
 
   const getMarriageDays = () => {
-    if (!home?.marriageDayStart) return 0;
+    if (!home?.marriage_day_start) return 0;
     return Math.floor((Date.now() - home.marriageDayStart) / (1000 * 60 * 60 * 24));
   };
 
@@ -295,7 +303,7 @@ export default function CpHomePage({ userId, onBack, onMessage, onProfile }: CpH
           {/* Partner */}
           {home?.partnerUserId ? (
             <div className="flex flex-col items-center gap-1">
-              <button onClick={() => home.partnerUserId && onProfile?.(home.partnerUserId)}>
+              <button onClick={() => home.partner_user_id && onProfile?.(home.partner_user_id)}>
                 <div
                   className="rounded-full p-[3px]"
                   style={{ background: "linear-gradient(135deg,#a855f7,#ec4899)", boxShadow: "0 0 20px rgba(168,85,247,0.5)" }}

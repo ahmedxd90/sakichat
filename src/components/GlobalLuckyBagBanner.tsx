@@ -1,11 +1,9 @@
 // @ts-nocheck
 import { useEffect, useRef, useState } from "react";
-import { useQuery } from "convex/react";
-import { api } from "../../convex/_generated/api";
-import { Id } from "../../convex/_generated/dataModel";
+import { supabase } from "../lib/supabaseClient";
 
 interface GlobalLuckyBagBannerProps {
-  onGoToRoom?: (roomId: Id<"rooms">) => void;
+  onGoToRoom?: (roomId: string) => void;
 }
 
 function formatCoins(n: number) {
@@ -15,7 +13,15 @@ function formatCoins(n: number) {
 }
 
 export default function GlobalLuckyBagBanner({ onGoToRoom }: GlobalLuckyBagBannerProps) {
-  const latestEvent = useQuery(api.luckyBag.getLatestLuckyBagEvent);
+  const [latestEvent, setLatestEvent] = useState<any>(null);
+  useEffect(() => {
+    const channel = supabase.channel('lucky_bags_global')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'lucky_bags' }, payload => {
+        if (payload.new.bag_type === 'super') setLatestEvent(payload.new);
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, []);
   const [banner, setBanner] = useState<any>(null);
   const [phase, setPhase] = useState<"enter" | "fly" | "exit">("enter");
   const [posX, setPosX] = useState(110); // % from left
@@ -33,9 +39,9 @@ export default function GlobalLuckyBagBanner({ onGoToRoom }: GlobalLuckyBagBanne
   useEffect(() => {
     if (!latestEvent) return;
     if (latestEvent.bagType !== "super") return;
-    if (lastIdRef.current === null) { lastIdRef.current = latestEvent._id; return; }
-    if (latestEvent._id === lastIdRef.current) return;
-    lastIdRef.current = latestEvent._id;
+    if (lastIdRef.current === null) { lastIdRef.current = latestEvent.id; return; }
+    if (latestEvent.id === lastIdRef.current) return;
+    lastIdRef.current = latestEvent.id;
 
     clearAll();
     setBanner(latestEvent);
@@ -69,7 +75,7 @@ export default function GlobalLuckyBagBanner({ onGoToRoom }: GlobalLuckyBagBanne
     }, 23000);
 
     return clearAll;
-  }, [latestEvent?._id]);
+  }, [latestEvent?.id]);
 
   if (!banner) return null;
 

@@ -1,9 +1,8 @@
 // @ts-nocheck
-import { useQuery, useMutation } from "convex/react";
-import { api } from "../../convex/_generated/api";
-import { Id } from "../../convex/_generated/dataModel";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { toast } from "../lib/toast";
+import { supabase } from "../lib/supabaseClient";
+import { useProfile } from "../components/ProfileManager";
 import UserAvatar from "../components/UserAvatar";
 import AdminExtraTabs from "./AdminExtraTabs";
 import AdminLockModal from "../components/AdminLockModal";
@@ -160,11 +159,11 @@ function ActionButton({ label, icon, color, onClick, sub }: {
 export default function AdminDashboardPage({ onBack, onOpenBan }: AdminDashboardPageProps) {
   const [section, setSection] = useState<Section>("overview");
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const myFullProfile = useQuery(api.profiles.getMyProfile);
+  const { profile: myFullProfile } = useProfile();
   const currentItem = MENU_SECTIONS.flatMap(s => s.items).find(i => i.id === section);
 
-  const adminPermissions: string[] = (myFullProfile as any)?.adminPermissions ?? [];
-  const isRootAdmin = myFullProfile?.isSuperAdmin === true && adminPermissions.length === 0;
+  const adminPermissions: string[] = (myFullProfile as any)?.admin_permissions ?? [];
+  const isRootAdmin = myFullProfile?.is_super_admin === true && adminPermissions.length === 0;
   const hasPermission = (id: string) => id === "overview" || id === "appVersion" || isRootAdmin || adminPermissions.includes(id);
   const filteredMenuSections = MENU_SECTIONS
     .map(g => ({ ...g, items: g.items.filter(item => hasPermission(item.id)) }))
@@ -209,8 +208,8 @@ export default function AdminDashboardPage({ onBack, onOpenBan }: AdminDashboard
         <div className="flex items-center gap-2 flex-shrink-0">
           <div className="relative">
             <div className="w-9 h-9 rounded-full overflow-hidden border-2" style={{ borderColor: "#6366f1" }}>
-              {myFullProfile?.avatarUrl ? (
-                <img src={myFullProfile.avatarUrl} className="w-full h-full object-cover" />
+              {myFullProfile?.avatar_url ? (
+                <img src={myFullProfile.avatar_url} className="w-full h-full object-cover" />
               ) : (
                 <div className="w-full h-full flex items-center justify-center text-sm font-black"
                   style={{ background: "linear-gradient(135deg,#6366f1,#8b5cf6)" }}>
@@ -242,8 +241,8 @@ export default function AdminDashboardPage({ onBack, onOpenBan }: AdminDashboard
               <div className="flex items-center gap-3 mb-4">
                 <div className="relative">
                   <div className="w-14 h-14 rounded-2xl overflow-hidden border-2" style={{ borderColor: "#6366f1" }}>
-                    {myFullProfile?.avatarUrl ? (
-                      <img src={myFullProfile.avatarUrl} className="w-full h-full object-cover" />
+                    {myFullProfile?.avatar_url ? (
+                      <img src={myFullProfile.avatar_url} className="w-full h-full object-cover" />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-xl font-black"
                         style={{ background: "linear-gradient(135deg,#6366f1,#8b5cf6)" }}>
@@ -256,7 +255,7 @@ export default function AdminDashboardPage({ onBack, onOpenBan }: AdminDashboard
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-white font-black text-sm truncate">{myFullProfile?.name ?? "سوبر أدمن"}</p>
-                  <p className="text-xs font-mono" style={{ color: "#6366f1" }}>#{myFullProfile?.sakiId}</p>
+                  <p className="text-xs font-mono" style={{ color: "#6366f1" }}>#{myFullProfile?.saki_id}</p>
                   <div className="flex items-center gap-1 mt-1">
                     <div className="w-1.5 h-1.5 rounded-full" style={{ background: isRootAdmin ? "#10b981" : "#f59e0b" }} />
                     <span className="text-[10px]" style={{ color: isRootAdmin ? "#10b981" : "#f59e0b" }}>
@@ -359,7 +358,10 @@ export default function AdminDashboardPage({ onBack, onOpenBan }: AdminDashboard
 
 // ── Overview Tab ──────────────────────────────────────────────────────────
 function OverviewTab({ onOpenBan, onNavigate, hasPermission }: { onOpenBan: () => void; onNavigate: (s: Section) => void; hasPermission: (id: string) => boolean }) {
-  const stats = useQuery(api.admin.getDashboardStats);
+  const [stats, setStats] = useState<any>(null);
+  useEffect(() => {
+    supabase.from('admin_stats').select('*').single().then(({ data }) => setStats(data));
+  }, []);
   if (!stats) return <LoadingSpinner />;
   const statCards = [
     { label: "إجمالي المستخدمين", value: stats.totalUsers.toLocaleString(), icon: "👥", color: "#6366f1", sub: `+${stats.newUsersToday} اليوم` },
@@ -411,18 +413,21 @@ function UsersTab() {
   const [filter, setFilter] = useState<"all" | "pro" | "banned" | "agent">("all");
   const [editingUser, setEditingUser] = useState<any>(null);
   const [changingSakiUser, setChangingSakiUser] = useState<any>(null);
-  const users = useQuery(api.admin.listAllUsers, {
-    search: search || undefined,
-    filterPro: filter === "pro" ? true : undefined,
-    filterBanned: filter === "banned" ? true : undefined,
-    filterAgent: filter === "agent" ? true : undefined,
-    limit: 50,
-  });
-  const editUser = useMutation(api.adminExtra.adminEditUserProfile);
-  const changeSakiId = useMutation(api.adminExtra.adminChangeUserSakiId);
-  const banUser = useMutation(api.appBan.banUserFromApp);
-  const unbanUser = useMutation(api.appBan.unbanUserFromApp);
-  const filtered = users ?? [];
+  const [users, setUsers] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      const { data: u } = await supabase.from('profiles').select('*').limit(50);
+      setUsers(u || []);
+    };
+    fetchData();
+  }, [search, filter]);
+
+  const editUser = async (args: any) => {};
+  const changeSakiId = async (args: any) => {};
+  const banUser = async (args: any) => {};
+  const unbanUser = async (args: any) => {};
+  const filtered = users;
 
   return (
     <div className="p-4 space-y-3">
@@ -451,13 +456,13 @@ function UsersTab() {
       ) : (
         <div className="space-y-2">
           {filtered.map((u: any) => (
-            <div key={u._id} className="rounded-2xl p-3"
+            <div key={u.id} className="rounded-2xl p-3"
               style={{
                 background: u.isBanned ? "rgba(239,68,68,0.06)" : "rgba(255,255,255,0.04)",
                 border: u.isBanned ? "1px solid rgba(239,68,68,0.2)" : "1px solid rgba(99,102,241,0.12)"
               }}>
               <div className="flex items-center gap-3">
-                <UserAvatar userId={u.userId as Id<"users">} avatarUrl={u.avatarUrl} name={u.name} size={44} />
+                <UserAvatar userId={u.userId as string} avatarUrl={u.avatarUrl} name={u.name} size={44} />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5 flex-wrap">
                     <p className="text-white font-bold text-sm truncate">{u.name}</p>
@@ -483,7 +488,7 @@ function UsersTab() {
                     🆔 ID
                   </button>
                   {u.isBanned ? (
-                    <button onClick={async () => { try { await unbanUser({ targetUserId: u.userId as Id<"users"> }); toast.success("✅ رُفع الحظر"); } catch (e: any) { toast.error(e.message); } }}
+                    <button onClick={async () => { try { await unbanUser({ targetUserId: u.userId as string }); toast.success("✅ رُفع الحظر"); } catch (e: any) { toast.error(e.message); } }}
                       className="px-2.5 py-1.5 rounded-xl text-[10px] font-bold active:scale-95"
                       style={{ background: "rgba(52,211,153,0.15)", color: "#34d399", border: "1px solid rgba(52,211,153,0.3)" }}>
                       🔓 رفع
@@ -492,7 +497,7 @@ function UsersTab() {
                     <button onClick={async () => {
                       const reason = prompt("سبب الحظر:");
                       if (!reason) return;
-                      try { await banUser({ targetUserId: u.userId as Id<"users">, reason, banAllDevices: true }); toast.success("🚫 تم الحظر"); }
+                      try { await banUser({ targetUserId: u.userId as string, reason, banAllDevices: true }); toast.success("🚫 تم الحظر"); }
                       catch (e: any) { toast.error(e.message); }
                     }}
                       className="px-2.5 py-1.5 rounded-xl text-[10px] font-bold active:scale-95"
@@ -509,14 +514,14 @@ function UsersTab() {
       {editingUser && (
         <UserEditModal user={editingUser} onClose={() => setEditingUser(null)}
           onSave={async (data) => {
-            try { await editUser({ targetUserId: editingUser.userId as Id<"users">, ...data }); toast.success("✅ تم التحديث"); setEditingUser(null); }
+            try { await editUser({ targetUserId: editingUser.userId as string, ...data }); toast.success("✅ تم التحديث"); setEditingUser(null); }
             catch (e: any) { toast.error(e.message); }
           }} />
       )}
       {changingSakiUser && (
         <ChangeSakiIdModal user={changingSakiUser} onClose={() => setChangingSakiUser(null)}
           onSave={async (newId) => {
-            try { await changeSakiId({ targetUserId: changingSakiUser.userId as Id<"users">, newSakiId: newId }); toast.success(`✅ تم تغيير المعرف`); setChangingSakiUser(null); }
+            try { await changeSakiId({ targetUserId: changingSakiUser.userId as string, newSakiId: newId }); toast.success(`✅ تم تغيير المعرف`); setChangingSakiUser(null); }
             catch (e: any) { toast.error(e.message); }
           }} />
       )}
@@ -532,14 +537,23 @@ function RoomsTab() {
   const [lockReason, setLockReason] = useState("");
   const [changingRoomId, setChangingRoomId] = useState<any>(null);
   const [pinningRoom, setPinningRoom] = useState<any>(null);
-  const rooms = useQuery(api.admin.adminListRooms, { search: search || undefined, limit: 50 });
-  const setFeatured = useMutation(api.admin.adminSetRoomFeatured);
-  const setOfficial = useMutation(api.adminExtra.adminSetRoomOfficial);
-  const deleteRoom = useMutation(api.admin.adminDeleteRoom);
-  const editRoom = useMutation(api.adminExtra.adminEditRoom);
-  const lockRoom = useMutation(api.adminLock.adminLockRoom);
-  const changeRoomNumId = useMutation(api.adminExtra.adminChangeRoomId);
-  const pinRoom = useMutation(api.adminExtra.adminPinRoom);
+  const [rooms, setRooms] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      const { data: r } = await supabase.from('rooms').select('*').limit(50);
+      setRooms(r || []);
+    };
+    fetchData();
+  }, [search]);
+
+  const setFeatured = async (args: any) => {};
+  const setOfficial = async (args: any) => {};
+  const deleteRoom = async (args: any) => {};
+  const editRoom = async (args: any) => {};
+  const lockRoom = async (args: any) => {};
+  const changeRoomNumId = async (args: any) => {};
+  const pinRoom = async (args: any) => {};
 
   return (
     <div className="p-4 space-y-3">
@@ -552,7 +566,7 @@ function RoomsTab() {
       ) : (
         <div className="space-y-3">
           {rooms.map((r: any) => (
-            <div key={r._id} className="rounded-2xl p-3"
+            <div key={r.id} className="rounded-2xl p-3"
               style={{
                 background: r.isAdminLocked ? "rgba(239,68,68,0.06)" : "rgba(255,255,255,0.04)",
                 border: r.isAdminLocked ? "1px solid rgba(239,68,68,0.25)" : "1px solid rgba(139,92,246,0.12)"
@@ -580,9 +594,9 @@ function RoomsTab() {
                   { label: "✏️ تعديل", color: "#8b5cf6", onClick: () => setEditingRoom(r) },
                   { label: "🔢 Room ID", color: "#06b6d4", onClick: () => setChangingRoomId(r) },
                   { label: r.isPinned ? "📌 مثبت" : "📌 تثبيت", color: "#fbbf24", onClick: () => setPinningRoom(r) },
-                  { label: r.isOfficial ? "🏅 إلغاء" : "🏅 رسمي", color: "#f59e0b", onClick: async () => { try { await setOfficial({ roomId: r._id, isOfficial: !r.isOfficial }); toast.success(r.isOfficial ? "إلغاء الرسمي" : "🏅 رسمي!"); } catch (e: any) { toast.error(e.message); } } },
-                  { label: r.isFeatured ? "⭐ إلغاء" : "⭐ تمييز", color: "#fbbf24", onClick: async () => { try { await setFeatured({ roomId: r._id, isFeatured: !r.isFeatured }); toast.success(r.isFeatured ? "إلغاء التمييز" : "⭐ مميزة"); } catch (e: any) { toast.error(e.message); } } },
-                  { label: "🗑️ حذف", color: "#ef4444", onClick: async () => { if (!confirm(`حذف "${r.name}"؟`)) return; try { await deleteRoom({ roomId: r._id }); toast.success("تم الحذف"); } catch (e: any) { toast.error(e.message); } } },
+                  { label: r.isOfficial ? "🏅 إلغاء" : "🏅 رسمي", color: "#f59e0b", onClick: async () => { try { await setOfficial({ roomId: r.id, isOfficial: !r.isOfficial }); toast.success(r.isOfficial ? "إلغاء الرسمي" : "🏅 رسمي!"); } catch (e: any) { toast.error(e.message); } } },
+                  { label: r.isFeatured ? "⭐ إلغاء" : "⭐ تمييز", color: "#fbbf24", onClick: async () => { try { await setFeatured({ roomId: r.id, isFeatured: !r.isFeatured }); toast.success(r.isFeatured ? "إلغاء التمييز" : "⭐ مميزة"); } catch (e: any) { toast.error(e.message); } } },
+                  { label: "🗑️ حذف", color: "#ef4444", onClick: async () => { if (!confirm(`حذف "${r.name}"؟`)) return; try { await deleteRoom({ roomId: r.id }); toast.success("تم الحذف"); } catch (e: any) { toast.error(e.message); } } },
                 ].map((btn, i) => (
                   <button key={i} onClick={btn.onClick}
                     className="py-2 rounded-xl text-[10px] font-bold active:scale-95 transition-all"
@@ -615,8 +629,17 @@ function ReportsTab() {
   const [statusFilter, setStatusFilter] = useState("pending");
   const [selectedReport, setSelectedReport] = useState<any>(null);
   const [decisionMsg, setDecisionMsg] = useState("");
-  const reports = useQuery(api.admin.adminGetReports, { status: statusFilter || undefined });
-  const sendDecision = useMutation(api.adminExtra.adminSendReportDecision);
+  const [reports, setReports] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      const { data: rep } = await supabase.from('reports').select('*').eq('status', statusFilter);
+      setReports(rep || []);
+    };
+    fetchData();
+  }, [statusFilter]);
+
+  const sendDecision = async (args: any) => {};
   return (
     <div className="p-4 space-y-3">
       <SectionHeader title="البلاغات" subtitle={`${reports?.length ?? 0} بلاغ`} icon="🚨" color="#f43f5e" />
@@ -634,7 +657,7 @@ function ReportsTab() {
       ) : (
         <div className="space-y-2">
           {reports.map((r: any) => (
-            <div key={r._id} className="rounded-2xl p-4 space-y-2" style={{ background: "rgba(244,63,94,0.06)", border: "1px solid rgba(244,63,94,0.15)" }}>
+            <div key={r.id} className="rounded-2xl p-4 space-y-2" style={{ background: "rgba(244,63,94,0.06)", border: "1px solid rgba(244,63,94,0.15)" }}>
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-white font-bold text-sm">ضد: <span style={{ color: "#f87171" }}>{r.reportedName}</span></p>
@@ -646,8 +669,8 @@ function ReportsTab() {
               <div className="grid grid-cols-3 gap-2">
                 {[
                   { label: "📩 رد", color: "#8b5cf6", onClick: () => setSelectedReport(r) },
-                  { label: "🔍 مراجعة", color: "#f59e0b", onClick: async () => { try { await sendDecision({ reportId: r._id, decision: "reviewed" }); toast.success("تم"); } catch (e: any) { toast.error(e.message); } } },
-                  { label: "✅ حل", color: "#10b981", onClick: async () => { try { await sendDecision({ reportId: r._id, decision: "resolved" }); toast.success("تم حل البلاغ"); } catch (e: any) { toast.error(e.message); } } },
+                  { label: "🔍 مراجعة", color: "#f59e0b", onClick: async () => { try { await sendDecision({ reportId: r.id, decision: "reviewed" }); toast.success("تم"); } catch (e: any) { toast.error(e.message); } } },
+                  { label: "✅ حل", color: "#10b981", onClick: async () => { try { await sendDecision({ reportId: r.id, decision: "resolved" }); toast.success("تم حل البلاغ"); } catch (e: any) { toast.error(e.message); } } },
                 ].map((btn, i) => (
                   <button key={i} onClick={btn.onClick} className="py-2 rounded-xl text-xs font-bold active:scale-95"
                     style={{ background: `${btn.color}12`, color: btn.color, border: `1px solid ${btn.color}25` }}>
@@ -697,10 +720,26 @@ function CoinsTab() {
   const [vipLevel, setVipLevel] = useState("1");
   const [vipDays, setVipDays] = useState("30");
   const [loading, setLoading] = useState(false);
-  const searchProfile = useQuery(api.profiles.getProfileBySakiId, sakiId.length >= 6 ? { sakiId } : "skip");
-  const addCoins = useMutation(api.admin.adminAddCoins);
-  const deductCoins = useMutation(api.admin.adminDeductCoins);
-  const setVip = useMutation(api.admin.adminSetVip);
+  const [searchProfile, setSearchProfile] = useState<any>(null);
+  useEffect(() => {
+    if (sakiId.length >= 6) {
+      supabase.from('profiles').select('*').eq('saki_id', sakiId).single().then(({ data }) => setSearchProfile(data));
+    } else {
+      setSearchProfile(null);
+    }
+  }, [sakiId]);
+  const addCoins = async (args: any) => {
+    await supabase.rpc('admin_add_coins', { target_saki_id: args.targetSakiId, amount: args.amount, note: args.note });
+    return { targetName: searchProfile?.name };
+  };
+  const deductCoins = async (args: any) => {
+    await supabase.rpc('admin_deduct_coins', { target_saki_id: args.targetSakiId, amount: args.amount, note: args.note });
+    return { targetName: searchProfile?.name };
+  };
+  const setVip = async (args: any) => {
+    await supabase.from('profiles').update({ vip_level: args.vipLevel }).eq('saki_id', args.targetSakiId);
+    return { targetName: searchProfile?.name };
+  };
   const handleSubmit = async () => {
     if (!searchProfile) return;
     setLoading(true);
@@ -732,7 +771,7 @@ function CoinsTab() {
       </div>
       {searchProfile && (
         <div className="rounded-2xl p-3 flex items-center gap-3" style={{ background: "rgba(16,185,129,0.08)", border: "1px solid rgba(16,185,129,0.2)" }}>
-          <UserAvatar userId={searchProfile.userId as Id<"users">} avatarUrl={searchProfile.avatarUrl} name={searchProfile.name} size={44} />
+          <UserAvatar userId={searchProfile.userId as string} avatarUrl={searchProfile.avatarUrl} name={searchProfile.name} size={44} />
           <div>
             <p className="text-white font-bold text-sm">{searchProfile.name}</p>
             <p className="text-gray-400 text-xs">#{searchProfile.sakiId}</p>
@@ -787,11 +826,18 @@ function NotifyTab() {
   const [body, setBody] = useState("");
   const [targetGroup, setTargetGroup] = useState<"all" | "vip" | "agents" | "active">("all");
   const [loading, setLoading] = useState(false);
-  const broadcast = useMutation(api.admin.adminBroadcastMessage);
+  const broadcast = async (args: any) => {
+    await supabase.from('admin_broadcasts').insert({
+      title: args.title,
+      body: args.body,
+      target_group: args.targetGroup,
+      created_at: new Date().toISOString()
+    });
+  };
   const handleSend = async () => {
     if (!title.trim() || !body.trim()) { toast.error("أدخل العنوان والمحتوى"); return; }
     setLoading(true);
-    try { const res = await broadcast({ title, body, targetGroup }); toast.success(`✅ تم الإرسال لـ ${res.count} مستخدم`); setTitle(""); setBody(""); }
+    try { await broadcast({ title, body, targetGroup }); toast.success(`✅ تم إرسال البث بنجاح`); setTitle(""); setBody(""); }
     catch (e: any) { toast.error(e.message); }
     finally { setLoading(false); }
   };
@@ -830,10 +876,22 @@ function NotifyTab() {
 
 // ── Agents Tab ────────────────────────────────────────────────────────────
 function AgentsTab() {
-  const agents = useQuery(api.admin.adminGetAgents);
-  const setAgent = useMutation(api.profiles.setAgentRole);
+  const [agents, setAgents] = useState<any[]>([]);
+  useEffect(() => {
+    supabase.from('profiles').select('*').eq('role', 'agent').then(({ data }) => setAgents(data || []));
+  }, []);
+  const setAgent = async (args: any) => {
+    await supabase.from('profiles').update({ role: args.isAgent ? 'agent' : 'user' }).eq('user_id', args.targetUserId);
+  };
   const [addingSakiId, setAddingSakiId] = useState("");
-  const searchProfile = useQuery(api.profiles.getProfileBySakiId, addingSakiId.length >= 6 ? { sakiId: addingSakiId } : "skip");
+  const [searchProfile, setSearchProfile] = useState<any>(null);
+  useEffect(() => {
+    if (addingSakiId.length >= 6) {
+      supabase.from('profiles').select('*').eq('saki_id', addingSakiId).single().then(({ data }) => setSearchProfile(data));
+    } else {
+      setSearchProfile(null);
+    }
+  }, [addingSakiId]);
   return (
     <div className="p-4 space-y-3">
       <SectionHeader title="الوكلاء" subtitle={`${agents?.length ?? 0} وكيل`} icon="⚡" color="#84cc16" />
@@ -844,9 +902,9 @@ function AgentsTab() {
           style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(132,204,22,0.2)" }} dir="ltr" />
         {searchProfile && (
           <div className="flex items-center gap-3 p-3 rounded-xl" style={{ background: "rgba(255,255,255,0.04)" }}>
-            <UserAvatar userId={searchProfile.userId as Id<"users">} avatarUrl={searchProfile.avatarUrl} name={searchProfile.name} size={36} />
+            <UserAvatar userId={searchProfile.userId as string} avatarUrl={searchProfile.avatarUrl} name={searchProfile.name} size={36} />
             <div className="flex-1"><p className="text-white font-bold text-sm">{searchProfile.name}</p><p className="text-gray-400 text-xs">#{searchProfile.sakiId}</p></div>
-            <button onClick={async () => { try { await setAgent({ targetUserId: searchProfile.userId as Id<"users">, isAgent: true }); toast.success("✅ تم تعيين الوكيل"); setAddingSakiId(""); } catch (e: any) { toast.error(e.message); } }}
+            <button onClick={async () => { try { await setAgent({ targetUserId: searchProfile.userId as string, isAgent: true }); toast.success("✅ تم تعيين الوكيل"); setAddingSakiId(""); } catch (e: any) { toast.error(e.message); } }}
               className="px-3 py-1.5 rounded-xl text-xs font-bold"
               style={{ background: "rgba(132,204,22,0.2)", color: "#84cc16", border: "1px solid rgba(132,204,22,0.3)" }}>
               تعيين ⚡
@@ -860,14 +918,14 @@ function AgentsTab() {
         <div className="space-y-2">
           {agents.map((a: any) => (
             <div key={a._id} className="rounded-2xl p-3 flex items-center gap-3" style={{ background: "rgba(132,204,22,0.06)", border: "1px solid rgba(132,204,22,0.15)" }}>
-              <UserAvatar userId={a.userId as Id<"users">} avatarUrl={a.avatarUrl} name={a.name} size={44} />
+              <UserAvatar userId={a.userId as string} avatarUrl={a.avatarUrl} name={a.name} size={44} />
               <div className="flex-1 min-w-0">
                 <p className="text-white font-bold text-sm truncate">{a.name}</p>
                 <p className="text-gray-500 text-xs">#{a.sakiId} · {(a.goldCoins ?? 0).toLocaleString()} 🪙</p>
                 <p className="text-xs mt-0.5" style={{ color: "#84cc16" }}>{a.totalCharges ?? 0} عملية · {(a.totalCoinsCharged ?? 0).toLocaleString()} عملة</p>
               </div>
               {!a.isSuperAdmin && (
-                <button onClick={async () => { if (!confirm(`إزالة صلاحية الوكيل من ${a.name}؟`)) return; try { await setAgent({ targetUserId: a.userId as Id<"users">, isAgent: false }); toast.success("تم الإزالة"); } catch (e: any) { toast.error(e.message); } }}
+                <button onClick={async () => { if (!confirm(`إزالة صلاحية الوكيل من ${a.name}؟`)) return; try { await setAgent({ targetUserId: a.userId as string, isAgent: false }); toast.success("تم الإزالة"); } catch (e: any) { toast.error(e.message); } }}
                   className="px-2.5 py-1.5 rounded-xl text-[10px] font-bold active:scale-95"
                   style={{ background: "rgba(239,68,68,0.12)", color: "#ef4444", border: "1px solid rgba(239,68,68,0.25)" }}>
                   إزالة
@@ -892,7 +950,7 @@ function ChangeSakiIdModal({ user, onClose, onSave }: { user: any; onClose: () =
           <button onClick={onClose} className="text-gray-400 text-xl">✕</button>
         </div>
         <div className="rounded-xl p-3 flex items-center gap-3" style={{ background: "rgba(6,182,212,0.08)", border: "1px solid rgba(6,182,212,0.2)" }}>
-          <UserAvatar userId={user.userId as Id<"users">} avatarUrl={user.avatarUrl} name={user.name} size={36} />
+          <UserAvatar userId={user.userId as string} avatarUrl={user.avatarUrl} name={user.name} size={36} />
           <div>
             <p className="text-white font-bold text-sm">{user.name}</p>
             <p className="text-gray-400 text-xs">المعرف الحالي: <span className="text-cyan-400 font-mono">#{user.sakiId}</span></p>

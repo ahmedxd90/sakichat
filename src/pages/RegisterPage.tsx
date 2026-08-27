@@ -13,10 +13,19 @@ interface RegisterPageProps {
 
 // مكوّن التحقق من كود الدعوة
 function ReferralCodeChecker({ code }: { code: string }) {
-  const result = useQuery(
-    api.referrals.validateReferralCode,
-    code.length >= 4 ? { code } : "skip"
-  );
+  const [result, setResult] = useState<any>(null);
+
+  useEffect(() => {
+    if (code.length >= 4) {
+      const validate = async () => {
+        const { data } = await supabase.from('profiles').select('name').eq('saki_id', code).single();
+        if (data) setResult({ valid: true, referrerName: data.name });
+        else setResult(null);
+      };
+      validate();
+    }
+  }, [code]);
+
   if (!result && code.length >= 4) {
     return <p className="text-xs mt-1" style={{ color: "#ef4444" }}>كود الدعوة غير صحيح</p>;
   }

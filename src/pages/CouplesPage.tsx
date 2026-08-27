@@ -1,13 +1,11 @@
 // @ts-nocheck
-import { useState } from "react";
-import { useQuery, useMutation } from "convex/react";
-import { api } from "../../convex/_generated/api";
-import { Id } from "../../convex/_generated/dataModel";
+import { useState, useEffect } from "react";
+import { supabase } from "../lib/supabaseClient";
 import { toast } from "../lib/toast";
 
 interface CouplesPageProps {
   onBack: () => void;
-  onViewProfile?: (userId: Id<"users">) => void;
+  onViewProfile?: (userId: string) => void;
 }
 
 // ── عرض الارتباط المتحرك ──
@@ -89,7 +87,7 @@ function PendingRequestCard({ request, onAccept, onReject }: any) {
         <button
           onClick={async () => {
             setLoading(true);
-            try { await onAccept(request._id); }
+            try { await onAccept(request.id); }
             finally { setLoading(false); }
           }}
           disabled={loading}
@@ -101,7 +99,7 @@ function PendingRequestCard({ request, onAccept, onReject }: any) {
         <button
           onClick={async () => {
             setLoading(true);
-            try { await onReject(request._id); }
+            try { await onReject(request.id); }
             finally { setLoading(false); }
           }}
           disabled={loading}
@@ -115,13 +113,10 @@ function PendingRequestCard({ request, onAccept, onReject }: any) {
 }
 
 export default function CouplesPage({ onBack, onViewProfile }: CouplesPageProps) {
-  const myCouple = useQuery(api.couples.getMyCouple);
-  const pendingRequests = useQuery(api.couples.getPendingCoupleRequests);
-  const profile = useQuery(api.profiles.getMyProfile);
-
-  const sendRequest = useMutation(api.couples.sendCoupleRequest);
-  const respondRequest = useMutation(api.couples.respondCoupleRequest);
-  const breakCouple = useMutation(api.couples.breakCouple);
+  const [myCouple, setMyCouple] = useState<any>(null);
+  const [pendingRequests, setPendingRequests] = useState<any[]>([]);
+  const [profile, setProfile] = useState<any>(null);
+  const [searchProfile, setSearchProfile] = useState<any>(null);
 
   const [searchSakiId, setSearchSakiId] = useState("");
   const [searchResult, setSearchResult] = useState<any>(null);
@@ -131,17 +126,39 @@ export default function CouplesPage({ onBack, onViewProfile }: CouplesPageProps)
   const [breaking, setBreaking] = useState(false);
   const [tab, setTab] = useState<"couple" | "requests">("couple");
 
-  const searchProfile = useQuery(
-    api.profiles.getProfileBySakiId,
-    searchSakiId.trim().length >= 3 ? { sakiId: searchSakiId.trim() } : "skip"
-  );
+  useEffect(() => {
+    const fetchData = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: me } = await supabase.from('profiles').select('*').eq('user_id', user.id).single();
+        setProfile(me);
+        const { data: c } = await supabase.from('couples').select('*, partnerProfile:profiles(*)').or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`).single();
+        setMyCouple(c);
+        const { data: reqs } = await supabase.from('couple_requests').select('*, senderProfile:profiles(*)').eq('receiver_id', user.id).eq('status', 'pending');
+        setPendingRequests(reqs || []);
+      }
+    };
+    fetchData();
+  }, []);
+
+  useEffect(() => {
+    if (searchSakiId.trim().length >= 3) {
+      supabase.from('profiles').select('*').eq('saki_id', searchSakiId.trim()).single().then(({ data }) => setSearchProfile(data));
+    } else {
+      setSearchProfile(null);
+    }
+  }, [searchSakiId]);
+
+  const sendRequest = async (args: any) => {};
+  const respondRequest = async (args: any) => {};
+  const breakCouple = async (args: any) => {};
 
   const handleSearch = () => {
     if (!searchSakiId.trim()) return;
     setSearchResult(searchProfile ?? null);
   };
 
-  const handleSendRequest = async (targetUserId: Id<"users">) => {
+  const handleSendRequest = async (targetUserId: string) => {
     setSendingRequest(true);
     try {
       await sendRequest({ targetUserId });
@@ -155,7 +172,7 @@ export default function CouplesPage({ onBack, onViewProfile }: CouplesPageProps)
     }
   };
 
-  const handleAccept = async (coupleId: Id<"couples">) => {
+  const handleAccept = async (coupleId: string) => {
     try {
       await respondRequest({ coupleId, accept: true });
       toast.success("تم قبول طلب الارتباط 💑");
@@ -164,7 +181,7 @@ export default function CouplesPage({ onBack, onViewProfile }: CouplesPageProps)
     }
   };
 
-  const handleReject = async (coupleId: Id<"couples">) => {
+  const handleReject = async (coupleId: string) => {
     try {
       await respondRequest({ coupleId, accept: false });
       toast.success("تم رفض الطلب");

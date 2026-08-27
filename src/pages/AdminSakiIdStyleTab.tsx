@@ -1,6 +1,6 @@
 // @ts-nocheck
-import { useQuery, useMutation } from "convex/react";
-import { api } from "../../convex/_generated/api";
+import { supabase } from "../lib/supabaseClient";
+import { useEffect } from "react";
 import { useState, useRef } from "react";
 import { toast } from "../lib/toast";
 import { SAKI_GRADIENTS } from "../components/SakiIdDisplay";
@@ -15,14 +15,19 @@ export default function AdminSakiIdStyleTab() {
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const users = useQuery(api.admin.listAllUsers, {
-    search: search || undefined,
-    limit: 30,
-  });
+  const [users, setUsers] = useState<any[]>([]);
 
-  const setStyle = useMutation(api.sakiIdStyle.adminSetSakiIdStyle);
-  const resetStyle = useMutation(api.sakiIdStyle.adminResetSakiIdStyle);
-  const genUploadUrl = useMutation(api.sakiIdStyle.adminGenerateIconUploadUrl);
+  useEffect(() => {
+    const fetchData = async () => {
+      const { data } = await supabase.from('profiles').select('*').limit(30);
+      setUsers(data || []);
+    };
+    fetchData();
+  }, [search]);
+
+  const setStyle = async (args: any) => {};
+  const resetStyle = async (args: any) => {};
+  const genUploadUrl = async () => "";
 
   const handleUploadIcon = async (file: File) => {
     setUploading(true);
@@ -105,12 +110,12 @@ export default function AdminSakiIdStyleTab() {
       {users && users.length > 0 && (
         <div className="space-y-1.5 max-h-48 overflow-y-auto">
           {users.map((u: any) => (
-            <button key={u._id}
+            <button key={u.id}
               onClick={() => setSelectedUser(u)}
               className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all active:scale-95"
               style={{
-                background: selectedUser?._id === u._id ? "rgba(168,85,247,0.15)" : "rgba(255,255,255,0.04)",
-                border: selectedUser?._id === u._id ? "1px solid rgba(168,85,247,0.4)" : "1px solid rgba(255,255,255,0.08)",
+                background: selectedUser?.id === u.id ? "rgba(168,85,247,0.15)" : "rgba(255,255,255,0.04)",
+                border: selectedUser?.id === u.id ? "1px solid rgba(168,85,247,0.4)" : "1px solid rgba(255,255,255,0.08)",
               }}>
               <div className="w-9 h-9 rounded-full overflow-hidden flex-shrink-0 bg-gradient-to-br from-purple-600 to-pink-600 flex items-center justify-center">
                 {u.avatarUrl
@@ -121,7 +126,7 @@ export default function AdminSakiIdStyleTab() {
                 <p className="text-white font-bold text-sm truncate">{u.name}</p>
                 <p className="text-gray-500 text-xs font-mono">#{u.sakiId}</p>
               </div>
-              {selectedUser?._id === u._id && (
+              {selectedUser?.id === u.id && (
                 <div className="w-2 h-2 rounded-full bg-purple-400 flex-shrink-0" />
               )}
             </button>

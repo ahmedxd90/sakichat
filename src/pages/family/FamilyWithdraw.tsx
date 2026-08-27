@@ -1,7 +1,6 @@
 // @ts-nocheck
-import { useState } from "react";
-import { useMutation, useQuery } from "convex/react";
-import { api } from "../../../convex/_generated/api";
+import { useState, useEffect } from "react";
+import { supabase } from "../../lib/supabaseClient";
 import { toast } from "../../lib/toast";
 import { WITHDRAW_TIERS } from "./familyUtils";
 
@@ -11,9 +10,23 @@ interface Props {
 }
 
 export default function FamilyWithdraw({ myDiamonds, onBack }: Props) {
-  const agentsList  = useQuery(api.families.listAgentsForFamily);
-  const wdHistory   = useQuery(api.families.getMyWithdrawalHistory);
-  const withdrawMut = useMutation(api.families.withdrawDiamondsToAgent);
+  const [agentsList, setAgentsList] = useState<any[]>([]);
+  const [wdHistory, setWdHistory] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: ags } = await supabase.from('agents').select('*, profiles(*)');
+        setAgentsList(ags?.map(a => ({ ...a.profiles, sakiId: a.profiles.saki_id })) || []);
+        const { data: hist } = await supabase.from('family_withdrawals').select('*').eq('user_id', user.id).order('created_at', { ascending: false });
+        setWdHistory(hist || []);
+      }
+    };
+    fetchData();
+  }, []);
+
+  const withdrawMut = async (args: any) => ({ agentName: "وكيل" });
 
   const [wAgent, setWAgent] = useState("");
   const [wAmt, setWAmt]     = useState(0);
@@ -120,10 +133,10 @@ export default function FamilyWithdraw({ myDiamonds, onBack }: Props) {
                   <div className="space-y-2">
                     <p className="text-gray-400 text-xs font-bold">الوكلاء المتاحون</p>
                     {agentsList.map(ag => (
-                      <button key={ag._id} onClick={() => setWAgent(ag.sakiId)}
+                      <button key={ag.id} onClick={() => setWAgent(ag.sakiId)}
                         className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all active:scale-[0.98] ${wAgent===ag.sakiId?"border-2 border-purple-500 bg-purple-500/10":"bg-white/5 border border-white/10"}`}>
                         <div className="w-10 h-10 rounded-full overflow-hidden bg-gradient-to-br from-green-600 to-emerald-700 flex items-center justify-center flex-shrink-0">
-                          {ag.avatarUrl ? <img src={ag.avatarUrl} alt="" className="w-full h-full object-cover"/> : <span className="text-white font-bold">{ag.name?.[0]}</span>}
+                          {ag.avatar_url ? <img src={ag.avatar_url} alt="" className="w-full h-full object-cover"/> : <span className="text-white font-bold">{ag.name?.[0]}</span>}
                         </div>
                         <div className="flex-1 text-right"><p className="text-white text-sm font-bold">{ag.name}</p><p className="text-gray-500 text-xs font-mono">#{ag.sakiId}</p></div>
                         <span className="text-[10px] bg-green-500/20 border border-green-500/30 text-green-400 px-2 py-0.5 rounded-full font-bold flex-shrink-0">وكيل</span>
@@ -145,9 +158,9 @@ export default function FamilyWithdraw({ myDiamonds, onBack }: Props) {
               <div className="space-y-2">
                 <p className="text-gray-400 text-xs font-bold">📋 سجل السحب</p>
                 {wdHistory.slice(0,5).map(w => (
-                  <div key={w._id} className="bg-white/5 border border-white/8 rounded-2xl px-4 py-3 flex items-center gap-3">
+                  <div key={w.id} className="bg-white/5 border border-white/8 rounded-2xl px-4 py-3 flex items-center gap-3">
                     <div className="w-8 h-8 rounded-xl bg-purple-500/20 flex items-center justify-center flex-shrink-0"><span className="text-sm">💎</span></div>
-                    <div className="flex-1 min-w-0"><p className="text-white text-xs font-bold">{w.diamonds.toLocaleString()} ماسة → {w.agentName}</p><p className="text-gray-500 text-[10px]">{new Date(w.createdAt).toLocaleDateString("ar")}</p></div>
+                    <div className="flex-1 min-w-0"><p className="text-white text-xs font-bold">{w.diamonds.toLocaleString()} ماسة → {w.agentName}</p><p className="text-gray-500 text-[10px]">{new Date(w.created_at).toLocaleDateString("ar")}</p></div>
                     <p className="text-green-400 text-xs font-bold">${(w.diamonds/120000*10).toFixed(0)}</p>
                   </div>
                 ))}
