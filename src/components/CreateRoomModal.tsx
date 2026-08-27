@@ -34,7 +34,10 @@ export default function CreateRoomModal({ onClose }: CreateRoomModalProps) {
       toast.success("تم إنشاء الغرفة!");
       onClose();
     } catch (e: any) {
-      toast.error(e.message || "حدث خطأ");
+      const message = e?.code === "42501"
+        ? "لا تملك صلاحية إنشاء الغرفة بهذا الحساب"
+        : e?.message || "تعذر إنشاء الغرفة، حاول مرة أخرى";
+      toast.error(message);
     } finally {
       setLoading(false);
     }

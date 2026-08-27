@@ -42,6 +42,9 @@ export default function CreateRoomPage({ onBack, onSuccess }: CreateRoomPageProp
     if (!profile) return toast.error("يجب تسجيل الدخول أولاً");
     setLoading(true);
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("يجب تسجيل الدخول أولاً");
+
       let coverUrl = profile.avatar_url || "";
       if (coverFile) {
         const fileExt = coverFile.name.split('.').pop();
@@ -59,7 +62,7 @@ export default function CreateRoomPage({ onBack, onSuccess }: CreateRoomPageProp
         .from('rooms')
         .insert([
           {
-            owner_id: profile.user_id,
+            owner_id: user.id,
             name: name.trim(),
             country: autoCountry || "SA",
             cover_url: coverUrl,
@@ -73,7 +76,10 @@ export default function CreateRoomPage({ onBack, onSuccess }: CreateRoomPageProp
       toast.success("تم إنشاء الغرفة بنجاح! 🎉");
       onSuccess(data.id);
     } catch (e: any) {
-      toast.error(e.message || "حدث خطأ");
+      const message = e?.code === "42501"
+        ? "لا تملك صلاحية إنشاء الغرفة بهذا الحساب"
+        : e?.message || "تعذر إنشاء الغرفة، حاول مرة أخرى";
+      toast.error(message);
     } finally {
       setLoading(false);
     }
