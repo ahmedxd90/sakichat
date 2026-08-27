@@ -63,7 +63,7 @@ export default function CreateRoomPage({ onBack, onSuccess }: CreateRoomPageProp
             name: name.trim(),
             country: autoCountry || "SA",
             cover_url: coverUrl,
-            seats_count: seats,
+            max_seats: seats,
           }
         ])
         .select()
