@@ -1,12 +1,9 @@
-import { useAuthActions } from "@convex-dev/auth/react";
+
 import { Capacitor } from "@capacitor/core";
 import { useState, useRef, useEffect, useMemo } from "react";
 import { toast } from "../lib/toast";
-import { useMutation } from "convex/react";
 import { Browser } from "@capacitor/browser";
-import { Http } from "@capacitor-community/http";
-import { api } from "../../convex/_generated/api";
-import { CONVEX_AUTH_OAUTH_VERIFIER_STORAGE_KEY, convexUrl } from "../lib/convexClient";
+import { supabase } from "../lib/supabaseClient";
 import { ARAB_COUNTRIES } from "../data/countries";
 import { useDeviceFingerprint } from "../hooks/useDeviceFingerprint";
 
@@ -419,7 +416,6 @@ function withOAuthTimeout<T>(promise: Promise<T>, timeoutMs = 12000) {
 }
 
 export default function LoginPage() {
-  const { signIn } = useAuthActions();
   const [showRegister, setShowRegister] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -447,40 +443,23 @@ export default function LoginPage() {
     setOauthDiagnostics({ stage: "تم الضغط على زر Google" });
     setSubmitting(true);
     try {
-      if (Capacitor.getPlatform() === "android") {
-        // Android uses the browser OAuth flow. Ask Convex for its signed,
-        // stateful redirect first, save the verifier, then open Chrome.
-        const redirectTo = "saki.chat.co://callback";
-        setOauthDiagnostics({ stage: "جاري الاتصال بخادم تسجيل الدخول", message: `سيتم استخدام رابط العودة ${redirectTo}` });
-        const response = await withOAuthTimeout(Http.post({
-          url: `${convexUrl}/api/action`,
-          headers: {
-            "Content-Type": "application/json",
-            "Accept": "application/json",
-            "User-Agent": "SakiChat-Android-OAuth",
-            "Convex-Client": "saki-android-oauth",
-          },
-          params: {},
-          data: {
-            path: "auth:signIn",
-            format: "convex_encoded_json",
-            args: [{ provider: "google", params: { redirectTo } }],
-          },
-          connectTimeout: 15000,
-          readTimeout: 15000,
-          responseType: "text",
-        }), 18000);
-        const payload = typeof response.data === "string" ? JSON.parse(response.data) : response.data;
-        if (response.status < 200 || response.status >= 300 || payload?.status !== "success") {
-          throw new Error(payload?.errorMessage || `Convex OAuth HTTP ${response.status}`);
+      const redirectTo = Capacitor.getPlatform() === "android" 
+        ? "saki.chat.co://callback" 
+        : window.location.origin;
+
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo,
+          queryParams: {
+            prompt: 'select_account'
+          }
         }
-        const result = payload.value;
-        if (!result?.redirect || !result.verifier) throw new Error("OAuth redirect was not created");
-        localStorage.setItem(CONVEX_AUTH_OAUTH_VERIFIER_STORAGE_KEY, result.verifier);
-        setOauthDiagnostics({ stage: "تم إنشاء رابط Google", message: "جاري فتح Chrome لاختيار الحساب." });
-        await withOAuthTimeout(Browser.open({ url: String(result.redirect) }), 10000);
-      } else {
-        await signIn("google", { redirectTo: window.location.origin });
+      });
+
+      if (error) throw error;
+      if (data?.url) {
+        await withOAuthTimeout(Browser.open({ url: data.url }), 10000);
       }
     } catch (err: any) {
       const rawDetails = describeOAuthError(err);
@@ -517,15 +496,15 @@ export default function LoginPage() {
     e.preventDefault();
     if (!email.trim() || !password.trim()) return;
     setSubmitting(true);
-    const formData = new FormData();
-    formData.set("email", email);
-    formData.set("password", password);
-    formData.set("flow", "signIn");
     try {
-      await signIn("password", formData);
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+      if (error) throw error;
     } catch (err: any) {
       const msg = err?.message ?? "";
-      if (msg.includes("Invalid password")) toast.error("كلمة المرور غير صحيحة");
+      if (msg.includes("Invalid login credentials")) toast.error("البريد الإلكتروني أو كلمة المرور غير صحيحة");
       else toast.error("تعذّر تسجيل الدخول، تحقق من البيانات");
       setSubmitting(false);
     }

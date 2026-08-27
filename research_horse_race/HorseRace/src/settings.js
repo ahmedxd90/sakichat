@@ -1,0 +1,1 @@
+window._CCSettings={platform:"web-mobile",groupList:["default"],collisionMatrix:[[true]],hasResourcesBundle:true,hasStartSceneBundle:false,remoteBundles:[],subpackages:[],launchScene:"db://assets/scene/game.fire",orientation:"portrait",jsList:["libs-/lib/js/base64_.js","libs-/lib/js/index.min.js","libs-/lib/js/moment_.js"]};

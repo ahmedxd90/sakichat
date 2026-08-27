@@ -25,6 +25,7 @@
     "@convex-dev/auth": "^0.0.80",
     "@convex-dev/presence": "^0.3.0",
     "@fingerprintjs/fingerprintjs": "^5.1.0",
+    "@supabase/supabase-js": "^2.112.4",
     "@types/canvas-confetti": "^1.9.0",
     "@types/web-push": "^3.6.4",
     "agora-rtc-sdk-ng": "^4.24.3",

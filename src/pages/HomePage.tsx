@@ -1,8 +1,5 @@
 // @ts-nocheck
-import { useQuery, useMutation } from "convex/react";
-import { api } from "../../convex/_generated/api";
-import { Fragment, useState, useEffect, useRef } from "react";
-import { Id } from "../../convex/_generated/dataModel";
+import React, { Fragment, useState, useEffect, useRef } from "react";
 import { ARAB_COUNTRIES } from "../data/countries";
 import { Page } from "../App";
 import SearchPage from "./SearchPage";
@@ -87,15 +84,24 @@ function BroadcastTicker({ onOpen }: { onOpen: () => void }) {
   );
 }
 
+import { supabase } from "../lib/supabaseClient";
+import { useProfile } from "../components/ProfileManager";
+
 export default function HomePage({ onRoomSelect, setCurrentPage, onUserSelect, onSubPageChange }: HomePageProps) {
-  const rooms = useQuery(api.rooms.listRooms, {});
-  const banners = useQuery(api.banners.getBanners);
-  const profile = useQuery(api.profiles.getMyProfile);
-  const rechargeGiftSettings = useQuery(api.rechargeGifts.getSettings);
-  const myRoom = useQuery(api.rooms.getMyRoom);
-  const myRooms = useQuery(api.myRooms.getMyRoomsDashboard);
-  const seedBanners = useMutation(api.banners.seedBanners);
+  const [rooms, setRooms] = useState<any[]>([]);
+  const [banners, setBanners] = useState<any[]>([]);
+  const { profile } = useProfile();
+  const [myRoom, setMyRoom] = useState<any>(null);
+  const [myRooms, setMyRooms] = useState<any>({ recent: [], followed: [], managed: [] });
   const { lang, tr, isRtl } = useLang();
+
+  useEffect(() => {
+    const fetchRooms = async () => {
+      const { data } = await supabase.from('rooms').select('*').order('created_at', { ascending: false });
+      if (data) setRooms(data);
+    };
+    fetchRooms();
+  }, []);
 
   const [selectedCountry, setSelectedCountry] = useState("all");
   const [currentBanner, setCurrentBanner] = useState(0);

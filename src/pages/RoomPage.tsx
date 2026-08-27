@@ -12,7 +12,7 @@ import DesertBackground from "../components/DesertBackground";
 import PKRoomBackground from "../components/PKBackground_room";
 import usePresence from "@convex-dev/presence/react";
 import { useAgoraVoiceRoom } from "../hooks/useAgoraVoiceRoom";
-import { useZegoVoiceRoom } from "../hooks/useZegoVoiceRoom";
+
 import { useHardwareBack } from "../hooks/useHardwareBack";
 import { toast } from "../lib/toast";
 import { PRIVATE_TOAST, isPrivateUser } from "../lib/privateUser";
@@ -358,24 +358,16 @@ function RoomPageInner({ roomId, onBack, onBackgroundLeave, onViewProfile, onMes
         roomId,
         roomName: room.name,
         coverUrl: room.coverUrl,
-        zegoChannel,
-        zegoUserId,
-        zegoUserName,
+        channelName: zegoChannel,
+        userId: zegoUserId,
+        userName: zegoUserName,
       });
     }
     // تمرير رقم الغرفة إلى App ضروري حتى تُحفظ الفقاعة في الغرفة الصحيحة.
     onBackgroundLeave?.(roomId);
   };
 
-  // Android uses the ZEGOCLOUD pilot by default; web keeps the explicit feature flag.
-  const zegoTestEnabled = Boolean(
-    Capacitor.isNativePlatform()
-      ? true
-      : import.meta.env.VITE_ENABLE_ZEGO_TEST === "true"
-  );
-  const agoraVoice = useAgoraVoiceRoom(zegoChannel, zegoUserId, zegoUserName, !!myProfile && !!userId && !zegoTestEnabled, isOnSeat, null);
-  const zegoVoice = useZegoVoiceRoom(roomId, zegoUserId, zegoUserName, !!myProfile && !!userId && zegoTestEnabled, isOnSeat, null, false);
-  const voiceState = zegoTestEnabled ? zegoVoice : agoraVoice;
+  const voiceState = useAgoraVoiceRoom(zegoChannel, zegoUserId, zegoUserName, !!myProfile && !!userId, isOnSeat, null);
   const {
     isConnected,
     isConnecting,
@@ -384,7 +376,7 @@ function RoomPageInner({ roomId, onBack, onBackgroundLeave, onViewProfile, onMes
     isPublishing = false,
     remoteAudioCount = 0,
     speakingUsers: speakingUsersRaw,
-    error: zegoError,
+    error: agoraError,
     toggleMute,
     toggleSpeaker,
     leaveVoiceRoom,

@@ -1,0 +1,1 @@
+window._CCSettings={platform:"web-mobile",groupList:["default"],collisionMatrix:[[true]],hasResourcesBundle:true,hasStartSceneBundle:false,remoteBundles:[],subpackages:[],launchScene:"db://assets/resources/WK_SuperCar/Scene/Game.fire",orientation:"portrait",jsList:["assets/script/lib/moment.js","yylibs-/js/base64_.js"]};

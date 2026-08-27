@@ -59,7 +59,7 @@ export default function RoomBottomBar({
     try {
       await Promise.resolve(onToggleMute());
     } finally {
-      // Allow the ZEGOCLOUD state update to reach the button before another tap.
+      // Allow the voice state update to reach the button before another tap.
       window.setTimeout(() => setMicBusy(false), 350);
     }
   };

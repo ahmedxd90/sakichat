@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { Authenticated, Unauthenticated, useQuery, useMutation } from "convex/react";
+import { useQuery, useMutation } from "convex/react";
 import { api } from "../convex/_generated/api";
 import CenteredToaster from "./components/CenteredToaster";
 import { useState, useEffect, useRef, lazy, Suspense, memo, useCallback } from "react";
@@ -14,7 +14,8 @@ import PushNotificationManager from "./components/PushNotificationManager";
 import GoogleAuthDeepLinkHandler from "./components/GoogleAuthDeepLinkHandler";
 import { leaveAgoraGlobal } from "./lib/agoraGlobal";
 import SplashAdScreen from "./components/SplashAdScreen";
-import { useConvexAuth } from "convex/react";
+import { useSupabase } from "./contexts/SupabaseContext";
+import { ProfileProvider, useProfile } from "./components/ProfileManager";
 import { Capacitor } from "@capacitor/core";
 import { AppUpdate, AppUpdateAvailability } from "@capawesome/capacitor-app-update";
 import ForceUpdateScreen from "./components/ForceUpdateScreen";
@@ -276,6 +277,8 @@ export default function App() {
 
 function SecurityWrapper() {
   const security = useSecurityGuard();
+  const { user, isLoading } = useSupabase();
+
   if (security.isThreat && security.threatType) {
     return (
       <Suspense fallback={<PageLoader />}>
@@ -283,14 +286,20 @@ function SecurityWrapper() {
       </Suspense>
     );
   }
+
+  if (isLoading) return <PageLoader />;
+
   return (
     <div className="flex-1 flex flex-col min-h-0">
       <GoogleAuthDeepLinkHandler />
-      <Authenticated>
-        <PushNotificationManager />
-        <AuthenticatedApp />
-      </Authenticated>
-      <Unauthenticated><UnauthenticatedWithBanCheck /></Unauthenticated>
+      {user ? (
+        <ProfileProvider>
+          <PushNotificationManager />
+          <AuthenticatedApp />
+        </ProfileProvider>
+      ) : (
+        <UnauthenticatedWithBanCheck />
+      )}
       <Suspense fallback={null}>
         <GlobalBombBanner />
         <GlobalGiftBanner />
@@ -313,10 +322,10 @@ function UnauthenticatedWithBanCheck() {
 }
 
 function AuthenticatedApp() {
-  const profile = useQuery(api.profiles.getMyProfile);
+  const { profile, isLoading: profileLoading } = useProfile();
   const fingerprint = useDeviceFingerprint();
-  const banStatus = useQuery(api.appBan.checkBanStatus, fingerprint ? { fingerprint } : "skip");
-  const registerDevice = useMutation(api.appBan.registerDevice);
+  const banStatus = null; // Will implement with Supabase RPC
+  const registerDevice = async () => {}; // Will implement with Supabase RPC
 
   const [currentPage, setCurrentPage] = useState<Page>("home");
   const [selectedRoomId, setSelectedRoomId] = useState<Id<"rooms"> | null>(null);
@@ -382,9 +391,11 @@ function AuthenticatedApp() {
   }, [fingerprint, profile?.userId]);
 
   useEffect(() => {
-    if (profile === null) setShowRegisterProfile(true);
-    else if (profile) setShowRegisterProfile(false);
-  }, [profile]);
+    if (!profileLoading) {
+      if (!profile) setShowRegisterProfile(true);
+      else setShowRegisterProfile(false);
+    }
+  }, [profile, profileLoading]);
 
   useEffect(() => {
     if (!profile || checkinStatus === undefined) return;

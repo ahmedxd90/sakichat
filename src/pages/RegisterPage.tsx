@@ -1,6 +1,6 @@
 import { useState, useRef } from "react";
-import { useMutation, useQuery } from "convex/react";
-import { api } from "../../convex/_generated/api";
+import { useSupabase } from "../contexts/SupabaseContext";
+import { supabase } from "../lib/supabaseClient";
 import { toast } from "../lib/toast";
 import { ARAB_COUNTRIES } from "../data/countries";
 import { useDeviceFingerprint } from "../hooks/useDeviceFingerprint";
@@ -31,13 +31,9 @@ function ReferralCodeChecker({ code }: { code: string }) {
 }
 
 export default function RegisterPage({ onBack, isProfileSetup }: RegisterPageProps) {
-  const createProfile = useMutation(api.profiles.createProfile);
-  const generateUploadUrl = useMutation(api.hostAgency.generateUploadUrl);
+  const { user } = useSupabase();
   const fingerprint = useDeviceFingerprint();
-  const registrationCheck = useQuery(
-    api.appBan.checkRegistrationAllowed,
-    fingerprint ? { fingerprint } : "skip"
-  );
+  const registrationCheck = null; // Will implement with Supabase RPC later
 
   const [name, setName] = useState("");
   const [country, setCountry] = useState("");
@@ -71,27 +67,39 @@ export default function RegisterPage({ onBack, isProfileSetup }: RegisterPagePro
     if (!name.trim()) { toast.error("أدخل اسمك"); return; }
     if (!country) { toast.error("اختر دولتك"); return; }
     if (!gender) { toast.error("اختر جنسك"); return; }
+    if (!user) { toast.error("يجب تسجيل الدخول أولاً"); return; }
 
     setLoading(true);
     try {
-      let avatarStorageId: any = undefined;
+      let avatarUrl = "";
       if (avatarFile) {
-        const uploadUrl = await generateUploadUrl();
-        const res = await fetch(uploadUrl, {
-          method: "POST",
-          headers: { "Content-Type": avatarFile.type },
-          body: avatarFile,
-        });
-        const json = await res.json();
-        avatarStorageId = json.storageId;
+        const fileExt = avatarFile.name.split('.').pop();
+        const fileName = `${user.id}-${Math.random()}.${fileExt}`;
+        const { data, error: uploadError } = await supabase.storage
+          .from('avatars')
+          .upload(fileName, avatarFile);
+        
+        if (uploadError) throw uploadError;
+        const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(data.path);
+        avatarUrl = publicUrl;
       }
-      await createProfile({
-        name: name.trim(),
-        country,
-        gender: gender as "male" | "female",
-        avatarStorageId,
-        referralCode: referralCode.trim() || undefined,
-      });
+
+      const sakiId = Math.floor(100000 + Math.random() * 900000).toString();
+
+      const { error } = await supabase
+        .from('profiles')
+        .insert([
+          {
+            user_id: user.id,
+            name: name.trim(),
+            saki_id: sakiId,
+            country,
+            gender: gender as "male" | "female",
+            avatar_url: avatarUrl,
+          }
+        ]);
+
+      if (error) throw error;
       toast.success("تم إنشاء الحساب بنجاح! 🎉");
     } catch (e: any) {
       toast.error(e.message || "حدث خطأ");

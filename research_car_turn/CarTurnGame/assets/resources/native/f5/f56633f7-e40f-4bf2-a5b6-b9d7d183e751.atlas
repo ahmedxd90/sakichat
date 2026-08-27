@@ -1,0 +1,20 @@
+
+kaijiang.png
+size: 260,158
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+circle
+  rotate: false
+  xy: 0, 54
+  size: 104, 104
+  orig: 104, 104
+  offset: 0, 0
+  index: -1
+light
+  rotate: true
+  xy: 104, 0
+  size: 158, 156
+  orig: 158, 156
+  offset: 0, 0
+  index: -1

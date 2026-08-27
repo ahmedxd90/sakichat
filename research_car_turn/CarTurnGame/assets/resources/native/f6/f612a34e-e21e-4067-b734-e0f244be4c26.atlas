@@ -1,0 +1,62 @@
+
+start.png
+size: 955,374
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+bg
+  rotate: false
+  xy: 0, 186
+  size: 750, 188
+  orig: 750, 188
+  offset: 0, 0
+  index: -1
+car
+  rotate: true
+  xy: 750, 66
+  size: 308, 107
+  orig: 308, 107
+  offset: 0, 0
+  index: -1
+light
+  rotate: false
+  xy: 0, 146
+  size: 600, 40
+  orig: 600, 40
+  offset: 0, 0
+  index: -1
+orange
+  rotate: false
+  xy: 512, 80
+  size: 75, 66
+  orig: 75, 66
+  offset: 0, 0
+  index: -1
+red
+  rotate: false
+  xy: 857, 67
+  size: 50, 48
+  orig: 50, 48
+  offset: 0, 0
+  index: -1
+selecting
+  rotate: false
+  xy: 512, 0
+  size: 443, 66
+  orig: 443, 66
+  offset: 0, 0
+  index: -1
+start
+  rotate: true
+  xy: 857, 115
+  size: 259, 66
+  orig: 259, 66
+  offset: 0, 0
+  index: -1
+startselecting阿语
+  rotate: false
+  xy: 0, 23
+  size: 512, 123
+  orig: 512, 123
+  offset: 0, 0
+  index: -1

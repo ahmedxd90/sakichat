@@ -1,9 +1,8 @@
 import { useState, useRef } from "react";
-import { useMutation, useQuery } from "convex/react";
-import { api } from "../../convex/_generated/api";
+import { supabase } from "../lib/supabaseClient";
+import { useProfile } from "../components/ProfileManager";
 import { toast } from "../lib/toast";
 import { ARAB_COUNTRIES } from "../data/countries";
-import { Id } from "../../convex/_generated/dataModel";
 
 interface CreateRoomPageProps {
   onBack: () => void;
@@ -13,9 +12,7 @@ interface CreateRoomPageProps {
 const SEAT_OPTIONS = [5, 10, 15, 20];
 
 export default function CreateRoomPage({ onBack, onSuccess }: CreateRoomPageProps) {
-  const createRoom = useMutation(api.rooms.createRoom);
-  const generateUploadUrl = useMutation(api.rooms.generateRoomCoverUploadUrl);
-  const profile = useQuery(api.profiles.getMyProfile);
+  const { profile } = useProfile();
 
   const [name, setName] = useState("");
   const [coverFile, setCoverFile] = useState<File | null>(null);
@@ -42,24 +39,39 @@ export default function CreateRoomPage({ onBack, onSuccess }: CreateRoomPageProp
 
   const handleCreate = async () => {
     if (!name.trim()) return toast.error("أدخل اسم الغرفة");
-    if (!isActive) return toast.error("حسابك غير مفعّل");
+    if (!profile) return toast.error("يجب تسجيل الدخول أولاً");
     setLoading(true);
     try {
-      let coverStorageId: Id<"_storage"> | undefined;
+      let coverUrl = profile.avatar_url || "";
       if (coverFile) {
-        const uploadUrl = await generateUploadUrl();
-        const result = await fetch(uploadUrl, { method: "POST", headers: { "Content-Type": coverFile.type }, body: coverFile });
-        const json = await result.json();
-        if (!result.ok) throw new Error("فشل رفع الصورة");
-        coverStorageId = json.storageId;
+        const fileExt = coverFile.name.split('.').pop();
+        const fileName = `room-${profile.user_id}-${Math.random()}.${fileExt}`;
+        const { data, error: uploadError } = await supabase.storage
+          .from('room-covers')
+          .upload(fileName, coverFile);
+        
+        if (uploadError) throw uploadError;
+        const { data: { publicUrl } } = supabase.storage.from('room-covers').getPublicUrl(data.path);
+        coverUrl = publicUrl;
       }
-      const roomId = await createRoom({
-        name: name.trim(),
-        country: autoCountry || "SA",
-        coverStorageId,
-      });
+
+      const { data, error } = await supabase
+        .from('rooms')
+        .insert([
+          {
+            owner_id: profile.user_id,
+            name: name.trim(),
+            country: autoCountry || "SA",
+            cover_url: coverUrl,
+            seats_count: seats,
+          }
+        ])
+        .select()
+        .single();
+
+      if (error) throw error;
       toast.success("تم إنشاء الغرفة بنجاح! 🎉");
-      onSuccess(roomId);
+      onSuccess(data.id);
     } catch (e: any) {
       toast.error(e.message || "حدث خطأ");
     } finally {

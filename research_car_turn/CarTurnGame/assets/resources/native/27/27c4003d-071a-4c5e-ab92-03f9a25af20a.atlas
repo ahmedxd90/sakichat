@@ -1,0 +1,34 @@
+
+congrats.png
+size: 488,233
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+fangshexian_lose
+  rotate: false
+  xy: 0, 0
+  size: 233, 233
+  orig: 233, 233
+  offset: 0, 0
+  index: -1
+fanshexian
+  rotate: false
+  xy: 233, 0
+  size: 233, 233
+  orig: 233, 233
+  offset: 0, 0
+  index: -1
+star
+  rotate: false
+  xy: 466, 191
+  size: 22, 21
+  orig: 22, 21
+  offset: 0, 0
+  index: -1
+star_lose
+  rotate: false
+  xy: 466, 212
+  size: 22, 21
+  orig: 22, 21
+  offset: 0, 0
+  index: -1

@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="utf-8">
+
+  <title>Car</title>
+
+  <!--http://www.html5rocks.com/en/mobile/mobifying/-->
+  <meta name="viewport"
+    content="width=device-width,user-scalable=no,initial-scale=1, minimum-scale=1,maximum-scale=1,viewport-fit=cover" />
+
+  <!--https://developer.apple.com/library/safari/documentation/AppleApplications/Reference/SafariHTMLRef/Articles/MetaTags.html-->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="format-detection" content="telephone=no">
+
+  <!-- force webkit on 360 -->
+  <meta name="renderer" content="webkit" />
+  <meta name="force-rendering" content="webkit" />
+  <!-- force edge on IE -->
+  <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
+  <meta name="msapplication-tap-highlight" content="no">
+
+  <!-- force full screen on some browser -->
+  <meta name="full-screen" content="yes" />
+  <meta name="x5-fullscreen" content="true" />
+  <meta name="360-fullscreen" content="true" />
+
+  <!-- force screen orientation on some browser -->
+  <meta name="screen-orientation" content="portrait" />
+  <meta name="x5-orientation" content="portrait">
+
+  <!--fix fireball/issues/3568 -->
+  <!--<meta name="browsermode" content="application">-->
+  <meta name="x5-page-mode" content="app">
+
+  <!--<link rel="apple-touch-icon" href=".png" />-->
+  <!--<link rel="apple-touch-icon-precomposed" href=".png" />-->
+
+  <link rel="stylesheet" type="text/css" href="style-mobile.css" />
+  <link rel="icon" href="favicon.ico" />
+</head>
+
+<body>
+  <canvas id="GameCanvas" oncontextmenu="event.preventDefault()" tabindex="0"></canvas>
+  <script>
+    window.pauseSound = () => { };
+    window.resumeSound = () => { };
+    
+    window.HttpTool = () => { };
+    window.HttpTool.NativeToJs = () => { };
+    document.getElementById('GameCanvas').addEventListener('webglcontextlost', function(e) {
+      e.preventDefault();
+      console.warn('[WebGL] Context lost');
+    }, false);
+  </script>
+  <div id="loading">
+    <div class="progress-bar stripes">
+      <span style="width: 0%"></span>
+    </div>
+    <img class="game-icon"></img>
+    <div class="progress-text"></div>
+  </div>
+
+  <script src="src/settings.js" charset="utf-8"></script>
+  <script src="main.js" charset="utf-8"></script>
+  <script src="sentry.js" crossorigin="anonymous" data-lazy="no"></script>
+  <script>
+    try {
+      let currentUrl = new URL(location.href);
+    	let uid = currentUrl.searchParams.get("uid") || "";
+      Sentry.init({ dsn: 'http://80af14c25f694baaa0cb046d31dcfba0@18.157.129.67:9001/16' });
+    	Sentry.configureScope((scope) => {
+      		scope.setTag('uid', uid);
+    	});
+      let u = navigator.userAgent;
+      let isAndroid = u.indexOf("Android") > -1 || u.indexOf("Linux") > -1
+      let isIOS = !!u.match(/\(i[^;]+;( U;)? CPU.+Mac OS X/)
+      window.isAndroid = isAndroid;
+      window.isIOS = isIOS;
+      let getDateString = function() {
+          let d = new Date();
+          let str = d.getHours().toString();
+          let timeStr = "";
+          timeStr += (str.length == 1 ? "0" + str : str) + ":";
+          str = d.getMinutes().toString();
+          timeStr += (str.length == 1 ? "0" + str : str) + ":";
+          str = d.getSeconds().toString();
+          timeStr += (str.length == 1 ? "0" + str : str) + ":";
+          str = d.getMilliseconds().toString();
+          if (str.length == 1) str = "00" + str;
+          if (str.length == 2) str = "0" + str;
+          timeStr += str;
+          timeStr = "[" + timeStr + "]";
+          return timeStr;
+      }
+      window.globalNativeLog = function (...data) {
+        let log = data.join(",");
+        log = "[SuperCarHigh.log.launch] timer: " + getDateString() + " detail: "  + log;
+        if (isAndroid && window.AndroidWebView && window.AndroidWebView.addLogStr) {
+            window.AndroidWebView.addLogStr(log);
+        } else if (isIOS && window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.addLogStr) {
+            window.webkit.messageHandlers.addLogStr.postMessage({ logStr: log});
+        } else {
+          console.log(log);
+        }
+      }
+      window.globalNativeLog("html启动页进入 >>>>>>>>>>> currentUrl: " + currentUrl);
+      window.onerror = function (message, source, line, colno, error) {
+          try {
+              console.error("html启动页进入 捕获到异常 error:" , error);
+              window.globalNativeLog && window.globalNativeLog("html启动页进入 捕获到异常 error: ", error);
+          } catch (error) {
+              window.globalNativeLog && window.globalNativeLog("html启动页进入 捕获到异常::::" , error);
+          }
+      }
+    } catch (error) {
+        console.error("html启动页进入 捕获到异常 error:" , error);
+        window.globalNativeLog && window.globalNativeLog("globalNativeLog >>>>>>>>>>>>>> error ", error);
+    }
+
+  </script>
+  <script type="text/javascript">
+    (function () {
+      // open web debugger console
+      // if (typeof VConsole !== 'undefined') {
+      //   window.vConsole = new VConsole();
+      // }
+      // 全局重试弹框
+      window.showRetryPopup = function(msg) {
+        let logStr = 'showRetryPopup >>>>>>>>>msg: ' + msg;
+        console.error(logStr);
+        window.globalNativeLog && window.globalNativeLog(logStr);
+        if (document.getElementById('retry-popup-overlay')) return; // 避免重复创建
+        var overlay = document.createElement('div');
+        overlay.id = 'retry-popup-overlay';
+        overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:99998;display:flex;align-items:center;justify-content:center;';
+        // overlay.onclick = function(e) { if (e.target === overlay) window.hideRetryPopup(); };
+
+        var popup = document.createElement('div');
+        popup.style.cssText = 'position:relative;width:432px;height:250px;max-width:432px;border-style:solid;border-image-source:url(loading/popup_bg.png);border-image-slice:40 40 40 40 fill;border-image-width:40px 40px 40px 40px;border-image-repeat:stretch;padding:20px 30px 16px;text-align:center;box-sizing:border-box;';
+
+        var textEl = document.createElement('div');
+        textEl.style.cssText = 'color:#fff;font-size:16px;line-height:1.5;margin-bottom:20px;min-height:40px;word-break:break-word;font-family:sans-serif;transform:translateY(40px);';
+
+        const currentUrl = new URL(location.href);
+        const searchParams = currentUrl.searchParams;
+        var lang = searchParams.get('lang'); 
+        let btnLangStr = lang == 2 ? " إعادة المحاولة  " : "Retry";
+        let descLangStr = lang == 2 ?  " فشل تحميل اللعبة. يرجى المحاولة مرة أخرى " : "Game loading failed. Please try again.";
+        textEl.textContent = descLangStr;
+
+        var btn = document.createElement('div');
+        btn.style.cssText = 'display:inline-block;width:165px;height:63px;background:url(loading/reload_btn.png) center/contain no-repeat;cursor:pointer;line-height:52px;color:#fff;font-size:20px;font-family:sans-serif;user-select:none;-webkit-tap-highlight-color:transparent;transform:translateY(55px);';
+        btn.textContent = btnLangStr;
+        btn.onclick = function() { 
+          window.globalNativeLog && window.globalNativeLog("retry button clicked  >>>>>>>>>> window.reload");
+          window.hideRetryPopup(); window.reload && window.reload(); 
+        };
+
+        popup.appendChild(textEl);
+        popup.appendChild(btn);
+        overlay.appendChild(popup);
+        document.body.appendChild(overlay);
+      };
+
+      window.hideRetryPopup = function() {
+        var el = document.getElementById('retry-popup-overlay');
+        if (el) el.parentNode.removeChild(el);
+      };
+
+      window.reload = () => { var url = new URL(location.href); url.searchParams.set('_t', Date.now()); location.href = url.href; }; //强制刷新，保留原有参数
+      window.gainLocalStorage = function (json) {
+        console.warn("gainLocalStorage该方法有被调用！！！！！");
+        const canvas = document.createElement('canvas');
+        var gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+        var isWebgl = !!(window.WebGLRenderingContext && gl);
+        // 释放检测用的 WebGL 上下文，避免占用 iOS 有限的上下文名额  iOS 限制同时存在的 WebGL 上下文数量，之前的代码只创建不释放，可能占掉引擎的上下文名额。
+        if (gl) { var ext = gl.getExtension('WEBGL_lose_context'); ext && ext.loseContext(); gl = null; }
+        if (!isWebgl) {
+          try { window.webkit.messageHandlers.OpenLockdownTips.postMessage({}); } catch(e) {}
+        }
+        console.log("收到IOS返回的json数据 ：" + JSON.stringify(json));
+        window.StorageData = json;
+      }
+      var debug = window._CCSettings.debug;
+      // var splash = document.getElementById('splash');
+      // splash.style.display = 'block';
+
+      function loadScript(moduleName, cb, retryCount, isTimeoutRetry = false) {
+        retryCount = retryCount || 0;
+        var maxRetries = 2;
+        
+        var domScript = document.createElement('script');
+        domScript.async = true;
+        domScript.src = moduleName;
+        
+        // 设置超时时间
+        var timeoutDuration = 15000; // 20秒超时
+        if (window.timeoutId) {
+          clearTimeout(window.timeoutId); // 成功加载时清除超时定时器
+          window.timeoutId = null;
+        }
+        window.timeoutId = setTimeout(function() {
+            if (document.body.contains(domScript)) {
+                document.body.removeChild(domScript);
+            }
+            domScript.removeEventListener('load', scriptLoaded, false);
+            domScript.removeEventListener('error', scriptError, false);
+            
+            let logStr = `[loadScript] ${moduleName} 加载超时，正在重试 (${retryCount + 1}/${maxRetries})`;
+            console.log(logStr);
+            window.globalNativeLog && window.globalNativeLog(logStr);
+            
+            if (retryCount < maxRetries) {
+                var separator = moduleName.indexOf('?') > -1 ? '&' : '?';
+                var retryUrl = moduleName + separator + '_retry=' + Date.now();
+                loadScript(retryUrl, cb, retryCount + 1, true); // 标记为超时重试
+            } else {
+                window.showRetryPopup("Game loading timed out. Please try again.");
+            }
+        }, timeoutDuration);
+
+        function scriptLoaded() {
+            if (window.timeoutId) {
+              clearTimeout(window.timeoutId); // 成功加载时清除超时定时器
+              window.timeoutId = null;
+            }
+            document.body.removeChild(domScript);
+            domScript.removeEventListener('load', scriptLoaded, false);
+            domScript.removeEventListener('error', scriptError, false);
+            cb && cb();
+        };
+        
+        function scriptError() {
+            if (window.timeoutId) {
+              clearTimeout(window.timeoutId); // 成功加载时清除超时定时器
+              window.timeoutId = null;
+            }
+            // 移除脚本元素
+            if (document.body.contains(domScript)) {
+                document.body.removeChild(domScript);
+            }
+            domScript.removeEventListener('load', scriptLoaded, false);
+            domScript.removeEventListener('error', scriptError, false);
+            
+            // 如果是超时后重试仍然失败，则继续尝试重试
+            if (isTimeoutRetry && retryCount < maxRetries) {
+                let logStr = '[loadScript] ' + moduleName + ' timeout retry failed, trying again (' + (retryCount + 1) + '/' + maxRetries + ')';
+                console.log(logStr);
+                window.globalNativeLog && window.globalNativeLog(logStr);
+                
+                var separator = moduleName.indexOf('?') > -1 ? '&' : '?';
+                var retryUrl = moduleName + separator + '_retry=' + Date.now();
+                loadScript(retryUrl, cb, retryCount + 1, true);
+            } 
+            // 对于普通错误（非超时），不进行重试
+            else {
+                let logStr = `[loadScript] ${moduleName} 加载出错，不进行重试`;
+                console.log(logStr);
+                window.globalNativeLog && window.globalNativeLog(logStr);
+                
+                // 显示错误提示
+                window.showRetryPopup("Game loading failed. Please try again.");
+            }
+        };
+        
+        domScript.addEventListener('load', scriptLoaded, false);
+        domScript.addEventListener('error', scriptError, false);
+        document.body.appendChild(domScript);
+    }
+
+      // WebGL 检测（仅一次）
+      (function() {
+        const canvas = document.createElement('canvas');
+        var gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+        var isWebgl = !!(window.WebGLRenderingContext && gl);
+        if (gl) { var ext = gl.getExtension('WEBGL_lose_context'); ext && ext.loseContext(); gl = null; }
+        console.log("是否支持webgl isWebgl：" + isWebgl);
+        window.globalNativeLog && window.globalNativeLog("是否支持webgl isWebgl ：" + isWebgl);
+        if (!isWebgl) {
+          try { window.webkit.messageHandlers.OpenLockdownTips.postMessage({}); } catch(e) {}
+          window.showRetryPopup('WebGL is not supported on this device.');
+        }
+      })();
+
+      loadScript(debug ? 'cocos2d-js.js' : 'cocos2d-js-min.js', function () {   
+        try {
+          // Patch: 防止 WebGL 上下文丢失后引擎崩溃
+          if (cc.GLProgram && cc.GLProgram.prototype._initExtensions) {
+            var _origInitExt = cc.GLProgram.prototype._initExtensions;
+            cc.GLProgram.prototype._initExtensions = function() {
+              if (!this._gl) {
+                var canvas = document.getElementById('GameCanvas');
+                if (canvas) {
+                  this._gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+                }
+              }
+              return _origInitExt.call(this);
+            };
+          }
+        } catch(e) {}
+
+        if (CC_PHYSICS_BUILTIN || CC_PHYSICS_CANNON) {
+          loadScript(debug ? 'physics.js' : 'physics-min.js', window.boot);
+        }
+        else {
+          if (window.hasOwnProperty('boot') && typeof window.boot === 'function') {
+            window.boot();
+          } else {
+            loadScript('main.js', window.boot);
+          }
+        }
+      });
+    })();
+  </script>
+</body>
+
+</html>

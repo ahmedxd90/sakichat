@@ -5,9 +5,9 @@ interface BackgroundRoom {
   roomId: Id<"rooms">;
   roomName: string;
   coverUrl?: string;
-  zegoChannel: string;
-  zegoUserId: string;
-  zegoUserName: string;
+  channelName: string;
+  userId: string;
+  userName: string;
 }
 
 interface BackgroundRoomContextType {

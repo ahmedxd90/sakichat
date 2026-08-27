@@ -1,17 +1,16 @@
 import { createRoot } from "react-dom/client";
-import { ConvexAuthProvider } from "@convex-dev/auth/react";
+import { SupabaseProvider } from "./contexts/SupabaseContext";
 import "./index.css";
 import App from "./App";
 import GlobalErrorBoundary from "./components/GlobalErrorBoundary";
-import { convex } from "./lib/convexClient";
 
 (window as any).__sakiStartupMark?.("main.tsx loaded");
 
 createRoot(document.getElementById("root")!).render(
   <GlobalErrorBoundary>
-    <ConvexAuthProvider client={convex}>
+    <SupabaseProvider>
       <App />
-    </ConvexAuthProvider>
+    </SupabaseProvider>
   </GlobalErrorBoundary>,
 );
 
