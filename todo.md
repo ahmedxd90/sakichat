@@ -70,6 +70,13 @@
 - [x] تشغيل TypeScript/build وبناء APK/AAB بعد الإصلاح.
 - [x] حفظ checkpoint وتسليم الإصدار النهائي.
 
+## تصحيح Site URL وإعدادات Supabase OAuth (2026-08-27)
+- [ ] جلب عنوان الويب الفعلي للمشروع (Domain).
+- [ ] تحديث redirectTo في الكود ليتطابق مع النطاق الجديد.
+- [ ] إضافة `saki.chat.co://callback` إلى قائمة Redirect URLs في Supabase.
+- [ ] توجيه المستخدم لتغيير Site URL في لوحة Supabase إلى النطاق الفعلي.
+- [ ] إعادة بناء APK/AAB واختبار مسار OAuth بالكامل.
+
 السياق: يظهر بعد اختيار حساب Google الخطأ ERR_CONNECTION_REFUSED لأن المتصفح يحاول فتح localhost.
 
 المبدأ: عدم تخزين أو عرض أسرار OAuth أو مفاتيح خاصة في الكود أو السجل.
