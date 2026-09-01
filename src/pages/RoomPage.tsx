@@ -158,6 +158,7 @@ function RoomPageInner({ roomId, onBack, onBackgroundLeave, onViewProfile, onMes
   const [messages, setMessages] = useState<any[]>([]);
   const [myProfile, setMyProfile] = useState<any>(null);
   const [userId, setUserId] = useState<string | null>(null);
+  const [seatInvitesAvailable, setSeatInvitesAvailable] = useState(true);
   const [latestGiftEvent, setLatestGiftEvent] = useState<any>(null);
   const [latestEmojiEvent, setLatestEmojiEvent] = useState<any>(null);
   const [latestEntryEvent, setLatestEntryEvent] = useState<any>(null);
