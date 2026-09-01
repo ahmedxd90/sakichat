@@ -273,9 +273,8 @@ export default function MomentsPage({ setCurrentPage, onUserSelect }: { setCurre
               <button type="button" onClick={() => setTab("all")} className={`transition-colors ${tab === "all" ? "text-gray-900 border-b-2 pb-0.5 font-extrabold text-xl" : "text-gray-400"}`} style={tab === "all" ? { borderColor: BRAND.cyan } : undefined}>الكل</button>
             </div>
 
-            <button type="button" onClick={() => setCurrentPage("create-moment")} className="bg-gradient-to-r from-cyan-400 to-teal-400 text-white px-4 py-1.5 rounded-full text-xs font-bold flex items-center gap-1.5 shadow-sm active:scale-95 transition-transform" aria-label="إنشاء منشور">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M12 5v14M5 12h14" /></svg>
-              <span>منشور</span>
+            <button type="button" onClick={() => setCurrentPage("create-moment")} className="active:scale-95 transition-transform" aria-label="إنشاء منشور">
+              <img src="/manus-storage/ic_dynamic_message_0fc3d5d9.webp" alt="" className="w-8 h-8 object-contain" />
             </button>
           </div>
         </header>

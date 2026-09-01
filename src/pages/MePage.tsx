@@ -124,10 +124,10 @@ function BadgePage({ badges, onBack }: { badges: any[]; onBack: () => void }) {
   );
 }
 
-function MenuItem({ icon, label, action, iconClass, value, badge, isNew }: { icon: IconName; label: string; action: () => void; iconClass: string; value?: string; badge?: string; isNew?: boolean }) {
+function MenuItem({ iconUrl, label, action, value, badge, isNew }: { iconUrl: string; label: string; action: () => void; value?: string; badge?: string; isNew?: boolean }) {
   return (
     <button type="button" onClick={action} className="menu-item item-press">
-      <span className={`menu-icon ${iconClass}`}><LineIcon name={icon} className="w-5 h-5" /></span>
+      <img src={iconUrl} alt="" className="w-6 h-6 object-contain" />
       <span className="menu-label">{label}</span>
       <span className="menu-trailing">
         {isNew && <span className="new-badge">جديد</span>}
@@ -250,24 +250,41 @@ export default function MePage({
       </header>
 
       <main className="me-shell">
-        <section className="profile-hero">
-          <button type="button" onClick={onOpenProfile} className="avatar-button item-press" aria-label="فتح الملف الشخصي">
-            <div className="avatar-ring"><UserAvatar userId={profile.user_id} avatarUrl={profile.avatar_url} name={profile.name} size={92} showFrame isSuperAdmin={isSuperAdmin} isVip={false} /></div>
-          </button>
-          <h2 className="profile-name"><ProfileName profile={profile} proLevel={proLevel} isPro={isPro} aristocracyActive={aristocracyActive} aristocracyLevel={aristocracyLevel} aristocracyDbName={aristocracyDbLevel?.name} /></h2>
-          {isPro && <div className="mt-1"><ProTitle level={proLevel} size="sm" /></div>}
-          <button type="button" onClick={copySakiId} className="id-pill item-press" aria-label="نسخ معرف ساكي">
-            <LineIcon name="copy" className="w-3.5 h-3.5 text-slate-400" />
-            <span>ID: {profile.saki_id ?? "—"}</span>
-          </button>
-          <StatsRow followingCount={profile.following_count ?? 0} followersCount={profile.followers_count ?? 0} onFollowing={() => setShowFollowers("following")} onFollowers={() => setShowFollowers("followers")} onVisitors={() => setShowFollowers("visitors")} lang={lang} />
+        <section className="profile-hero relative overflow-hidden rounded-[32px] mb-6 pt-10 pb-6 px-4" style={{ backgroundImage: "url('/manus-storage/icon_user_detail_home_bg_4de2dd22.webp')", backgroundSize: "cover", backgroundPosition: "center" }}>
+          <div className="absolute inset-0 bg-black/20" />
+          <div className="relative z-10 flex flex-col items-center">
+            <button type="button" onClick={onOpenProfile} className="avatar-button item-press mb-4" aria-label="فتح الملف الشخصي">
+              <div className="avatar-ring border-4 border-white/30"><UserAvatar userId={profile.user_id} avatarUrl={profile.avatar_url} name={profile.name} size={92} showFrame isSuperAdmin={isSuperAdmin} isVip={false} /></div>
+            </button>
+            <h2 className="profile-name text-white drop-shadow-md"><ProfileName profile={profile} proLevel={proLevel} isPro={isPro} aristocracyActive={aristocracyActive} aristocracyLevel={aristocracyLevel} aristocracyDbName={aristocracyDbLevel?.name} /></h2>
+            {isPro && <div className="mt-1"><ProTitle level={proLevel} size="sm" /></div>}
+            <button type="button" onClick={copySakiId} className="id-pill item-press bg-white/20 border-white/30 text-white mt-2" aria-label="نسخ معرف ساكي">
+              <LineIcon name="copy" className="w-3.5 h-3.5 text-white/70" />
+              <span>ID: {profile.saki_id ?? "—"}</span>
+            </button>
+            <div className="w-full mt-6">
+              <StatsRow followingCount={profile.following_count ?? 0} followersCount={profile.followers_count ?? 0} onFollowing={() => setShowFollowers("following")} onFollowers={() => setShowFollowers("followers")} onVisitors={() => setShowFollowers("visitors")} lang={lang} />
+            </div>
+          </div>
         </section>
 
         <section className="quick-grid">
-          <button type="button" className="quick-card item-press" onClick={onOpenWallet}><span className="quick-icon quick-amber"><LineIcon name="wallet" /></span><span>المحفظة</span></button>
-          {hasActiveCp && <button type="button" className="quick-card item-press" onClick={() => onOpenCpHome?.()}><span className="quick-icon quick-heart"><LineIcon name="heart" /></span><span>بيت الحب</span></button>}
-          <button type="button" className="quick-card item-press" onClick={onOpenStore}><span className="quick-icon quick-rose"><LineIcon name="store" /></span><span>المتجر</span></button>
-          <button type="button" className="quick-card item-press" onClick={onOpenLevel}><span className="quick-icon quick-emerald"><LineIcon name="level" /></span><span>المستوى</span></button>
+          <button type="button" className="quick-card item-press" onClick={onOpenWallet}>
+            <img src="/manus-storage/me_icon_recharge_394d23a1.webp" alt="" className="w-10 h-10 object-contain" />
+            <span>المحفظة</span>
+          </button>
+          {hasActiveCp && <button type="button" className="quick-card item-press" onClick={() => onOpenCpHome?.()}>
+            <img src="/manus-storage/me_icon_confession_d1f15531.webp" alt="" className="w-10 h-10 object-contain" />
+            <span>بيت الحب</span>
+          </button>}
+          <button type="button" className="quick-card item-press" onClick={onOpenStore}>
+            <img src="/manus-storage/me_icon_package_5bb1263b.webp" alt="" className="w-10 h-10 object-contain" />
+            <span>المتجر</span>
+          </button>
+          <button type="button" className="quick-card item-press" onClick={onOpenLevel}>
+            <img src="/manus-storage/me_icon_level_42eaf98e.webp" alt="" className="w-10 h-10 object-contain" />
+            <span>المستوى</span>
+          </button>
         </section>
 
         {hasActiveCp && (
@@ -291,7 +308,41 @@ export default function MePage({
         )}
 
         <section className="menu-card">
-          {menuItems.map((item, index) => <div key={`${item.label}-${index}`}><MenuItem {...item} />{index < menuItems.length - 1 && <div className="menu-divider" />}</div>)}
+          <MenuItem iconUrl="/manus-storage/me_icon_bill_75af1506.webp" label="المحفظة" action={onOpenWallet} value={`${formatNumber(profile.gold_coins)} عملة`} />
+          <div className="menu-divider" />
+          <MenuItem iconUrl="/manus-storage/me_icon_package_5bb1263b.webp" label="المتجر" action={onOpenStore} />
+          <div className="menu-divider" />
+          <MenuItem iconUrl="/manus-storage/me_icon_aristocracy_4dcace13.webp" label="عضوية PRO" action={onOpenPro} value={isPro ? `مستوى ${proLevel}` : "تفعيل"} />
+          <div className="menu-divider" />
+          <MenuItem iconUrl="/manus-storage/me_icon_confession_d1f15531.webp" label="بيت الحب" action={onOpenCpHome} isNew />
+        </section>
+
+        <section className="menu-card">
+          <MenuItem iconUrl="/manus-storage/me_icon_level_42eaf98e.webp" label="المستوى" action={onOpenLevel} badge={`Lv.${displayLevel}`} />
+          <div className="menu-divider" />
+          <MenuItem iconUrl="/manus-storage/me_icon_medal_1ef471d3.webp" label="الشارات" action={() => setShowBadges(true)} value={`${badges.length} وسام`} />
+          <div className="menu-divider" />
+          <MenuItem iconUrl="/manus-storage/me_icon_earnings_d2019d22.webp" label="وكالة المضيفين" action={onOpenFamily} />
+        </section>
+
+        {isAgent && (
+          <section className="menu-card">
+            <MenuItem iconUrl="/manus-storage/me_icon_recharge_394d23a1.webp" label="لوحة وكيل الشحن" action={onOpenAgent} />
+          </section>
+        )}
+
+        {isSuperAdmin && (
+          <section className="menu-card">
+            <MenuItem iconUrl="/manus-storage/me_icon_game_5dcc19b0.webp" label="لوحة التحكم" action={onOpenAdminDashboard} />
+          </section>
+        )}
+
+        <section className="menu-card">
+          <MenuItem iconUrl="/manus-storage/me_icon_invitation_cfc4b509.webp" label="دعوة الأصدقاء" action={() => setShowInvite(true)} />
+          <div className="menu-divider" />
+          <MenuItem iconUrl="/manus-storage/me_icon_relation_f90406a4.webp" label="اللغة" action={() => setShowLanguageModal(true)} value={lang === "en" ? "English" : "العربية"} />
+          <div className="menu-divider" />
+          <MenuItem iconUrl="/manus-storage/me_icon_setting_2a9ef1ad.webp" label="الإعدادات" action={onOpenSettings} />
         </section>
 
         <p className="me-version">{lang === "en" ? "Version 2.0.0" : "الإصدار 2.0.0"}</p>

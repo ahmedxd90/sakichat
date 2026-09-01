@@ -47,10 +47,10 @@ export default function BottomNav({ currentPage, setCurrentPage }: {
   const { tr } = useLang();
 
   const tabs = [
-    { id: "home" as Page, label: tr("nav_home"), Icon: IconHome },
-    { id: "moments" as Page, label: tr("nav_moments"), Icon: IconMoments },
-    { id: "messages" as Page, label: tr("nav_messages"), Icon: IconMessages },
-    { id: "me" as Page, label: tr("nav_me"), Icon: IconProfile },
+    { id: "home" as Page, label: tr("nav_home"), icon: "/manus-storage/ic_main_tab_home_07979407.webp", activeIcon: "/manus-storage/ic_main_tab_home_pressed_57d544d5.webp" },
+    { id: "moments" as Page, label: tr("nav_moments"), icon: "/manus-storage/ic_main_tab_dynamic_c9aac6db.webp", activeIcon: "/manus-storage/ic_main_tab_dynamic_pressed_8d3bb87d.webp" },
+    { id: "messages" as Page, label: tr("nav_messages"), icon: "/manus-storage/ic_main_tab_msg_c003a859.webp", activeIcon: "/manus-storage/ic_main_tab_msg_pressed_48037cfd.webp" },
+    { id: "me" as Page, label: tr("nav_me"), icon: "/manus-storage/ic_main_tab_me_f27ecc82.webp", activeIcon: "/manus-storage/ic_main_tab_me_pressed_dcb40fe8.webp" },
   ];
 
   return (
@@ -61,8 +61,8 @@ export default function BottomNav({ currentPage, setCurrentPage }: {
         .saki-bottom-nav__button:focus-visible{box-shadow:0 0 0 3px rgba(37,99,235,.24)}
         .saki-bottom-nav__button:active{transform:scale(.94)}
         .saki-bottom-nav__button.is-active{color:#1d4ed8;transform:translateY(-2px)}
-        .saki-bottom-nav__icon{display:flex;align-items:center;justify-content:center;width:42px;height:32px;border-radius:15px;transition:background 180ms ease,transform 180ms cubic-bezier(.23,1,.32,1),box-shadow 180ms ease}
-        .saki-bottom-nav__button.is-active .saki-bottom-nav__icon{background:linear-gradient(135deg,#3b82f6,#1d4ed8);color:#fff;transform:scale(1.05);box-shadow:0 7px 18px rgba(37,99,235,.25);animation:sakiNavPop 320ms cubic-bezier(.23,1,.32,1)}
+        .saki-bottom-nav__icon{display:flex;align-items:center;justify-content:center;width:42px;height:42px;transition:transform 180ms cubic-bezier(.23,1,.32,1)}
+        .saki-bottom-nav__button.is-active .saki-bottom-nav__icon{transform:scale(1.1);animation:sakiNavPop 320ms cubic-bezier(.23,1,.32,1)}
         .saki-bottom-nav__label{font-size:11px;font-weight:700;line-height:1;white-space:nowrap}
         .saki-bottom-nav__button.is-active .saki-bottom-nav__label{font-weight:900}
         @keyframes sakiNavPop{0%{opacity:.65;transform:translateY(3px) scale(.88)}70%{opacity:1;transform:translateY(-1px) scale(1.08)}100%{opacity:1;transform:translateY(0) scale(1.05)}}
@@ -73,7 +73,9 @@ export default function BottomNav({ currentPage, setCurrentPage }: {
         const showBadge = tab.id === "messages";
         return (
           <button key={tab.id} className={`saki-bottom-nav__button${active ? " is-active" : ""}`} onClick={() => setCurrentPage(tab.id)} aria-current={active ? "page" : undefined} aria-label={tab.label}>
-            <span className="saki-bottom-nav__icon"><tab.Icon active={active} /></span>
+            <span className="saki-bottom-nav__icon">
+              <img src={active ? tab.activeIcon : tab.icon} alt="" className="w-7 h-7 object-contain transition-transform active:scale-90" />
+            </span>
             <span className="saki-bottom-nav__label">{tab.label}</span>
             {showBadge && totalMsgBadge > 0 && <span style={{ position: "absolute", top: 0, right: 7, minWidth: 17, height: 17, padding: "0 4px", borderRadius: 999, background: "#ef4444", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 8, fontWeight: 900 }}>{totalMsgBadge > 9 ? "9+" : totalMsgBadge}</span>}
           </button>

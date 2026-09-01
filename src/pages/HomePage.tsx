@@ -240,62 +240,53 @@ export default function HomePage({ onRoomSelect, setCurrentPage, onUserSelect, o
       {/* ── TOP HEADER ── */}
       <header className="sticky top-0 z-30 px-4 pt-4 pb-2.5 flex items-center justify-between"
         style={{ background: "rgba(255,255,255,0.98)", backdropFilter: "blur(18px)", borderBottom: `1px solid ${AHLEEN_PALETTE.border}`, boxShadow: "0 2px 8px rgba(0,0,0,0.04)" }}>
-        {/* Left / Right: Tabs ("الكل" & "الخاص بي") */}
-        <div className="flex items-center gap-2">
+        {/* Left: Leaderboard & Search */}
+        <div className="flex items-center gap-3">
           <button
-            onClick={() => setRoomTab("all")}
-            className="px-4 py-1.5 rounded-full text-xs font-black transition-all active:scale-95"
-            style={roomTab === "all" ? AHLEEN_UI.goldButton : { background: "#f1f5f9", color: "#64748b", border: "1px solid #e2e8f0" }}
+            onClick={() => goToSubPage("leaderboard")}
+            className="w-10 h-10 flex items-center justify-center active:scale-95 transition-transform"
           >
-            الكل
+            <img src="/manus-storage/icon_main_ranking_be20fc77.webp" alt="" className="w-7 h-7 object-contain" />
           </button>
           <button
-            onClick={() => setRoomTab("mine")}
-            aria-label="غرفي"
-            title="غرفي"
-            className="h-8 w-9 rounded-full flex items-center justify-center transition-all active:scale-95"
-            style={roomTab === "mine" ? AHLEEN_UI.goldButton : { background: "#f1f5f9", color: "#64748b", border: "1px solid #e2e8f0" }}
+            onClick={openSearch}
+            className="w-10 h-10 flex items-center justify-center active:scale-95 transition-transform"
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/><path d="M9 21v-6h6v6"/></svg>
+            <img src="/manus-storage/icon_main_search_963dde8c.webp" alt="" className="w-7 h-7 object-contain" />
           </button>
         </div>
 
-        {/* Right / Left: Search Button & Room Button */}
-        <div className="flex items-center gap-2">
-          {/* Room / My Room Button */}
+        {/* Center: Tabs */}
+        <div className="flex items-center gap-6">
+          <button
+            onClick={() => setRoomTab("all")}
+            className={`text-lg font-black transition-all ${roomTab === "all" ? "text-slate-900 border-b-2 border-amber-500 pb-0.5" : "text-slate-400"}`}
+          >
+            الغرف
+          </button>
+          <button
+            onClick={() => setRoomTab("mine")}
+            className={`text-lg font-black transition-all ${roomTab === "mine" ? "text-slate-900 border-b-2 border-amber-500 pb-0.5" : "text-slate-400"}`}
+          >
+            غرفتي
+          </button>
+        </div>
+
+        {/* Right: Create Room */}
+        <div className="flex items-center">
           <button
             onClick={() => {
               if (myRoom) {
-                onRoomSelect(myRoom._id);
+                onRoomSelect(myRoom.id || myRoom._id);
               } else {
                 goToSubPage("createRoom");
               }
             }}
-            className="px-3 py-1.5 rounded-2xl flex items-center gap-1 active:scale-95 transition-transform font-black text-xs shadow-md"
-            style={{ background: "linear-gradient(135deg, #f59e0b, #d97706)", color: AHLEEN_PALETTE.ink }}
+            className="px-4 py-1.5 rounded-full flex items-center gap-1.5 active:scale-95 transition-transform font-black text-xs shadow-md"
+            style={{ background: "linear-gradient(135deg, #f59e0b, #d97706)", color: "#fff" }}
           >
-            <span>🎙️</span>
-            <span>{myRoom ? "غرفتي" : "إنشاء غرفة"}</span>
-          </button>
-
-          {/* زر الكأس الذهبي: ترتيب الغرف */}
-          <button
-            onClick={() => goToSubPage("leaderboard")}
-            aria-label="لوحة المتصدرين"
-            title="لوحة المتصدرين"
-            className="w-9 h-9 rounded-2xl flex items-center justify-center active:scale-95 transition-transform"
-            style={{ background: `linear-gradient(135deg, ${AHLEEN_PALETTE.gold}, #b66b0b)`, color: AHLEEN_PALETTE.ink, boxShadow: `0 5px 15px ${AHLEEN_PALETTE.gold}44` }}
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round"><path d="M8 3h8v4a4 4 0 0 1-8 0V3Z"/><path d="M8 5H5a3 3 0 0 0 3 3M16 5h3a3 3 0 0 1-3 3M12 11v6M8 21h8M9 17h6"/></svg>
-          </button>
-
-          {/* Search Button */}
-          <button
-            onClick={openSearch}
-            className="w-9 h-9 rounded-2xl flex items-center justify-center active:scale-95 transition-transform"
-            style={{ background: "#f1f5f9", border: "1px solid #e2e8f0", color: "#64748b" }}
-          >
-            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <span className="text-sm">🎙️</span>
+            <span>{myRoom ? "غرفتي" : "إنشاء"}</span>
           </button>
         </div>
       </header>

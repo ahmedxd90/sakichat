@@ -117,8 +117,8 @@ export default function MessagesPage({ onUserSelect }: MessagesPageProps) {
           <div className="grid grid-cols-3 gap-3">
             {/* 1. Friend Requests */}
             <div onClick={() => setSubPage("requests")} className="action-card">
-              <div className="action-icon icon-grad-blue">
-                <LineIcon name="user-plus" className="w-8 h-8 text-white" />
+              <div className="action-icon">
+                <img src="/manus-storage/message_icon_friend_481201da.webp" alt="" className="w-10 h-10 object-contain" />
                 {requestsCount > 0 && (
                   <span className="badge-red">{requestsCount > 99 ? "99+" : requestsCount}</span>
                 )}
@@ -128,8 +128,8 @@ export default function MessagesPage({ onUserSelect }: MessagesPageProps) {
 
             {/* 2. System */}
             <div onClick={() => setSubPage("system")} className="action-card">
-              <div className="action-icon icon-grad-pink">
-                <LineIcon name="system" className="w-8 h-8 text-white" />
+              <div className="action-icon">
+                <img src="/manus-storage/ic_msg_office_9b0eb15f.png" alt="" className="w-10 h-10 object-contain" />
                 {systemUnreadCount > 0 && (
                   <span className="badge-red">{systemUnreadCount > 99 ? "99+" : systemUnreadCount}</span>
                 )}
@@ -139,8 +139,8 @@ export default function MessagesPage({ onUserSelect }: MessagesPageProps) {
 
             {/* 3. Social */}
             <div onClick={() => setSubPage("social")} className="action-card">
-              <div className="action-icon icon-grad-orange">
-                <LineIcon name="compass" className="w-8 h-8 text-white" />
+              <div className="action-icon">
+                <img src="/manus-storage/ic_msg_operations_office_90ce54af.webp" alt="" className="w-10 h-10 object-contain" />
               </div>
               <span className="action-label">{lang === "en" ? "Social" : "الاجتماعية"}</span>
             </div>

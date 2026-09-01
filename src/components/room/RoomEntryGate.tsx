@@ -12,23 +12,19 @@ export default function RoomEntryGate({ roomId, children }: RoomEntryGateProps) 
   const [phase, setPhase] = useState<"loading" | "gate" | "opening" | "done">("loading");
 
   useEffect(() => {
-    supabase.from('rooms').select('*').eq('id', roomId).single().then(({ data }) => setRoom(data));
+    let mounted = true;
+    supabase.from('rooms').select('*').eq('id', roomId).single().then(({ data }) => {
+      if (mounted) {
+        setRoom(data);
+        setPhase("gate");
+        setTimeout(() => { if (mounted) setPhase("opening"); }, 400);
+        setTimeout(() => { if (mounted) setPhase("done"); }, 1000);
+      }
+    });
+    // fallback
+    const fallback = setTimeout(() => { if (mounted) setPhase("done"); }, 2500);
+    return () => { mounted = false; clearTimeout(fallback); };
   }, [roomId]);
-
-  useEffect(() => {
-    if (!room) return;
-    // الغرفة جاهزة — شغّل تسلسل الدخول مرة واحدة فقط
-    setPhase("gate");
-    const t1 = setTimeout(() => setPhase("opening"), 800);
-    const t2 = setTimeout(() => setPhase("done"), 1500);
-    return () => { clearTimeout(t1); clearTimeout(t2); };
-  }, [room?.id]); // نعتمد فقط على id الغرفة لتجنب إعادة التشغيل
-
-  // fallback: إذا تأخر تحميل الغرفة أكثر من 4 ثوانٍ، ادخل مباشرة
-  useEffect(() => {
-    const fallback = setTimeout(() => setPhase("done"), 4000);
-    return () => clearTimeout(fallback);
-  }, []);
 
   if (phase === "done") return <>{children}</>;
 
