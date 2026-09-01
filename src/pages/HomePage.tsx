@@ -136,10 +136,16 @@ export default function HomePage({ onRoomSelect, setCurrentPage, onUserSelect, o
   useEffect(() => {
     const fetchRooms = async () => {
       const { data } = await supabase.from('rooms').select('*').order('created_at', { ascending: false });
-      if (data) setRooms(data);
+      if (data) {
+        setRooms(data);
+        if (profile) {
+          const owned = data.find(r => r.owner_id === profile.user_id);
+          if (owned) setMyRoom(owned);
+        }
+      }
     };
     fetchRooms();
-  }, []);
+  }, [profile]);
 
   const [selectedCountry, setSelectedCountry] = useState("all");
   const [currentBanner, setCurrentBanner] = useState(0);

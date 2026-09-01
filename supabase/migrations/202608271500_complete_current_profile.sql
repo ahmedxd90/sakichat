@@ -51,7 +51,10 @@ begin
 
   for v_attempt in 1..25 loop
     if v_saki_id is null then
-      v_saki_id := (floor(random() * 900000) + 100000)::integer::text;
+      -- Generate a 9-digit Saki ID starting from 964353154
+      -- Logic: Start with 964353154 and add a random offset to ensure uniqueness and 9-digit length
+      -- Range: 964,353,154 to 999,999,999 (roughly 35 million possible IDs)
+      v_saki_id := (964353154 + floor(random() * (999999999 - 964353154 + 1)))::bigint::text;
     end if;
 
     begin

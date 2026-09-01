@@ -45,6 +45,19 @@ export default function CreateRoomPage({ onBack, onSuccess }: CreateRoomPageProp
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("يجب تسجيل الدخول أولاً");
 
+      // Check if user already owns a room
+      const { data: existingRoom } = await supabase
+        .from('rooms')
+        .select('id')
+        .eq('owner_id', user.id)
+        .maybeSingle();
+
+      if (existingRoom) {
+        toast.info("لديك غرفة بالفعل، سيتم توجيهك إليها");
+        onSuccess(existingRoom.id);
+        return;
+      }
+
       let coverUrl = profile.avatar_url || "";
       if (coverFile) {
         const fileExt = coverFile.name.split('.').pop();
