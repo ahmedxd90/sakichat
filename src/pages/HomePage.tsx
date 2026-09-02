@@ -246,13 +246,13 @@ export default function HomePage({ onRoomSelect, setCurrentPage, onUserSelect, o
             onClick={() => goToSubPage("leaderboard")}
             className="w-10 h-10 flex items-center justify-center active:scale-95 transition-transform"
           >
-            <img src="/manus-storage/icon_main_ranking_be20fc77.webp" alt="" className="w-7 h-7 object-contain" />
+            <img src="/assets/icons/icon_main_ranking.webp" alt="" className="w-7 h-7 object-contain" />
           </button>
           <button
             onClick={openSearch}
             className="w-10 h-10 flex items-center justify-center active:scale-95 transition-transform"
           >
-            <img src="/manus-storage/icon_main_search_963dde8c.webp" alt="" className="w-7 h-7 object-contain" />
+            <img src="/assets/icons/icon_main_search.webp" alt="" className="w-7 h-7 object-contain" />
           </button>
         </div>
 

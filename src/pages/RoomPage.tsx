@@ -842,7 +842,7 @@ function RoomPageInner({ roomId, onBack, onBackgroundLeave, onViewProfile, onMes
       )}
 
       {/* ── ADMIN LOCK SCREEN ── */}
-      {adminLockStatus?.isAdminLocked && (
+      {room?.is_admin_locked && (
         <AdminRoomLockScreen roomId={roomId} onBack={onBack} />
       )}
 

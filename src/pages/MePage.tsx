@@ -250,7 +250,7 @@ export default function MePage({
       </header>
 
       <main className="me-shell">
-        <section className="profile-hero relative overflow-hidden rounded-[32px] mb-6 pt-10 pb-6 px-4" style={{ backgroundImage: "url('/manus-storage/icon_user_detail_home_bg_4de2dd22.webp')", backgroundSize: "cover", backgroundPosition: "center" }}>
+        <section className="profile-hero relative overflow-hidden rounded-[32px] mb-6 pt-10 pb-6 px-4" style={{ backgroundImage: "url('/assets/icons/icon_user_detail_home_bg.webp')", backgroundSize: "cover", backgroundPosition: "center" }}>
           <div className="absolute inset-0 bg-black/20" />
           <div className="relative z-10 flex flex-col items-center">
             <button type="button" onClick={onOpenProfile} className="avatar-button item-press mb-4" aria-label="فتح الملف الشخصي">
@@ -270,19 +270,19 @@ export default function MePage({
 
         <section className="quick-grid">
           <button type="button" className="quick-card item-press" onClick={onOpenWallet}>
-            <img src="/manus-storage/me_icon_recharge_394d23a1.webp" alt="" className="w-10 h-10 object-contain" />
+            <img src="/assets/icons/me_icon_recharge.webp" alt="" className="w-10 h-10 object-contain" />
             <span>المحفظة</span>
           </button>
           {hasActiveCp && <button type="button" className="quick-card item-press" onClick={() => onOpenCpHome?.()}>
-            <img src="/manus-storage/me_icon_confession_d1f15531.webp" alt="" className="w-10 h-10 object-contain" />
+            <img src="/assets/icons/me_icon_confession.webp" alt="" className="w-10 h-10 object-contain" />
             <span>بيت الحب</span>
           </button>}
           <button type="button" className="quick-card item-press" onClick={onOpenStore}>
-            <img src="/manus-storage/me_icon_package_5bb1263b.webp" alt="" className="w-10 h-10 object-contain" />
+            <img src="/assets/icons/me_icon_package.webp" alt="" className="w-10 h-10 object-contain" />
             <span>المتجر</span>
           </button>
           <button type="button" className="quick-card item-press" onClick={onOpenLevel}>
-            <img src="/manus-storage/me_icon_level_42eaf98e.webp" alt="" className="w-10 h-10 object-contain" />
+            <img src="/assets/icons/me_icon_level.webp" alt="" className="w-10 h-10 object-contain" />
             <span>المستوى</span>
           </button>
         </section>
@@ -308,41 +308,41 @@ export default function MePage({
         )}
 
         <section className="menu-card">
-          <MenuItem iconUrl="/manus-storage/me_icon_bill_75af1506.webp" label="المحفظة" action={onOpenWallet} value={`${formatNumber(profile.gold_coins)} عملة`} />
+          <MenuItem iconUrl="/assets/icons/me_icon_bill.webp" label="المحفظة" action={onOpenWallet} value={`${formatNumber(profile.gold_coins)} عملة`} />
           <div className="menu-divider" />
-          <MenuItem iconUrl="/manus-storage/me_icon_package_5bb1263b.webp" label="المتجر" action={onOpenStore} />
+          <MenuItem iconUrl="/assets/icons/me_icon_package.webp" label="المتجر" action={onOpenStore} />
           <div className="menu-divider" />
-          <MenuItem iconUrl="/manus-storage/me_icon_aristocracy_4dcace13.webp" label="عضوية PRO" action={onOpenPro} value={isPro ? `مستوى ${proLevel}` : "تفعيل"} />
+          <MenuItem iconUrl="/assets/icons/me_icon_aristocracy.webp" label="عضوية PRO" action={onOpenPro} value={isPro ? `مستوى ${proLevel}` : "تفعيل"} />
           <div className="menu-divider" />
-          <MenuItem iconUrl="/manus-storage/me_icon_confession_d1f15531.webp" label="بيت الحب" action={onOpenCpHome} isNew />
+          <MenuItem iconUrl="/assets/icons/me_icon_confession.webp" label="بيت الحب" action={onOpenCpHome} isNew />
         </section>
 
         <section className="menu-card">
-          <MenuItem iconUrl="/manus-storage/me_icon_level_42eaf98e.webp" label="المستوى" action={onOpenLevel} badge={`Lv.${displayLevel}`} />
+          <MenuItem iconUrl="/assets/icons/me_icon_level.webp" label="المستوى" action={onOpenLevel} badge={`Lv.${displayLevel}`} />
           <div className="menu-divider" />
-          <MenuItem iconUrl="/manus-storage/me_icon_medal_1ef471d3.webp" label="الشارات" action={() => setShowBadges(true)} value={`${badges.length} وسام`} />
+          <MenuItem iconUrl="/assets/icons/me_icon_medal.webp" label="الشارات" action={() => setShowBadges(true)} value={`${badges.length} وسام`} />
           <div className="menu-divider" />
-          <MenuItem iconUrl="/manus-storage/me_icon_earnings_d2019d22.webp" label="وكالة المضيفين" action={onOpenFamily} />
+          <MenuItem iconUrl="/assets/icons/me_icon_earnings.webp" label="وكالة المضيفين" action={onOpenFamily} />
         </section>
 
         {isAgent && (
           <section className="menu-card">
-            <MenuItem iconUrl="/manus-storage/me_icon_recharge_394d23a1.webp" label="لوحة وكيل الشحن" action={onOpenAgent} />
+            <MenuItem iconUrl="/assets/icons/me_icon_recharge.webp" label="لوحة وكيل الشحن" action={onOpenAgent} />
           </section>
         )}
 
         {isSuperAdmin && (
           <section className="menu-card">
-            <MenuItem iconUrl="/manus-storage/me_icon_game_5dcc19b0.webp" label="لوحة التحكم" action={onOpenAdminDashboard} />
+            <MenuItem iconUrl="/assets/icons/me_icon_game.webp" label="لوحة التحكم" action={onOpenAdminDashboard} />
           </section>
         )}
 
         <section className="menu-card">
-          <MenuItem iconUrl="/manus-storage/me_icon_invitation_cfc4b509.webp" label="دعوة الأصدقاء" action={() => setShowInvite(true)} />
+          <MenuItem iconUrl="/assets/icons/me_icon_invitation.webp" label="دعوة الأصدقاء" action={() => setShowInvite(true)} />
           <div className="menu-divider" />
-          <MenuItem iconUrl="/manus-storage/me_icon_relation_f90406a4.webp" label="اللغة" action={() => setShowLanguageModal(true)} value={lang === "en" ? "English" : "العربية"} />
+          <MenuItem iconUrl="/assets/icons/me_icon_relation.webp" label="اللغة" action={() => setShowLanguageModal(true)} value={lang === "en" ? "English" : "العربية"} />
           <div className="menu-divider" />
-          <MenuItem iconUrl="/manus-storage/me_icon_setting_2a9ef1ad.webp" label="الإعدادات" action={onOpenSettings} />
+          <MenuItem iconUrl="/assets/icons/me_icon_setting.webp" label="الإعدادات" action={onOpenSettings} />
         </section>
 
         <p className="me-version">{lang === "en" ? "Version 2.0.0" : "الإصدار 2.0.0"}</p>

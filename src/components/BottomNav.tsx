@@ -47,10 +47,10 @@ export default function BottomNav({ currentPage, setCurrentPage }: {
   const { tr } = useLang();
 
   const tabs = [
-    { id: "home" as Page, label: tr("nav_home"), icon: "/manus-storage/ic_main_tab_home_07979407.webp", activeIcon: "/manus-storage/ic_main_tab_home_pressed_57d544d5.webp" },
-    { id: "moments" as Page, label: tr("nav_moments"), icon: "/manus-storage/ic_main_tab_dynamic_c9aac6db.webp", activeIcon: "/manus-storage/ic_main_tab_dynamic_pressed_8d3bb87d.webp" },
-    { id: "messages" as Page, label: tr("nav_messages"), icon: "/manus-storage/ic_main_tab_msg_c003a859.webp", activeIcon: "/manus-storage/ic_main_tab_msg_pressed_48037cfd.webp" },
-    { id: "me" as Page, label: tr("nav_me"), icon: "/manus-storage/ic_main_tab_me_f27ecc82.webp", activeIcon: "/manus-storage/ic_main_tab_me_pressed_dcb40fe8.webp" },
+    { id: "home" as Page, label: tr("nav_home"), icon: "/assets/icons/ic_main_tab_home.webp", activeIcon: "/assets/icons/ic_main_tab_home_pressed.webp" },
+    { id: "moments" as Page, label: tr("nav_moments"), icon: "/assets/icons/ic_main_tab_dynamic.webp", activeIcon: "/assets/icons/ic_main_tab_dynamic_pressed.webp" },
+    { id: "messages" as Page, label: tr("nav_messages"), icon: "/assets/icons/ic_main_tab_msg.webp", activeIcon: "/assets/icons/ic_main_tab_msg_pressed.webp" },
+    { id: "me" as Page, label: tr("nav_me"), icon: "/assets/icons/ic_main_tab_me.webp", activeIcon: "/assets/icons/ic_main_tab_me_pressed.webp" },
   ];
 
   return (

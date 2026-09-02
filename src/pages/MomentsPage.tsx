@@ -274,7 +274,7 @@ export default function MomentsPage({ setCurrentPage, onUserSelect }: { setCurre
             </div>
 
             <button type="button" onClick={() => setCurrentPage("create-moment")} className="active:scale-95 transition-transform" aria-label="إنشاء منشور">
-              <img src="/manus-storage/ic_dynamic_message_0fc3d5d9.webp" alt="" className="w-8 h-8 object-contain" />
+              <img src="/assets/icons/ic_dynamic_message.webp" alt="" className="w-8 h-8 object-contain" />
             </button>
           </div>
         </header>
