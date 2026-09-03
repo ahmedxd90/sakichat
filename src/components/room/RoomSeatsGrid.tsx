@@ -9,8 +9,8 @@ import SVGAPlayer from "../SVGAPlayer";
 
 const VOICE_RIPPLE_SRC = "/assets/voice-ripple-purple.svga";
 
-const ROYAL_OPEN_SEAT_21_22 = "/manus-storage/royal-seat-open-21-22_b29cd006.png";
-const ROYAL_LOCKED_SEAT_21_22 = "/manus-storage/royal-seat-locked-21-22_cc0cafc8.png";
+const ROYAL_OPEN_SEAT_21_22 = "/assets/icons/bg_seat_preview_carnival.webp";
+const ROYAL_LOCKED_SEAT_21_22 = "/assets/icons/icon_seat_game_close.webp";
 
 function RoyalSeatArt({ locked = false, size = 56 }: { locked?: boolean; size?: number }) {
   const id = locked ? "royal-seat-locked" : "royal-seat-open";

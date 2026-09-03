@@ -859,7 +859,7 @@ function RoomPageInner({ roomId, onBack, onBackgroundLeave, onViewProfile, onMes
             className="absolute inset-0 h-full w-full object-cover object-center"
             style={{ display: "block", minHeight: "100%", minWidth: "100%" }}
             onError={(event) => {
-              const fallback = "/manus-storage/royal-room-theme-background_ff35c240.webp";
+              const fallback = "/assets/icons/bg_seat_preview_carnival.webp";
               if (event.currentTarget.src !== `${window.location.origin}${fallback}`) event.currentTarget.src = fallback;
               else event.currentTarget.style.display = "none";
             }}

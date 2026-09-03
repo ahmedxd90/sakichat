@@ -17,7 +17,7 @@ const CATEGORIES = [
   { id: "acting", label: "تمثيل", icon: "🎭", color: "bg-indigo-50 text-indigo-600" },
 ];
 
-const ROYAL_THEME_BACKGROUND = "/manus-storage/royal-room-theme-background_1556092d.png";
+const ROYAL_THEME_BACKGROUND = "/assets/icons/bg_seat_preview_carnival.webp";
 
 const THEMES = [
   { key: "luxury_white", theme: "", label: "الافتراضي", gradient: "linear-gradient(135deg,#ffffff,#fff7ed)", isLuxury: true },
@@ -299,7 +299,7 @@ export default function RoomSettingsPage({ roomId, onBack }: RoomSettingsPagePro
                 <p className="text-sm font-black text-amber-200">تخطيط الثيم الملكي</p>
                 <p className="mt-1 text-xs leading-5 text-white/70">مقعدان علويان متجاوران، وأسفلهما 20 مقعدًا في 4 صفوف أفقية، كل صف 5 مقاعد.</p>
               </div>
-              <span className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-2xl border border-amber-300/60 bg-amber-200/10"><img src="/manus-storage/royal-seat-icon_7df7cdad.png" alt="مقعد ملكي" className="h-10 w-10 object-contain" /></span>
+              <span className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-2xl border border-amber-300/60 bg-amber-200/10"><img src="/assets/icons/icon_room_function_seat.webp" alt="مقعد ملكي" className="h-10 w-10 object-contain" /></span>
             </div>
             <div className="mt-4 rounded-2xl border border-amber-300/20 bg-white/5 px-3 py-3 text-[11px] leading-6 text-white/75">عند اختيار الثيم الملكي يطبّق هذا التخطيط تلقائيًا، ولا يوجد خيار تخطيط منفصل.</div>
             <div className="mt-4 flex items-center justify-between rounded-2xl bg-white/5 px-3 py-3">

@@ -1,5 +1,5 @@
 // Saki Karaoke theme: deep violet stage background with a quiet center for seat overlays.
-const KARAOKE_BACKGROUND = "/manus-storage/saki-karaoke-room-bg_465f7a38.png";
+const KARAOKE_BACKGROUND = "/assets/icons/bg_ktv_normal.webp";
 
 export default function KaraokeBackground() {
   return (

@@ -38,7 +38,7 @@ export default function WeeklyStarAdminPanel({ onClose }: { onClose: () => void 
   const [currentGiftId, setCurrentGiftId] = useState<any>(undefined);
   const [nextGiftId, setNextGiftId] = useState<any>(undefined);
   const [title, setTitle] = useState("نجم الأسبوع");
-  const [titleIconUrl, setTitleIconUrl] = useState("/manus-storage/weekly-star-title-icon_b45acd76.png");
+  const [titleIconUrl, setTitleIconUrl] = useState("/assets/icons/icon_week_star.webp");
   const [frameItemId, setFrameItemId] = useState<any>(undefined);
   const [entryItemId, setEntryItemId] = useState<any>(undefined);
   const [aristocracyLevel, setAristocracyLevel] = useState(0);
@@ -56,7 +56,7 @@ export default function WeeklyStarAdminPanel({ onClose }: { onClose: () => void 
     setCurrentGiftId(settings.currentGiftId);
     setNextGiftId(settings.nextGiftId);
     setTitle(settings.title ?? "نجم الأسبوع");
-    setTitleIconUrl(settings.titleIconUrl ?? "/manus-storage/weekly-star-title-icon_b45acd76.png");
+    setTitleIconUrl(settings.titleIconUrl ?? "/assets/icons/icon_week_star.webp");
     setFrameItemId(settings.frameItemId);
     setEntryItemId(settings.entryItemId);
     setAristocracyLevel(settings.aristocracyLevel ?? 0);

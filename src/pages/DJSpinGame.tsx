@@ -124,7 +124,7 @@ export default function DJSpinGame({ roomId, onBack }: { roomId?: string; onBack
 
   return (
     <div className="h-full overflow-y-auto text-white" dir="rtl" style={{ background: "#11001d" }}>
-      <div className="relative min-h-full p-3" style={{ backgroundImage: "linear-gradient(180deg,rgba(17,0,29,.82),rgba(5,8,25,.98)), url('/manus-storage/dj-spin-bg_271a4f55.png')", backgroundSize: "cover", backgroundPosition: "center" }}>
+      <div className="relative min-h-full p-3" style={{ backgroundImage: "linear-gradient(180deg,rgba(17,0,29,.82),rgba(5,8,25,.98)), url('/assets/icons/turntable_pic_banner.webp')", backgroundSize: "cover", backgroundPosition: "center" }}>
         <div className="pointer-events-none absolute inset-0 opacity-50" style={{ background: "radial-gradient(circle at 50% 18%,rgba(255,35,225,.35),transparent 35%),radial-gradient(circle at 10% 60%,rgba(0,229,255,.18),transparent 28%)" }} />
         <div className="relative z-10 mx-auto max-w-md">
           <header className="mb-3 flex items-center justify-between rounded-2xl border border-fuchsia-300/20 bg-black/45 px-3 py-2 backdrop-blur-xl">
